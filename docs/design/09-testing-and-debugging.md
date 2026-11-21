@@ -1,0 +1,31 @@
+# Testing and debugging
+
+Use fixture-driven pytest tests and fake Windows adapters for repeatable behavior. Use Windows manual checks for drivers, launcher behavior, system tray, keyboard registration, and clean installation. Tests and manual evidence are recorded separately in the milestone review.
+
+| Area | Automated evidence | Windows evidence |
+| --- | --- | --- |
+| Library | Parse Steam library and manifests, Epic items, and Xbox inventory with valid, missing, stale, and malformed fixtures. Test manual `.exe` validation, rescans, stable identity, and best-effort failures. | Match real Steam and Epic installations, exercise an available Xbox/Game Pass installation, and add a local executable. |
+| Sessions | Simulate starts, exits, concurrent games, helper processes, PID reuse, inaccessible processes, duplicate samples, and restart recovery with a fake clock and watcher. Verify database rollups and close exactly once. | Start and close a game, inspect tray and timeline, and sample idle CPU while no games run. |
+| Capture | Use frame, clock, and foreground fakes to test interval, order, ring eviction, invalid frames, focus or identity races, finalization, and per-session isolation. Verify that a late callback cannot enter a different game's ring. | Capture ten most recent valid images after more than ten intervals, Alt-Tab and minimize, then move or close the game window. Try an unsupported or black-frame target and check the user-visible behavior. |
+| Audio and hotkeys | Test maximum duration, manual stop, game exit, permission error, identity changes, missing audio, failure before media commit, and conflicting bindings. Verify that failed rebinding leaves the effective previous configuration intact. | Use microphone and playback devices. Record, deny access, enable text fallback, trigger bindings over a focused game, and provoke registration conflict. |
+| Last time and Play | Test prior completed history, independent note selection, launcher dispatch, empty states, autoplay disabled, and deduplication between Play and watcher start. | Play a known Steam title via Steam and via Game Hub. Confirm the visible card and correct data, then exercise fullscreen recovery. |
+| Controls and Timeline | Validate local image decoding and text, game scoping, session chronology, lazy media access, and missing-file recovery. | Pin with the hotkey, upload an image, save text, and inspect sessions and controls across restart. |
+| Settings and UI | Test persisted settings and bounds, catalog key parity, and Qt widget behavior with pytest-qt as needed. Exercise a staged data-folder migration using temporary roots, including rollback and stale or unreadable files. | Inspect all surfaces in both languages, at 100%, 150%, and 200% scaling. Test keyboard focus, startup, and data-folder access. |
+| Storage and packaging | Apply migrations on a temporary database, test constraints and foreign keys, and verify transactional writes and media recovery under interruption. Check package resources and installer artifacts in tag CI. | Install using the release installer and launch the PyInstaller build on Windows without Python. Verify startup and local data across app restarts. |
+
+Use synthetic VDF, ACF, JSON, and Xbox inventory fixtures with fictitious titles and paths. Generate tiny test images and audio programmatically or with in-memory substitutes. Use a temporary SQLite database, temporary media roots, and fake Win32, audio, clock, and launch adapters. Tests must leave real launcher directories, global hotkeys, user data, and installed games alone.
+
+Try launcher metadata with malformed identifiers, URI delimiters, arbitrary schemes, injected arguments, traversal, and device paths. Assert launch requests remain typed and use fixed URI templates or a validated executable. For media reads, writes and cleanup, use synthetic traversal paths and Windows fixtures involving junctions, links and changed paths. Assert the operation leaves anything outside the managed root untouched.
+
+Inject a migration failure after the schema statements and before transaction completion. Reopen the database and verify that the schema and version both rolled back, then retry. When implementing v2 backup, stage a snapshot while another session appends and evicts screenshots. Verify the archive describes exactly the staged snapshot and that a missing referenced file is reported before publishing it.
+
+For M2 idle measurement, leave Game Hub in the tray for 30 seconds with no known games running and then sample its process CPU time over 120 seconds. Divide the CPU-time increase by elapsed wall time to express use as a percentage of one logical core. Use at most 1% as the design acceptance budget and record the OS, CPU, observed average and polling interval. Verify there are no capture or audio jobs during the sample.
+
+## Debugging workflow
+
+1. Run `python -m pytest -q` for the full suite, then target the implicated test file or `-k` filter. Run `python -m ruff check .` before review.
+2. Reproduce the symptom using the corresponding [manual check](../TESTING.md). Record app version, Windows version, expected and actual outcome, and adapter status. Redact real paths, titles, notes, and media before sharing evidence.
+3. Inspect the local rotating `logs\gamehub.log` under the effective data folder. Log adapter operation, safe identifiers, and actionable error codes. Exclude voice and text content, raw manifests, and identifying absolute paths.
+4. For a missing game, inspect detector result and executable matching. For stale playtime, check identity and lifecycle transitions. For missing shots, check focus, minimization, exact window identity, capture support, and image validity. For audio and bindings, check Windows microphone access, selected input availability, and binding conflict status. For missing database rows or media, check migration state, available storage, and reconciliation results before touching user files.
+
+The QA role blocks milestone approval when applicable tests fail. A fixture result cannot establish compatibility with a real launcher, game, microphone, or clean Windows installation. Record any missing environment evidence and its impact explicitly.

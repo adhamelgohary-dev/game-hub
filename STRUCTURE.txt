@@ -1,0 +1,250 @@
+==================================================================
+GAME HUB — PROJECT STRUCTURE & BUILD PLAN
+Version: v1 (Module 1: "Previously On" — Game Memory)
+Language of code/docs: English. App UI: Arabic + English.
+==================================================================
+
+------------------------------------------------------------------
+1. THE PROBLEM
+------------------------------------------------------------------
+I play single-player story games. When I stop for a few weeks (midterms,
+finals), I forget everything: the story, where I was, what I was doing,
+and even how to fight / the controls. I often restart the whole game.
+
+------------------------------------------------------------------
+2. THE PRODUCT (BIG PICTURE)
+------------------------------------------------------------------
+Game Hub is ONE Windows desktop app (.exe) with modules that share a
+common core (knowing which games are installed and when they run):
+
+  Module 1 (THIS BUILD, v1): "Previously On" — Game Memory
+  Module 2 (LATER):          Launch Doctor — diagnose why a game won't start
+  Module 3 (LATER):          Mods & Arabic Translations installer
+                             (install / uninstall patches per game with backup)
+
+v1 builds the core + Module 1 only. The architecture MUST make modules
+2 and 3 easy to add later (plugin-style module folders), but do NOT build
+them now.
+
+------------------------------------------------------------------
+3. v1 SCOPE — WHAT IT DOES
+------------------------------------------------------------------
+3.1 Game library detection
+  - Auto-detect installed games from:
+      * Steam (libraryfolders.vdf + appmanifest_*.acf)
+      * Epic Games (ProgramData\Epic\EpicGamesLauncher\Data\Manifests\*.item JSON)
+      * Xbox App / Game Pass (XboxGames folders + installed game packages;
+        best effort — document limitations)
+      * Manual add: user picks any .exe (games outside any launcher)
+  - Library page lists games (name, source, install path, last played,
+    total playtime). Cover images if available locally (optional).
+
+3.2 Session tracking
+  - Background process watcher detects when a known game starts and stops.
+  - Records session start/end and playtime.
+  - Runs from the system tray. Optional "start with Windows".
+
+3.3 Screenshots while playing
+  - Every 30 seconds (configurable) capture the GAME WINDOW only, and only
+    while the game window is in the foreground.
+  - Keep a ring buffer of the last 10 captures (configurable). When the
+    session ends, those last 10 become the session's "last moments".
+  - Capture must be non-invasive (Windows Graphics Capture or DXGI desktop
+    duplication — like OBS). NO injection into game processes
+    (anti-cheat safety).
+
+3.4 Notes (voice or text)
+  - When a game closes: an OPTIONAL small popup "Record a note?"
+    -> record voice (30–60s) OR type a text note, or dismiss.
+  - Global hotkey while playing (default Ctrl+Alt+N): start/stop a voice
+    note at any moment, attached to the current session.
+
+3.5 "Last time" card (the core feature)
+  - When a known game starts (from ANY launcher), show a small always-on-top
+    card:
+      * Last voice note — auto-plays (setting can disable)
+      * Last text note
+      * Last screenshots (carousel)
+      * Last played date + total playtime
+      * Controls card (see 3.6)
+  - Global hotkey to reopen the card anytime (default Ctrl+Alt+L),
+    because fullscreen games may hide it.
+  - Every game page also has a "Play" button: shows the card first, then
+    launches the game (via steam://, Epic URI, or exe).
+
+3.6 Controls card
+  - Per game: pin screenshots of the game's controls screen
+    (hotkey default Ctrl+Alt+C while playing, or upload an image)
+    + free text notes ("parry = Q, dodge = Space, boss weak to fire").
+
+3.7 Timeline
+  - Per-game page: all sessions in order (date, duration, screenshots,
+    notes) so I can scroll back through my progress.
+
+3.8 Settings
+  - Language: Arabic / English (full RTL layout for Arabic).
+  - Screenshot interval, buffer size, auto-play voice note on/off,
+    popup on close on/off, hotkeys, start with Windows, data folder.
+
+------------------------------------------------------------------
+4. OUT OF SCOPE FOR v1 (DO NOT BUILD)
+------------------------------------------------------------------
+  - Video replay buffer (last 30–40s video)            -> v2
+  - Google Drive sync/backup of data                    -> v2
+  - Voice note transcription (local Whisper)            -> v3
+  - Launch Doctor module                                -> later
+  - Mods/Translations module                            -> later
+  - In-game overlay injected into games                 -> never (anti-cheat risk)
+  - Any cloud service, accounts, telemetry, paid APIs   -> never in v1
+
+------------------------------------------------------------------
+5. TECH STACK
+------------------------------------------------------------------
+  - Python 3.12+
+  - UI: PySide6 (Qt) + system tray (QSystemTrayIcon)
+  - Process watching: psutil (polling every 2–3s; keep CPU near zero)
+  - Foreground window / window rect: pywin32 or ctypes (Win32 API)
+  - Screen capture: windows-capture (WGC) or dxcam (DXGI) — architect decides
+  - Images: Pillow (save as WebP/JPEG, small size)
+  - Audio record: sounddevice + soundfile (save .ogg or .flac)
+  - Audio playback: QtMultimedia (QMediaPlayer)
+  - Global hotkeys: Win32 RegisterHotKey via ctypes (no admin needed)
+  - Storage: SQLite (sqlite3) + media folder
+  - Steam VDF parsing: `vdf` package (or small custom parser)
+  - i18n: Qt translation files or JSON string tables; Qt RTL layout
+  - Tests: pytest (+ pytest-qt where useful)
+  - Packaging: PyInstaller (one-folder build) -> GameHub.exe
+               optional Inno Setup installer
+  - CI: GitHub Actions — run tests on push; build .exe artifact on tag
+
+------------------------------------------------------------------
+6. DATA STORAGE
+------------------------------------------------------------------
+  - Code: PRIVATE GitHub repository "game-hub", created and pushed by the AI.
+  - User data (NOT in git): %LOCALAPPDATA%\GameHub\
+        gamehub.db            (SQLite)
+        media\<game_id>\<session_id>\shot_001.webp ... note_01.ogg
+        media\<game_id>\controls\...
+        logs\gamehub.log
+  - .gitignore must exclude all user data, media, builds, venvs.
+
+Suggested tables (architect may refine):
+  games(id, name, source[steam|epic|xbox|manual], source_id, exe_path,
+        install_dir, cover_path, added_at, hidden)
+  sessions(id, game_id, started_at, ended_at, duration_sec)
+  screenshots(id, session_id, path, captured_at, is_last_moment)
+  notes(id, session_id, game_id, kind[voice|text], path_or_text,
+        created_at, source[popup|hotkey])
+  controls(id, game_id, kind[image|text], path_or_text, created_at)
+  settings(key, value)
+
+------------------------------------------------------------------
+7. ARCHITECTURE (SUGGESTED — architect finalizes)
+------------------------------------------------------------------
+gamehub/
+  app.py                 # entry point, tray, single-instance lock
+  core/
+    library/             # detectors: steam.py, epic.py, xbox.py, manual.py
+    sessions/            # process watcher + session state machine
+    capture/             # screenshot service + ring buffer
+    audio/               # recorder / player helpers
+    hotkeys/             # global hotkey manager
+    storage/             # db.py (schema, migrations), repositories, paths
+    events.py            # simple event bus (game_started, game_stopped, ...)
+    settings.py
+    i18n/                # ar.json, en.json (or .ts/.qm)
+  modules/
+    memory/              # Module 1: card, popup, timeline, controls
+    # launch_doctor/     # (future)
+    # mods/              # (future)
+  ui/
+    main_window.py, library_view.py, game_page.py, settings_view.py,
+    widgets/, resources/
+tests/
+  fixtures/              # sample libraryfolders.vdf, appmanifest, .item files
+docs/
+  reviews/               # Review Council reports per milestone
+packaging/
+  gamehub.spec, installer.iss
+PROGRESS.md  HANDOFF.md  DECISIONS.md  LEARNING.md  AGENTS.md  README.md
+
+Key principle: modules talk to core through the event bus + repositories,
+never directly to each other. Module 2/3 = new folder under modules/.
+
+------------------------------------------------------------------
+8. MILESTONES (each ends with tests + Review Council + PROGRESS update)
+------------------------------------------------------------------
+M0 Setup
+   Repo skeleton, venv/requirements, pytest, lint (ruff), .gitignore,
+   AGENTS.md, PROGRESS.md, HANDOFF.md, DECISIONS.md, LEARNING.md,
+   GitHub Actions running tests.
+   DONE WHEN: `pytest` passes in CI; app window + tray icon open.
+
+M1 Library detection
+   Steam, Epic, Xbox (best effort), manual add. Library page.
+   DONE WHEN: unit tests parse fixture files; my real installed games show
+   up; manual add works; results stored in SQLite.
+
+M2 Session tracking
+   Process watcher, session start/end, playtime, tray status.
+   DONE WHEN: starting/closing a game creates a correct session row;
+   CPU usage of watcher stays negligible.
+
+M3 Screenshots
+   Foreground-only capture of the game window every N seconds, ring buffer,
+   "last moments" saved at session end.
+   DONE WHEN: after a session, last 10 screenshots exist and display;
+   no capture happens when the game is minimized / not focused.
+
+M4 Notes
+   End-of-session popup (voice or text, optional), global hotkey voice note.
+   DONE WHEN: notes saved & linked to the right session; hotkey works while
+   a game is focused; mic permission errors handled gracefully.
+
+M5 "Last time" card + Play button
+   Card on game start (any launcher), auto-play last voice note,
+   reopen hotkey, Play button (card then launch).
+   DONE WHEN: launching a game from Steam shows the card with correct data.
+
+M6 Controls card + Timeline
+   DONE WHEN: pin controls via hotkey/upload; timeline lists all sessions.
+
+M7 Settings + Arabic/English (RTL)
+   DONE WHEN: switching language flips all UI text and layout direction.
+
+M8 Packaging & release
+   PyInstaller build, optional installer, GitHub Actions release on tag,
+   README with screenshots + user guide (EN + AR).
+   DONE WHEN: GameHub.exe runs on a clean Windows machine with no Python.
+
+------------------------------------------------------------------
+9. QUALITY RULES
+------------------------------------------------------------------
+  - Tests for all parsers, storage, and the session state machine.
+  - Manual test checklist for capture, audio, hotkeys, card (docs/TESTING.md).
+  - Never crash because one launcher is missing or a file is malformed —
+    log and continue.
+  - Low resource use: idle CPU ~0%, capture only while playing.
+  - Privacy: everything local; no network calls in v1.
+  - No secrets or personal data committed to git.
+
+------------------------------------------------------------------
+10. RISKS & NOTES
+------------------------------------------------------------------
+  - Fullscreen exclusive games may hide the card -> hotkey + Play button.
+  - Xbox/Game Pass detection is harder (WindowsApps permissions) -> best
+    effort, documented.
+  - Some games block capture (protected content / black frames) -> detect
+    black frames and skip them, log it.
+  - Global hotkeys may conflict with games -> configurable.
+  - Anti-cheat: capture via WGC/DXGI only; never inject DLLs or hook games.
+
+------------------------------------------------------------------
+11. FUTURE ROADMAP
+------------------------------------------------------------------
+  v2: Own replay buffer (last 30–40s video via ffmpeg + NVENC or OBS
+      websocket) — because NVIDIA Instant Replay keeps turning itself off;
+      Google Drive backup of game memories.
+  v3: Local transcription of voice notes (faster-whisper on RTX 4050);
+      search inside notes.
+  Module 2: Launch Doctor. Module 3: Mods & Arabic Translations installer.
