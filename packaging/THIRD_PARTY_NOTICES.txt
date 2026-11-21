@@ -1,0 +1,29 @@
+Game Hub third-party notices
+
+The Game Hub application source is all rights reserved, private for now.
+The components below retain their own licenses. Their license texts are
+included alongside this notice.
+
+CPython is distributed under the Python Software Foundation and associated
+licenses. Its source releases are available at https://www.python.org/downloads/.
+
+Qt and Qt for Python (PySide6 Essentials and Shiboken) are redistributed
+under the GNU Lesser General Public License version 3, with bundled Qt
+components retaining applicable license terms. The corresponding Qt 6.12.0
+and Qt for Python 6.12.0 sources may be obtained from these locations.
+
+https://download.qt.io/archive/qt/6.12/6.12.0/single/
+https://code.qt.io/cgit/pyside/pyside-setup.git/tag/?h=v6.12.0
+
+The Qt subfolder includes the LGPLv3 and GPLv3 texts independently of
+the wheel metadata. Qt's component attribution is also available online.
+https://doc.qt.io/qt-6/licenses-used-in-qt.html
+
+The installation and the portable bundle keep Qt and PySide files separate
+from the program executable under _internal. You may replace the LGPL
+libraries with interface-compatible modified versions. The Game Hub terms
+allow reverse engineering for debugging such modifications.
+
+The executable uses the PyInstaller bootloader with its distribution
+exception. Source and component notices are available from the project.
+https://pyinstaller.org/en/stable/license.html

@@ -11,12 +11,14 @@
 - ⬜ M7 — Settings and Arabic/English [complex]
 - ⬜ M8 — Packaging and release [complex]
 
-**Current task** — Initialize main, create and verify the private remote, then build and verify the setup release.
+**Current task** — Run M0 tests, verify packaging, and publish the setup release when the gates pass.
 
 **Last completed**
 
 - Completed eleven design files and the Windows manual checklist.
 - Recorded overall plan approval and Milestone D approval after re-review.
 - Verified that the design index and local document links resolve.
+- Created the PRIVATE repository and pushed the approved design to main.
+- Drafted the M0 starter window, tray, tests, installer, and Windows workflow.
 
-**Tests** — Design links pass. Runtime tests start in M0.
+**Tests** — Design links and Python compilation pass. M0 pytest, Ruff, native tray, and package checks are pending.

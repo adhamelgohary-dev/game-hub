@@ -1,0 +1,62 @@
+from importlib.metadata import distribution
+from os import environ
+from pathlib import Path
+import sys
+
+
+root = Path(SPECPATH).resolve().parent
+notice_dir = 'third-party'
+notices = [(str(root / 'packaging' / 'THIRD_PARTY_NOTICES.txt'), notice_dir)]
+for name in ('GPL-3.0.txt', 'LGPL-3.0.txt'):
+    notices.append((str(root / 'packaging' / 'licenses' / name), f'{notice_dir}/Qt'))
+
+python_license = Path(sys.base_prefix) / 'LICENSE.txt'
+if not python_license.is_file() and environ.get('GAMEHUB_CPYTHON_LICENSE'):
+    python_license = Path(environ['GAMEHUB_CPYTHON_LICENSE'])
+if not python_license.is_file():
+    raise FileNotFoundError(f'CPython license file is missing: {python_license}')
+notices.append((str(python_license), f'{notice_dir}/CPython'))
+
+for package in ('PySide6-Essentials', 'shiboken6', 'PyInstaller'):
+    installed = distribution(package)
+    license_files = [
+        file for file in installed.files or ()
+        if any(part.endswith('.dist-info') for part in file.parts)
+        and (
+            'licenses' in file.parts
+            or file.name.lower().startswith(('license', 'copying', 'notice'))
+        )
+        and file.name != 'LicenseRef-Qt-Commercial.txt'
+        and file.locate().is_file()
+    ]
+    if not license_files and package == 'PyInstaller':
+        raise FileNotFoundError(f'Installed wheel has no license files: {package}')
+    for file in license_files:
+        metadata_index = next(
+            index for index, part in enumerate(file.parts) if part.endswith('.dist-info')
+        )
+        directory = Path(notice_dir, package, *file.parts[metadata_index + 1:-1])
+        notices.append((str(file.locate()), str(directory)))
+
+analysis = Analysis(
+    [str(root / 'gamehub' / 'app.py')],
+    pathex=[str(root)],
+    datas=notices,
+)
+archive = PYZ(analysis.pure)
+exe = EXE(
+    archive,
+    analysis.scripts,
+    [],
+    exclude_binaries=True,
+    name='GameHub',
+    console=False,
+    upx=False,
+)
+collect = COLLECT(
+    exe,
+    analysis.binaries,
+    analysis.datas,
+    name='GameHub',
+    upx=False,
+)

@@ -1,0 +1,142 @@
+name: Windows
+
+on:
+  push:
+    branches: ['**']
+    tags: ['m[0-8]']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests and lint
+    runs-on: windows-2025
+    timeout-minutes: 10
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests
+        run: python -m pytest
+      - name: Lint
+        run: python -m ruff check .
+      - name: Smoke test source application
+        run: python -m gamehub.app --smoke-test
+
+  release:
+    name: Build and publish release
+    if: github.ref_type == 'tag'
+    needs: test
+    runs-on: windows-2025
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Build the portable application
+        run: |
+          $python = python -c 'import sys; print(sys.base_prefix); print(sys.version.split()[0])'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not identify the CPython installation.' }
+          if (!(Test-Path -LiteralPath (Join-Path $python[0] 'LICENSE.txt') -PathType Leaf)) {
+            $env:GAMEHUB_CPYTHON_LICENSE = Join-Path $env:RUNNER_TEMP 'LICENSE.txt'
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/python/cpython/v$($python[1])/LICENSE" `
+              -OutFile $env:GAMEHUB_CPYTHON_LICENSE -TimeoutSec 30
+          }
+          python -m PyInstaller --noconfirm --clean packaging/gamehub.spec
+          if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)." }
+          Compress-Archive -LiteralPath dist/GameHub -DestinationPath dist/GameHub-Windows-x64.zip
+      - name: Build the per-user installer
+        run: |
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            throw 'Inno Setup 6 is unavailable on this runner.'
+          }
+          $tag = $env:GITHUB_REF_NAME
+          $version = if ($tag -eq 'm8') { '1.0.0' } else { "0.1.$($tag.Substring(1))" }
+          & $compiler "/DAppVersion=$version" 'packaging/installer.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)." }
+      - name: Smoke test the extracted portable package and installed application
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          function Test-GameHub($applicationDir) {
+            $exe = Join-Path $applicationDir 'GameHub.exe'
+            $notice = Join-Path $applicationDir '_internal/third-party/THIRD_PARTY_NOTICES.txt'
+            if (!(Test-Path -LiteralPath $notice -PathType Leaf)) {
+              throw "The application package is missing third-party notices: $applicationDir"
+            }
+            $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' `
+              -WorkingDirectory $env:RUNNER_TEMP -WindowStyle Hidden -Wait -PassThru
+            if ($process.ExitCode -ne 0) { throw "Game Hub smoke test failed ($($process.ExitCode))." }
+          }
+
+          $portable = Join-Path $env:RUNNER_TEMP 'Game Hub Portable'
+          Expand-Archive -LiteralPath dist/GameHub-Windows-x64.zip -DestinationPath $portable
+          Test-GameHub (Join-Path $portable 'GameHub')
+
+          $installed = Join-Path $env:RUNNER_TEMP 'Game Hub Installed'
+          $setup = (Resolve-Path -LiteralPath dist/GameHub-Setup.exe).Path
+          $installerArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /DIR="{0}"' -f $installed
+          $process = Start-Process -FilePath $setup -ArgumentList $installerArgs `
+            -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Game Hub installation failed ($($process.ExitCode))." }
+          Test-GameHub $installed
+      - name: Publish Windows assets in the private repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo = $env:GITHUB_REPOSITORY
+          $tag = $env:GITHUB_REF_NAME
+          $visibility = gh repo view $repo --json visibility --jq .visibility
+          if ($LASTEXITCODE -ne 0 -or $visibility -ne 'PRIVATE') {
+            throw 'GitHub did not confirm PRIVATE visibility. Release stopped.'
+          }
+
+          $changelog = Get-Content -LiteralPath CHANGELOG.md -Raw
+          $pattern = '(?ms)^##[ \t]+{0}[ \t]*\r?\n(.*?)(?=^##[ \t]+|\z)' -f [regex]::Escape($tag)
+          $match = [regex]::Match($changelog, $pattern)
+          if (!$match.Success -or [string]::IsNullOrWhiteSpace($match.Groups[1].Value)) {
+            throw "CHANGELOG.md needs a nonempty ## $tag section."
+          }
+          $notesPath = Join-Path $env:RUNNER_TEMP 'game-hub-release-notes.md'
+          Set-Content -LiteralPath $notesPath -Value $match.Groups[1].Value.Trim() -Encoding utf8
+          $title = "Game Hub $tag"
+          $assets = @('dist/GameHub-Windows-x64.zip', 'dist/GameHub-Setup.exe')
+          $existing = gh release view $tag --repo $repo --json name,isDraft,assets 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo $repo --verify-tag --title $title --notes-file $notesPath @assets
+          } else {
+            $release = $existing | ConvertFrom-Json
+            if (!$release.isDraft) {
+              $uploaded = @($release.assets | Where-Object state -eq uploaded | ForEach-Object name)
+              foreach ($asset in $assets) {
+                if ((Split-Path -Leaf $asset) -notin $uploaded) {
+                  throw "The published release is missing a required asset: $asset"
+                }
+              }
+              Write-Host "Game Hub $tag is already published with both Windows assets."
+              exit 0
+            }
+            if ($release.name -ne $title) { throw "An unrelated draft exists for $tag." }
+            gh release upload $tag --repo $repo --clobber @assets
+            if ($LASTEXITCODE -ne 0) { throw "GitHub asset upload failed ($LASTEXITCODE)." }
+            gh release edit $tag --repo $repo --draft=false --notes-file $notesPath
+          }
+          if ($LASTEXITCODE -ne 0) { throw "GitHub release failed ($LASTEXITCODE)." }

@@ -6,23 +6,34 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-M0 setup is in progress. Commit the approved design on main, then implement the window, tray, tests, and release pipeline in the order listed in the design plan.
+M0 setup is on `wip/m0-setup`. Run the Python tests, Ruff, source smoke, and PyInstaller spec. Verify the Windows CI check, finish the M0 Council review, fast-forward main to the verified work, then push the m0 tag and verify both private release assets before starting M1.
 
 ## Run the app and tests
 
-M0 introduces the Python package and test suite. Planned commands from the repository root are `python -m gamehub.app` and `python -m pytest -q` using the project virtual environment.
+From the PowerShell repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m gamehub.app
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean packaging/gamehub.spec
+```
 
 ## Project map
 
 - `docs/design/` — requirements, flows, architecture, storage, interfaces and implementation plan.
 - `docs/reviews/` — Council deliberations and verdicts.
 - `docs/TESTING.md` — Windows manual acceptance checklist.
+- `gamehub/app.py` and `gamehub/single_instance.py` — desktop entry point, tray, and local instance control.
+- `tests/test_app.py` — window, local activation, and entry point tests.
+- `packaging/` and `.github/workflows/windows.yml` — Windows bundle, installer, and release workflow.
 - `DECISIONS.md` — decisions and rationale.
 - `LEARNING.md` — milestone learning notes.
 
 ## Known issues and blockers
 
 - GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
+- The approved design is pushed. M0 Windows release and visible tray evidence are still pending.
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.
 
 ## Open questions for owner
