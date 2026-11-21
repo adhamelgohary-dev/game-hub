@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-M0 startup, tray, pytest and lint pass locally. Verify the corrected Windows workflow on main and check the tagged m0 build, installer, and release assets. Finish the M0 Council re-review before starting M1.
+M0 Windows CI, native tray and isolated portable startup pass. Run `gh run list --branch m0` and `gh release view m0` after publishing the tag. Verify the tagged installer and portable smoke results and the private release assets, then finish the M0 Council re-review before M1.
 
 ## Run the app and tests
 
@@ -33,7 +33,7 @@ From the PowerShell repository root:
 ## Known issues and blockers
 
 - GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
-- The approved design is pushed. Windows native window and tray behavior passed. The tag build and installer smoke still need hosted evidence.
+- Native window and tray behavior passed. The corrected hosted source tests are green. Isolating the build search path resolved native frozen startup. The tagged installer smoke still needs hosted evidence.
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.
 
 ## Open questions for owner

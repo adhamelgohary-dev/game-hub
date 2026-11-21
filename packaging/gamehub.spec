@@ -1,16 +1,21 @@
 from importlib.metadata import distribution
-from os import environ
+from os import environ, pathsep
 from pathlib import Path
 import sys
 
 
 root = Path(SPECPATH).resolve().parent
+python_home = Path(sys.base_prefix)
+windows = Path(environ['SystemRoot'])
+# Keep another installed application's DLLs out of the frozen Qt environment.
+environ['PATH'] = pathsep.join(map(str, (python_home, windows / 'System32', windows)))
+
 notice_dir = 'third-party'
 notices = [(str(root / 'packaging' / 'THIRD_PARTY_NOTICES.txt'), notice_dir)]
 for name in ('GPL-3.0.txt', 'LGPL-3.0.txt'):
     notices.append((str(root / 'packaging' / 'licenses' / name), f'{notice_dir}/Qt'))
 
-python_license = Path(sys.base_prefix) / 'LICENSE.txt'
+python_license = python_home / 'LICENSE.txt'
 if not python_license.is_file() and environ.get('GAMEHUB_CPYTHON_LICENSE'):
     python_license = Path(environ['GAMEHUB_CPYTHON_LICENSE'])
 if not python_license.is_file():

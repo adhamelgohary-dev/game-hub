@@ -10,9 +10,11 @@ The initial portable archive name differed from the README, and the installer co
 
 The staged source has no credential or personal-path matches. The workflow uses pinned actions, verifies PRIVATE before release, and packages local notices. The Qt 6.12.0 advisories checked concern HTTP response processing and Qt5Compat XML input, which the starter does not use. Recheck when adding Qt input paths. [Qt HTTP advisory](https://www.qt.io/blog/security-issue-cve-2026-116337) · [Qt XML advisory](https://www.qt.io/blog/security-advisory-cve-2026-105925)
 
+The unisolated PyInstaller build loaded incompatible ICU libraries from another application. The spec now limits the build search path to the selected Python and Windows system directories. The package built with the clean search path passed native startup outside the source directory.
+
 ## Neutral Analyst
 
-Three local Python tests passed, covering window/tray structure, second-instance activation, and source startup. Native Windows verification confirmed the window and tray, close to tray, reopen, and exit. Ruff passes after correcting the import order. The tag workflow tests the built installer and portable bundle before publication.
+Three local Python tests passed, covering window/tray structure, second-instance activation, and source startup. Native Windows verification confirmed the window and tray, close to tray, reopen, and exit. The corrected [Windows CI run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/44957683946) passed pytest, Ruff and source startup. The tag workflow tests the built installer and portable bundle before publication.
 
 ## Judge
 

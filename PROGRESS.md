@@ -21,4 +21,4 @@
 - Created the PRIVATE repository and pushed the approved design to main.
 - Drafted the M0 starter window, tray, tests, installer, and Windows workflow.
 
-**Tests** — Design links, Python compilation, three local pytest checks, Ruff, native Windows tray and source startup pass. Hosted Windows lint re-run and the tagged installer checks are pending.
+**Tests** — Design links, Python compilation, three local pytest checks, Ruff, native Windows tray, source startup and isolated PyInstaller native startup pass. The hosted Windows pytest, lint and source smoke job is green. The tagged installer check is pending.

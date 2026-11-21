@@ -14,3 +14,4 @@
 | 2026-11-22 | Use 1% of one logical core over a 120-second idle sample as the Windows acceptance budget. | This gives the stated near-zero CPU objective a reproducible criterion without hardware-specific percentages. |
 | 2026-11-22 | Keep working copies of both inputs and remove the personal owner line from STRUCTURE.txt. | A future contributor can read the complete behavior spec without sharing the owner's identity in repository history. |
 | 2026-11-22 | Use PySide6 Essentials 6.12 for the starter release. | M0 uses core, GUI, Widgets and local IPC. The documented Qt floor is Windows 10 version 1809. Add Qt Multimedia with recording and playback in M4. |
+| 2026-11-22 | Limit PyInstaller's Windows DLL search path to the selected Python and the operating system. | An unisolated local build pulled incompatible ICU binaries from an unrelated installed app. The isolated bundle started successfully. |
