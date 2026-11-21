@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from PySide6.QtCore import QStandardPaths, QTimer, Qt
+from PySide6.QtCore import QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,

@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-M0 setup is on `wip/m0-setup`. Run the Python tests, Ruff, source smoke, and PyInstaller spec. Verify the Windows CI check, finish the M0 Council review, fast-forward main to the verified work, then push the m0 tag and verify both private release assets before starting M1.
+M0 startup, tray, pytest and lint pass locally. Verify the corrected Windows workflow on main and check the tagged m0 build, installer, and release assets. Finish the M0 Council re-review before starting M1.
 
 ## Run the app and tests
 
@@ -33,7 +33,7 @@ From the PowerShell repository root:
 ## Known issues and blockers
 
 - GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
-- The approved design is pushed. M0 Windows release and visible tray evidence are still pending.
+- The approved design is pushed. Windows native window and tray behavior passed. The tag build and installer smoke still need hosted evidence.
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.
 
 ## Open questions for owner

@@ -38,6 +38,8 @@ jobs:
     needs: test
     runs-on: windows-2025
     timeout-minutes: 25
+    concurrency:
+      group: windows-release-${{ github.ref }}
     permissions:
       contents: write
     steps:

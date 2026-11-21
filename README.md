@@ -6,6 +6,8 @@ Pick up a Windows PC game after a break with the notes, screenshots, and control
 
 The setup release opens the Game Hub window and keeps it available in the Windows notification area. The v1 roadmap adds installed-game discovery, play sessions, foreground screenshots, voice and text notes, a Last time card, pinned controls, a timeline, and an English/Arabic interface.
 
+[View the starter window](https://github.com/adhamelgohary-dev/game-hub/releases/download/m0/GameHub-Setup-Window.png).
+
 ## Download and install
 
 Use Windows 10 version 1809 or later, or Windows 11, on a 64-bit PC.
