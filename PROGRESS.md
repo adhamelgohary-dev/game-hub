@@ -1,8 +1,8 @@
 # Progress
 
 - ✅ D — Design [complex]
-- 🔄 M0 — Setup [simple]
-- ⬜ M1 — Library detection [complex]
+- ✅ M0 — Setup [simple]
+- 🔄 M1 — Library detection [complex]
 - ⬜ M2 — Session tracking [complex]
 - ⬜ M3 — Screenshots [complex]
 - ⬜ M4 — Notes [complex]
@@ -11,14 +11,13 @@
 - ⬜ M7 — Settings and Arabic/English [complex]
 - ⬜ M8 — Packaging and release [complex]
 
-**Current task** — Run M0 tests, verify packaging, and publish the setup release when the gates pass.
+**Current task** — M1 library discovery, persistence, and library UI.
 
 **Last completed**
 
-- Completed eleven design files and the Windows manual checklist.
-- Recorded overall plan approval and Milestone D approval after re-review.
-- Verified that the design index and local document links resolve.
-- Created the PRIVATE repository and pushed the approved design to main.
-- Drafted the M0 starter window, tray, tests, installer, and Windows workflow.
+- Opened the native window and tray and checked close, reopen, quit, and local activation.
+- Passed Windows pytest, Ruff, and startup CI.
+- Published and verified the PRIVATE m0 installer and portable release.
+- Recorded M0 Council approval.
 
-**Tests** — Design links, Python compilation, three local pytest checks, Ruff, native Windows tray, source startup and isolated PyInstaller native startup pass. The hosted Windows pytest, lint and source smoke job is green. The tagged installer check is pending.
+**Tests** — Three pytest tests, Ruff, native tray, and hosted source, installer and extracted package startup pass for m0. M1 fixture and live discovery checks are pending.

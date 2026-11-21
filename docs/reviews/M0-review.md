@@ -18,4 +18,6 @@ Three local Python tests passed, covering window/tray structure, second-instance
 
 ## Judge
 
-**APPROVE WITH CHANGES.** The original build needed consistent release filenames, the Qt Windows floor, and passing lint. These changes are in place. Re-review the completed tagged Windows workflow and verify that both assets are present before marking M0 done.
+Initial verdict **APPROVE WITH CHANGES**. The original build needed consistent release filenames, the Qt Windows floor, and passing lint. These changes are in place.
+
+Re-review verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/44958079955) passed pytest, Ruff, source smoke, and startup of both the extracted portable bundle and the installed app. The [private m0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) has the installer, portable ZIP and starter-window screenshot. The repository was confirmed PRIVATE after publication.

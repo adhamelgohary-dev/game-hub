@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-M0 Windows CI, native tray and isolated portable startup pass. Run `gh run list --branch m0` and `gh release view m0` after publishing the tag. Verify the tagged installer and portable smoke results and the private release assets, then finish the M0 Council re-review before M1.
+Begin M1 by defining `gamehub/core/library/models.py` for source sightings, stable source IDs, and validated exact tracking targets. Implement detector adapters, the initial SQLite library schema and repository, and the library view using the existing design. Validate with synthetic fixtures, an accessible installed game, and a manual executable.
 
 ## Run the app and tests
 
@@ -33,7 +33,7 @@ From the PowerShell repository root:
 ## Known issues and blockers
 
 - GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
-- Native window and tray behavior passed. The corrected hosted source tests are green. Isolating the build search path resolved native frozen startup. The tagged installer smoke still needs hosted evidence.
+- [M0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) passed native tray and tagged Windows CI with both release packages smoke-tested.
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.
 
 ## Open questions for owner
