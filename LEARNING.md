@@ -99,3 +99,11 @@ Read in this order:
 5. [Fluent UI mockups](docs/design/mockups/index.html)
 
 Try it yourself. Open `docs/design/mockups/index.html` in a browser and toggle between Dark/Light and English/Arabic (RTL) to see how layout direction, badges, and BiDi-isolated shortcuts adapt across all five screens.
+
+## M9 — Zero background and clean process exit
+
+Desktop apps that hide in the system tray or register themselves in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` stay alive even when the user thinks they closed them. Removing `QSystemTrayIcon`, calling `closeAllWindows()` and `quit()` in `GameHubWindow.closeEvent`, and verifying full process teardown in a real subprocess guarantees that closing the window releases every hotkey, thread, and lock cleanly. Removing old v1.0 autostart entries requires handling both installed upgrades (Inno Setup `ValueType: none; Flags: deletevalue dontcreatekey`) and portable users (`remove_legacy_startup_entry()` on startup).
+
+Read [app.py](gamehub/app.py), [startup.py](gamehub/core/startup.py), [installer.iss](packaging/installer.iss), and [test_app.py](tests/test_app.py).
+
+Try it yourself. Run `python -m pytest tests/test_app.py -k residual` and follow how the test launches a real `GameHubWindow`, closes it via a timer, and confirms with `psutil.pid_exists` that zero processes remain.

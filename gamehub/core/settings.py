@@ -6,7 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from gamehub.core.hotkeys.windows import canonical_shortcut
-from gamehub.core.startup import StartupRegistration
 from gamehub.core.storage.db import Database, StorageError
 
 LOGGER = logging.getLogger(__name__)
@@ -29,7 +28,6 @@ class SettingsSnapshot:
     hotkey_record_note: str = "Ctrl+Alt+N"
     hotkey_last_time: str = "Ctrl+Alt+L"
     hotkey_pin_controls: str = "Ctrl+Alt+C"
-    start_with_windows: bool = False
     revision: int = 0
 
     def as_dict(self) -> dict[str, object]:
@@ -42,7 +40,6 @@ class SettingsSnapshot:
             "hotkey.record_note": self.hotkey_record_note,
             "hotkey.last_time": self.hotkey_last_time,
             "hotkey.pin_controls": self.hotkey_pin_controls,
-            "app.start_with_windows": self.start_with_windows,
         }
 
 
@@ -69,7 +66,6 @@ _FIELD_MAP = {
     "hotkey.record_note": "hotkey_record_note",
     "hotkey.last_time": "hotkey_last_time",
     "hotkey.pin_controls": "hotkey_pin_controls",
-    "app.start_with_windows": "start_with_windows",
 }
 
 
@@ -94,7 +90,7 @@ def _validate_value(key: str, raw: object) -> tuple[bool, object, str | None]:
         ):
             return True, raw, None
         return False, None, "invalid_buffer_size"
-    if key in {"memory.autoplay_voice", "memory.prompt_on_end", "app.start_with_windows"}:
+    if key in {"memory.autoplay_voice", "memory.prompt_on_end"}:
         if isinstance(raw, bool):
             return True, raw, None
         return False, None, "invalid_boolean"
@@ -117,13 +113,11 @@ class SettingsService:
         publish: Callable[[SettingsChanged], None] | None = None,
         rebind_hotkey: Callable[[str, str], bool] | None = None,
         rebind_hotkeys: Callable[[dict[str, str]], tuple[bool, str | None, str | None]] | None = None,
-        startup: StartupRegistration | None = None,
     ) -> None:
         self._database = database
         self._publish = publish
         self._rebind_hotkey = rebind_hotkey
         self._rebind_hotkeys = rebind_hotkeys
-        self._startup = startup
         self._revision = 0
 
     def read(self) -> SettingsSnapshot:
@@ -168,7 +162,6 @@ class SettingsService:
             hotkey_record_note=values["hotkey.record_note"],  # type: ignore[arg-type]
             hotkey_last_time=values["hotkey.last_time"],  # type: ignore[arg-type]
             hotkey_pin_controls=values["hotkey.pin_controls"],  # type: ignore[arg-type]
-            start_with_windows=values["app.start_with_windows"],  # type: ignore[arg-type]
             revision=self._revision,
         )
 
@@ -242,16 +235,6 @@ class SettingsService:
                 for prev_key, prev_binding in reversed(applied_hotkeys):
                     self._rebind_hotkey(prev_key, prev_binding)
 
-        # Coordinate per-user Windows startup registration.
-        startup_changed = "app.start_with_windows" in changed_keys
-        if startup_changed and self._startup is not None:
-            ok, diag = self._startup.apply(bool(validated_patch["app.start_with_windows"]))
-            if not ok:
-                rollback_hotkeys()
-                return SettingsResult(
-                    False, current, {"app.start_with_windows": diag or "startup_unavailable"}
-                )
-
         # Persist to SQLite in a single transaction; roll back OS side effects on StorageError.
         try:
             with self._database.write() as connection:
@@ -261,8 +244,6 @@ class SettingsService:
                     [(key, json.dumps(validated_patch[key])) for key in changed_keys],
                 )
         except StorageError:
-            if startup_changed and self._startup is not None:
-                self._startup.apply(current.start_with_windows)
             rollback_hotkeys()
             return SettingsResult(False, current, {"_storage": "storage_unavailable"})
 

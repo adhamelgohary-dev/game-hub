@@ -6,14 +6,14 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin **M9 (Part B — Zero background & clean exit)**:
-1. Remove `QSystemTrayIcon`, tray menu, and minimize-to-tray behavior from `gamehub/app.py` so closing the main window exits the process completely (`quitOnLastWindowClosed = True`).
-2. Remove `app.start_with_windows` from `gamehub/core/settings.py`, `gamehub/ui/settings_view.py`, and `gamehub/core/i18n/catalog.py`; replace `StartupRegistration` with `remove_legacy_startup_entry()` to delete any v1.0 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\GameHub` entry on startup, and update `packaging/installer.iss` to delete it on install/upgrade as well.
-3. Add an automated subprocess close-exit test proving zero `GameHub` processes remain after window close, plus static audits in `tests/test_packaging.py` forbidding `QSystemTrayIcon` and `winreg.SetValueEx`.
+Begin **M10 (Part C — Game-aware lifecycle, protected games & borderless WGC)**:
+1. Create `gamehub/core/protection/` (`protected_games.json` + `catalog.py`) with bundled updatable Steam AppIDs, Epic AppNames, Xbox package prefixes, and exe basenames + optional `%LOCALAPPDATA%\GameHub\protected_games_override.json`.
+2. Upgrade SQLite in `gamehub/core/storage/db.py` to Schema v5 (`games.protection_mode`, `games.exit_after_launch`, `pending_notes`, legacy `app.start_with_windows` cleanup) with automatic `gamehub.db-v4.bak` backup.
+3. Update `ProcessProbe`, `SessionWatcher`, `SessionTracker`, `GlobalHotkeys`, `CaptureScheduler`, `WgcCapture` (`draw_border=False` on builds >= 20348 with fallback), `LastTimeController`, `NotesController`, `WindowsNotifier` (`ask_me` passive toast), `GamePage`, `SettingsView`, and `gamehub/app.py` to enforce Strict/Full/Forgetful/Play-through lifecycles with zero `OpenProcess` handles on protected games.
 
 ## In progress
 
-Game Hub v1.1 — `D-v1.1` approved (`docs/reviews/D-v1.1-review.md`); moving into `M9`.
+Game Hub v1.1 — `M9` approved and tagged (`m9`); starting `M10`.
 
 ## Fragile spots
 

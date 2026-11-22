@@ -15,7 +15,7 @@ from gamehub.core.hotkeys.windows import (
     parse_shortcut,
 )
 from gamehub.core.settings import SettingsChanged, SettingsService
-from gamehub.core.startup import StartupRegistration
+from gamehub.core.startup import remove_legacy_startup_entry
 from gamehub.core.storage.db import Database, StorageError
 
 
@@ -149,7 +149,7 @@ def test_settings_persistence_validation_and_corrupt_value_fallback(
     assert "SECRET-INVALID" not in caplog.text
 
 
-def test_settings_rolls_back_side_effects_on_hotkey_or_startup_failure(tmp_path: Path) -> None:
+def test_settings_rolls_back_side_effects_on_hotkey_or_storage_failure(tmp_path: Path) -> None:
     db = Database(tmp_path / "gamehub.db")
     applied_hotkeys: list[tuple[str, str]] = []
 
@@ -159,20 +159,7 @@ def test_settings_rolls_back_side_effects_on_hotkey_or_startup_failure(tmp_path:
         applied_hotkeys.append((key, shortcut))
         return True
 
-    reg_value: list[str | None] = [None]
-    fail_startup = [False]
-
-    def fake_writer(cmd: str | None) -> None:
-        if fail_startup[0]:
-            raise OSError("denied")
-        reg_value[0] = cmd
-
-    startup = StartupRegistration(
-        command='"C:\\GameHub\\GameHub.exe"',
-        writer=fake_writer,
-        reader=lambda: reg_value[0],
-    )
-    service = SettingsService(db, rebind_hotkey=fake_rebind, startup=startup)
+    service = SettingsService(db, rebind_hotkey=fake_rebind)
 
     # Second hotkey conflicts -> first hotkey is rolled back, DB untouched.
     res = service.update(
@@ -183,22 +170,14 @@ def test_settings_rolls_back_side_effects_on_hotkey_or_startup_failure(tmp_path:
     assert applied_hotkeys[-1] == ("hotkey.record_note", "Ctrl+Alt+N")
     assert service.read().hotkey_record_note == "Ctrl+Alt+N"
 
-    # Startup failure rolls back hotkey change and keeps startup False.
-    fail_startup[0] = True
-    applied_hotkeys.clear()
-    res2 = service.update({"hotkey.record_note": "Ctrl+Alt+M", "app.start_with_windows": True})
-    assert res2.ok is False
-    assert res2.errors == {"app.start_with_windows": "startup_unavailable"}
-    assert applied_hotkeys[-1] == ("hotkey.record_note", "Ctrl+Alt+N")
+    # Legacy v1.0 app.start_with_windows row in SQLite is safely ignored on read.
+    with db.write() as connection:
+        connection.execute(
+            "INSERT INTO settings (key, value) VALUES ('app.start_with_windows', 'true')"
+        )
+    assert service.read().language == "en"
 
-    # Startup succeeds when writer succeeds.
-    fail_startup[0] = False
-    res3 = service.update({"app.start_with_windows": True})
-    assert res3.ok is True
-    assert startup.is_enabled() is True
-    assert reg_value[0] == '"C:\\GameHub\\GameHub.exe"'
-
-    # SQLite write failure rolls back both hotkey and startup side effects.
+    # SQLite write failure rolls back hotkey side effects.
     original_write = db.write
 
     def failing_write():
@@ -206,12 +185,20 @@ def test_settings_rolls_back_side_effects_on_hotkey_or_startup_failure(tmp_path:
 
     db.write = failing_write  # type: ignore[method-assign]
     try:
-        res4 = service.update(
-            {"hotkey.record_note": "Ctrl+Alt+Q", "app.start_with_windows": False}
-        )
+        res4 = service.update({"hotkey.record_note": "Ctrl+Alt+Q"})
         assert res4.ok is False
         assert res4.errors == {"_storage": "storage_unavailable"}
-        assert startup.is_enabled() is True
         assert applied_hotkeys[-1] == ("hotkey.record_note", "Ctrl+Alt+N")
     finally:
         db.write = original_write  # type: ignore[method-assign]
+
+
+def test_remove_legacy_startup_entry_deletes_without_writing() -> None:
+    deleted = []
+    assert remove_legacy_startup_entry(deleter=lambda: deleted.append("deleted")) is True
+    assert deleted == ["deleted"]
+
+    def failing_deleter() -> None:
+        raise OSError("access denied")
+
+    assert remove_legacy_startup_entry(deleter=failing_deleter) is False

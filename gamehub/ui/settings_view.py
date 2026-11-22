@@ -135,14 +135,6 @@ class SettingsView(QWidget):
         hotkeys_form.addRow(self._make_error("hotkey.pin_controls", self._hotkeys_group))
         body_layout.addWidget(self._hotkeys_group)
 
-        # Startup group
-        self._startup_group = QGroupBox(body)
-        startup_layout = QVBoxLayout(self._startup_group)
-        self._start_with_windows = QCheckBox(self._startup_group)
-        startup_layout.addWidget(self._start_with_windows)
-        startup_layout.addWidget(self._make_error("app.start_with_windows", self._startup_group))
-        body_layout.addWidget(self._startup_group)
-
         # Data folder group
         self._data_group = QGroupBox(body)
         data_layout = QVBoxLayout(self._data_group)
@@ -203,7 +195,6 @@ class SettingsView(QWidget):
         self._hk_record.setText(snapshot.hotkey_record_note)
         self._hk_last.setText(snapshot.hotkey_last_time)
         self._hk_pin.setText(snapshot.hotkey_pin_controls)
-        self._start_with_windows.setChecked(snapshot.start_with_windows)
         self._data_path_label.setText(str(data_root))
 
     def set_busy(self, busy: bool) -> None:
@@ -276,8 +267,6 @@ class SettingsView(QWidget):
         self._hk_last.setPlaceholderText("Ctrl+Alt+L")
         self._hk_pin_label.setText(self.tr("Pin controls screenshot"))
         self._hk_pin.setPlaceholderText("Ctrl+Alt+C")
-        self._startup_group.setTitle(self.tr("Windows startup"))
-        self._start_with_windows.setText(self.tr("Start Game Hub with Windows"))
         self._data_group.setTitle(self.tr("Data folder"))
         self._data_path_label.setAccessibleName(self.tr("Current data folder"))
         self._open_folder.setText(self.tr("&Open folder"))
@@ -308,7 +297,6 @@ class SettingsView(QWidget):
             "hotkey.record_note": self._hk_record.text().strip(),
             "hotkey.last_time": self._hk_last.text().strip(),
             "hotkey.pin_controls": self._hk_pin.text().strip(),
-            "app.start_with_windows": self._start_with_windows.isChecked(),
         }
         self.saveRequested.emit(patch)
 
@@ -334,7 +322,6 @@ class SettingsView(QWidget):
                 "Windows rejected this shortcut because another app uses it. The previous shortcut remains active."
             ),
             "hotkeys_unavailable": self.tr("Global shortcuts are currently unavailable."),
-            "startup_unavailable": self.tr("Game Hub could not update the Windows startup setting."),
             "storage_unavailable": self.tr("Game Hub could not save your settings."),
             "location_invalid": self.tr("Choose a local folder on a fixed drive without symlinks."),
             "location_same": self.tr("This folder is already your active data folder."),

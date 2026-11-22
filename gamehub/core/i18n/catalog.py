@@ -124,9 +124,6 @@ AR_CATALOG: dict[str, str] = {
         "تعذّر حفظ هذه الملاحظة الصوتية. يمكنك إعادة المحاولة أو تجاهلها."
     ),
     "Game Hub could not save your settings.": "تعذّر حفظ إعداداتك.",
-    "Game Hub could not update the Windows startup setting.": (
-        "تعذّر تحديث إعداد بدء التشغيل مع \u2066Windows\u2069."
-    ),
     "Game library": "مكتبة الألعاب",
     "Global shortcuts": "الاختصارات العامة",
     "Global shortcuts are currently unavailable.": "الاختصارات العامة غير متاحة حاليًا.",
@@ -189,7 +186,6 @@ AR_CATALOG: dict[str, str] = {
     "Open Controls and Session Timeline for the selected game.": (
         "افتح التحكم والخط الزمني للجلسات للعبة المحددة."
     ),
-    "Open Game Hub": "فتح \u2066Game Hub\u2069",
     "Pin controls screenshot": "تثبيت لقطة التحكم",
     "Pinned controls image preview": "معاينة صورة التحكم المثبّتة",
     "Pinned controls images: {count}": "صور التحكم المثبّتة: {count}",
@@ -206,7 +202,6 @@ AR_CATALOG: dict[str, str] = {
     "Preview Last time and launch the selected game.": "معاينة آخر مرة وتشغيل اللعبة المحددة.",
     "Previous controls image": "صورة التحكم السابقة",
     "Previous screenshot": "اللقطة السابقة",
-    "Quit": "خروج",
     "Record a note?": "هل تريد تسجيل ملاحظة؟",
     "Record voice note": "تسجيل ملاحظة صوتية",
     "Recording voice note": "جارٍ تسجيل ملاحظة صوتية",
@@ -237,7 +232,6 @@ AR_CATALOG: dict[str, str] = {
     "Settings": "الإعدادات",
     "Settings saved.": "تم حفظ الإعدادات.",
     "Source": "المصدر",
-    "Start Game Hub with Windows": "تشغيل \u2066Game Hub\u2069 مع \u2066Windows\u2069",
     "Steam": "\u2066Steam\u2069",
     "Stop": "إيقاف",
     "Stop voice note": "إيقاف الملاحظة الصوتية",
@@ -287,7 +281,6 @@ AR_CATALOG: dict[str, str] = {
     "Windows rejected this shortcut because another app uses it. The previous shortcut remains active.": (
         "رفض \u2066Windows\u2069 هذا الاختصار لأن تطبيقًا آخر يستخدمه. ما زال الاختصار السابق نشطًا."
     ),
-    "Windows startup": "بدء التشغيل مع \u2066Windows\u2069",
     "Working…": "جارٍ العمل…",
     "Xbox": "\u2066Xbox\u2069",
     "{date} · {duration} · {status}": "{date} · {duration} · {status}",

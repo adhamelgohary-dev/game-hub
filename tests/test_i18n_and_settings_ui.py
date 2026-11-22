@@ -91,7 +91,7 @@ def test_language_switch_updates_layout_direction_and_surfaces(
         assert QLocale().language() == QLocale.Language.Arabic
         assert window.library._title.text() == "المكتبة"
         assert window.settings_view._title.text() == "الإعدادات"
-        assert window._quit_action.text() == "خروج"
+        assert window.statusBar().currentMessage() == "في انتظار تشغيل الألعاب"
         assert "إجمالي وقت اللعب" in window.game_page._summary.text()
         assert window.library._table.item(0, 2).text() == str(tmp_path)
         assert window.settings_view._data_path_label.text() == str(tmp_path)
@@ -107,7 +107,7 @@ def test_language_switch_updates_layout_direction_and_surfaces(
         assert QLocale().language() == QLocale.Language.English
         assert window.library._title.text() == "Library"
         assert window.settings_view._title.text() == "Settings"
-        assert window._quit_action.text() == "Quit"
+        assert window.statusBar().currentMessage() == "Watching for games"
         assert "Total playtime" in window.game_page._summary.text()
     finally:
         apply_language(app, "en")

@@ -14,19 +14,19 @@
 
 ## v1.1 ("Zero background + anti-cheat safe + clean UI + public-ready")
 - ✅ D-v1.1 — Anti-cheat research, v1.1 design docs & Fluent UI mockups [complex]
-- ⬜ M9 — Zero background & clean process exit (Part B) [complex]
-- ⬜ M10 — Game-aware lifecycle, protected-games catalog, Strict mode & borderless WGC (Part C) [complex]
+- ✅ M9 — Zero background & clean process exit (Part B) [complex]
+- 🔄 M10 — Game-aware lifecycle, protected-games catalog, Strict mode & borderless WGC (Part C) [complex]
 - ⬜ Owner Gate 1 — Approve UI mockups (`docs/design/mockups/`) & `m0–m8` release cleanup plan [simple]
 - ⬜ M11 — Fluent UI redesign (Dark/Light + Arabic RTL + covers + icon + branding) (Part D) [complex]
 - ⬜ M12 — Public-readiness audit, MIT license, SignPath prep, SemVer CI & `v1.1.0-rc.1` (Parts E/F/G) [complex]
 - ⬜ M13 — Final `v1.1.0` release after owner verification (Part G) [simple]
 
-**Current task** — Starting M9 (Zero background & clean process exit): remove system tray icon, remove "Start with Windows" setting & registry creation, clean legacy v1.0 `Run` key on upgrade/startup, and verify zero remaining `GameHub` processes after window close.
+**Current task** — Starting M10 (Part C + WGC): bundled updatable `protected_games.json`, Schema v5 migration (`protection_mode`, `exit_after_launch`, `pending_notes`), passive basename-only Toolhelp detection (zero `OpenProcess` on protected games), Strict/Full/Forgetful/Play-through lifecycle, passive Windows toast notification (`ask_me`), and borderless WGC (`draw_border=False`).
 
 **Last completed**
-- Completed Part A anti-cheat research (`docs/research/anti-cheat.md`) with official citations across 20+ games and all 7 major PC launchers.
-- Updated `AGENTS.md`, `DECISIONS.md`, and all `docs/design/` specifications for v1.1 (zero background, passive basename-only protection, Schema v5, custom Fluent QSS preserving MIT license, borderless WGC, SemVer releases).
-- Created interactive HTML (`docs/design/mockups/index.html`) and 11 rendered 1280×800 PNG mockups across all 5 screens in Dark, Light, and Arabic RTL.
-- Passed Review Council (`docs/reviews/D-v1.1-review.md`, Judge verdict: APPROVE).
+- Removed `QSystemTrayIcon`, tray menus, "Start with Windows" setting, and `winreg.SetValueEx` across `gamehub/`.
+- Added `remove_legacy_startup_entry()` at startup and Inno Setup `deletevalue dontcreatekey` cleanup so upgrading from v1.0 removes the legacy `Run\GameHub` entry.
+- Added `GameHubWindow.closeEvent` full teardown (`closeAllWindows()` + `quit()`), real subprocess exit verification (`tests/test_app.py`), and static packaging audits (`tests/test_packaging.py`).
+- Passed M9 Review Council (`docs/reviews/M9-review.md`, Judge verdict: APPROVE).
 
-**Tests** — Baseline 169 tests, Ruff, and frozen PyInstaller smoke test all passing.
+**Tests** — 171 tests and Ruff passing.

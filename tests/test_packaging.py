@@ -17,10 +17,18 @@ FORBIDDEN_NETWORK_MODULES = {
 }
 FORBIDDEN_NATIVE_SYMBOLS = (
     "CreateRemoteThread",
+    "NtReadVirtualMemory",
+    "NtWriteVirtualMemory",
+    "PROCESS_ALL_ACCESS",
+    "PROCESS_VM_READ",
+    "PROCESS_VM_WRITE",
     "QNetworkAccessManager",
+    "QSystemTrayIcon",
     "QTcpSocket",
     "QUdpSocket",
     "ReadProcessMemory",
+    "SeDebugPrivilege",
+    "SetValueEx",
     "SetWindowsHookEx",
     "VirtualAllocEx",
     "WriteProcessMemory",
@@ -69,7 +77,8 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert __version__ == "1.0.0"
     assert "PrivilegesRequired=lowest" in installer_text
     assert "GameHub-Setup" in installer_text
-    assert "uninsdeletevalue" in installer_text
+    assert "Flags: deletevalue uninsdeletevalue dontcreatekey" in installer_text
+    assert "ValueType: none" in installer_text
     assert "[InstallDelete]" in installer_text
     assert "FFmpeg" in notices_text
     assert "PySide6 Addons" in notices_text

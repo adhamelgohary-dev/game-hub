@@ -3,9 +3,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import psutil
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QTableWidget
+from PySide6.QtWidgets import QApplication, QTableWidget
 
 from gamehub import app as gamehub_app
 from gamehub.app import GameHubWindow
@@ -23,33 +24,61 @@ def app() -> QApplication:
     return QApplication.instance() or QApplication(["Game Hub test"])
 
 
-def test_window_has_tray_and_quit_action(app: QApplication) -> None:
+def test_window_has_no_tray_and_closes_cleanly(app: QApplication) -> None:
     window = GameHubWindow(app)
     window.show()
     try:
         assert window.isVisible()
         assert window.windowTitle() == "Game Hub"
-        assert isinstance(window.tray, QSystemTrayIcon)
-        assert not window.tray.icon().isNull()
-        assert [action.text() for action in window.tray_menu.actions()] == [
-            "Open Game Hub",
-            "Quit",
-            "Watching for games",
-        ]
+        assert not hasattr(window, "tray")
+        assert not hasattr(window, "tray_menu")
+        assert window.statusBar().currentMessage() == "Watching for games"
         window.game_started(GameStarted("game", "session", 0))
-        assert "Tracking 1 game" in window.tray.toolTip()
+        assert window.statusBar().currentMessage() == "Tracking 1 game"
         window.game_stopped(GameStopped("game", "session", 5000, 5, "completed", "process_exit"))
-        assert "Watching for games" in window.tray.toolTip()
-        if QSystemTrayIcon.isSystemTrayAvailable():
-            window.tray.show()
-            assert window.tray.isVisible()
-            window.close()
-            assert not window.isVisible()
-            window.tray_menu.actions()[0].trigger()
-            assert window.isVisible()
+        assert window.statusBar().currentMessage() == "Watching for games"
+        assert window.close() is True
+        assert not window.isVisible()
     finally:
-        window.tray.hide()
         window.close()
+
+
+def test_closing_main_window_exits_process_with_no_residual_processes(tmp_path: Path) -> None:
+    script = f"""
+import os
+from pathlib import Path
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
+from gamehub import app as gamehub_app
+
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+qt_app = QApplication(["Game Hub"])
+orig_window = gamehub_app.GameHubWindow
+
+class AutoCloseWindow(orig_window):
+    def show(self):
+        super().show()
+        QTimer.singleShot(250, self.close)
+
+gamehub_app.GameHubWindow = AutoCloseWindow
+code = gamehub_app._run(qt_app, Path({str(tmp_path)!r}), smoke_test=False)
+raise SystemExit(code)
+"""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script],
+        env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        _, stderr = proc.communicate(timeout=20)
+        assert proc.returncode == 0, stderr
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
+    assert not psutil.pid_exists(proc.pid)
 
 
 def test_second_instance_activates_primary(app: QApplication, tmp_path: Path) -> None:

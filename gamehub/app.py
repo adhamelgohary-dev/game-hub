@@ -1,4 +1,4 @@
-"""Start the Game Hub desktop application and its notification-area icon."""
+"""Start the Game Hub desktop application with zero background footprint."""
 
 import argparse
 import logging
@@ -12,11 +12,9 @@ from PySide6.QtGui import QCloseEvent, QDesktopServices, QImageReader
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
-    QMenu,
     QMessageBox,
     QStackedWidget,
     QStyle,
-    QSystemTrayIcon,
 )
 
 from gamehub import __version__
@@ -44,7 +42,7 @@ from gamehub.core.sessions.processes import ProcessProbe
 from gamehub.core.sessions.tracker import SessionTracker
 from gamehub.core.sessions.watcher import SessionWatcher
 from gamehub.core.settings import SettingsChanged, SettingsService, SettingsSnapshot
-from gamehub.core.startup import StartupRegistration
+from gamehub.core.startup import remove_legacy_startup_entry
 from gamehub.core.storage.controls import ControlsRepository
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
@@ -65,10 +63,11 @@ from gamehub.ui.settings_view import SettingsView
 
 
 class GameHubWindow(QMainWindow):
-    """The library window stays available through the tray after closing."""
+    """Main desktop window; closing it exits the Game Hub process completely."""
 
     def __init__(self, app: QApplication) -> None:
         super().__init__()
+        self._app = app
         self.setWindowTitle("Game Hub")
         self.resize(720, 480)
 
@@ -83,17 +82,9 @@ class GameHubWindow(QMainWindow):
 
         icon = self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
         self.setWindowIcon(icon)
-        self.tray = QSystemTrayIcon(icon, self)
-        self.tray.activated.connect(self._tray_activated)
         self._tracked_games: set[str] = set()
         self._recording = False
-
-        self.tray_menu = QMenu(self)
-        self._open_action = self.tray_menu.addAction(self.tr("Open Game Hub"), self.reveal)
-        self._quit_action = self.tray_menu.addAction(self.tr("Quit"), app.quit)
-        self._tray_status = self.tray_menu.addAction("")
-        self._tray_status.setEnabled(False)
-        self.tray.setContextMenu(self.tray_menu)
+        self._status_text = ""
         self._show_tracking_status()
 
     def game_started(self, event: GameStarted) -> None:
@@ -109,9 +100,8 @@ class GameHubWindow(QMainWindow):
         self._show_tracking_status()
 
     def notify(self, message: str) -> None:
-        if self.tray.isVisible():
-            self.tray.showMessage("Game Hub", message)
-        elif self._pages.currentWidget() is self.game_page:
+        self.statusBar().showMessage(message, 8000)
+        if self._pages.currentWidget() is self.game_page:
             self.game_page.show_error(message)
         else:
             self.library.show_error(message)
@@ -126,8 +116,8 @@ class GameHubWindow(QMainWindow):
             text = self.tr("Tracking 1 game")
         else:
             text = self.tr("Tracking {count} games").format(count=count)
-        self._tray_status.setText(text)
-        self.tray.setToolTip(f"Game Hub · {text}")
+        self._status_text = text
+        self.statusBar().showMessage(text)
 
     def show_library(self) -> None:
         self._pages.setCurrentWidget(self.library)
@@ -142,8 +132,6 @@ class GameHubWindow(QMainWindow):
         return self._pages.currentWidget() is self.game_page and self.game_page.game_id == game_id
 
     def retranslate_ui(self) -> None:
-        self._open_action.setText(self.tr("Open Game Hub"))
-        self._quit_action.setText(self.tr("Quit"))
         self._show_tracking_status()
         self.library.retranslate_ui()
         self.game_page.retranslate_ui()
@@ -158,15 +146,9 @@ class GameHubWindow(QMainWindow):
         self.activateWindow()
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        if self.tray.isVisible():
-            self.hide()
-            event.ignore()
-        else:
-            super().closeEvent(event)
-
-    def _tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            self.reveal()
+        event.accept()
+        self._app.closeAllWindows()
+        self._app.quit()
 
 
 def _run(
@@ -218,16 +200,14 @@ def _run(
         )
         window.game_page.backRequested.connect(window.show_library)
         window.settings_view.backRequested.connect(window.show_library)
-        tray_available = QSystemTrayIcon.isSystemTrayAvailable()
-        app.setQuitOnLastWindowClosed(not tray_available)
-        if tray_available:
-            window.tray.show()
+        app.setQuitOnLastWindowClosed(True)
         window.show()
         if smoke_test:
             _check_capture_runtime()
             _check_audio_runtime()
             QTimer.singleShot(0, app.quit)
         else:
+            remove_legacy_startup_entry()
             events.subscribe(GameStarted, window.game_started)
             events.subscribe(GameStopped, window.game_stopped)
             events.subscribe(GameStarted, controller.session_updated)
@@ -356,7 +336,6 @@ def _run(
             last_time_controller.close()
         if notes_controller is not None:
             notes_controller.close()
-        window.tray.hide()
         if capture_scheduler is not None:
             capture_scheduler.close()
         if watcher is not None:
@@ -672,7 +651,6 @@ def _wire_settings(
         database,
         publish=events.publish,
         rebind_hotkeys=rebind_hotkeys,
-        startup=StartupRegistration(),
     )
     move_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="store-move")
     move_bridge = _MoveBridge(window)
@@ -832,7 +810,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--smoke-test",
         action="store_true",
-        help="Build the window and tray, enter the event loop, and exit.",
+        help="Build the window, enter the event loop, and exit cleanly.",
     )
     args = parser.parse_args(argv)
     app = QApplication(["Game Hub"])

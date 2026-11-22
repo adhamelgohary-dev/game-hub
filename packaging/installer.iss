@@ -31,7 +31,8 @@ Type: filesandordirs; Name: "{app}\_internal"
 Source: "..\dist\GameHub\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "GameHub"; Flags: dontcreatekey uninsdeletevalue
+; Remove any legacy v1.0 autostart value on install/upgrade and uninstall; never create one.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "GameHub"; ValueType: none; Flags: deletevalue uninsdeletevalue dontcreatekey
 
 [Icons]
 Name: "{group}\Game Hub"; Filename: "{app}\GameHub.exe"; WorkingDir: "{app}"
