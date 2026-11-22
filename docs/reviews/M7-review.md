@@ -24,3 +24,5 @@ All 167 automated tests and Ruff pass, including full AST key and placeholder pa
 ## Judge
 
 Initial verdict **APPROVE WITH CHANGES** for the six Critic blockers above. Re-review confirms all six blockers and the accompanying reliability, security, and accessibility fixes are implemented and covered by tests. All 167 tests, Ruff, native conflict/RTL/relocation checks, and source startup pass. Verify the tagged Windows release packages before closing the milestone.
+
+Final verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/45055214702) passed tests, lint, and startup from both the installer and portable bundle. Both packages are published in the [private m7 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m7).
