@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-M3 native capture, retention, and protected carousel reads passed. Check the tagged `m3` Windows run, installer and portable release, then finish the Council review. Begin M4 with the note schema, local voice recorder, and Windows hotkey manager.
+Begin M4 with the SQLite notes schema, a bounded local input recorder, and a Win32 `RegisterHotKey` manager for Ctrl+Alt+N. Route each note to the captured session ID and offer the optional prompt only after a confirmed game exit.
 
 ## Run the app and tests
 
@@ -40,6 +40,7 @@ From the PowerShell repository root:
 - [M0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) passed native tray and tagged Windows CI with both release packages smoke-tested.
 - [M1 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m1) passed tagged Windows CI with both release packages smoke-tested.
 - [M2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2) passed tagged Windows CI with both release packages smoke-tested.
+- [M3 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m3) passed tagged Windows CI with both release packages smoke-tested.
 - Native WGC accepted 12 frames from a synthetic Windows 11 test window, retained and displayed the newest ten, and skipped unfocused and minimized cases. Protected games and Windows 10 capture hardware remain unverified.
 - The M2 native watcher produced one completed session row and matching tray states. The final 120-second run measured 0.69% of one core for the watcher and 0.066% of total CPU capacity for the app.
 - Live Steam entries loaded and persisted. Epic manifests were unavailable and no accessible Xbox titles were found on this machine. Fixture coverage verified those adapters. [Launcher limitations](docs/launcher-detection.md)
