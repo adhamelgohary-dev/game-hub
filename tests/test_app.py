@@ -5,10 +5,14 @@ from pathlib import Path
 
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QTableWidget
 
 from gamehub.app import GameHubWindow
+from gamehub.core.library.service import LibraryService
+from gamehub.core.storage.db import Database
+from gamehub.core.storage.library import LibraryRepository
 from gamehub.single_instance import SingleInstance
+from gamehub.ui.library_controller import LibraryController
 
 
 @pytest.fixture(scope="module")
@@ -72,3 +76,29 @@ def test_entry_point_smoke() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_library_manual_add_reaches_view_and_persists(app: QApplication, tmp_path: Path) -> None:
+    exe = tmp_path / "Example Adventure.exe"
+    exe.touch()
+    window = GameHubWindow(app)
+    database_path = tmp_path / "gamehub.db"
+    repository = LibraryRepository(Database(database_path))
+    controller = LibraryController(window.library, LibraryService(repository, ()))
+    events = QEventLoop(app)
+    table = window.library.findChild(QTableWidget)
+    table.model().rowsInserted.connect(events.quit)
+    deadline = QTimer(events)
+    deadline.setSingleShot(True)
+    deadline.timeout.connect(events.quit)
+    try:
+        deadline.start(3000)
+        window.library.addRequested.emit(str(exe))
+        events.exec()
+        assert table.rowCount() == 1
+        assert table.item(0, 0).text() == "Example Adventure"
+        reopened = LibraryRepository(Database(database_path))
+        assert reopened.list_games()[0].name == "Example Adventure"
+    finally:
+        controller.close()
+        window.close()

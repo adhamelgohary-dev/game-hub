@@ -21,3 +21,11 @@ Qt's event loop handles clicks, timers and incoming local messages. Closing the 
 Read [app.py](gamehub/app.py), [single_instance.py](gamehub/single_instance.py), [test_app.py](tests/test_app.py), then the [Windows workflow](.github/workflows/windows.yml).
 
 Try it yourself. Follow the close event through the window and explain why the Quit tray action uses a different path.
+
+## M1 — Library detection
+
+A detector turns launcher-specific metadata into the same kind of game record. The database uses the launcher and its stable game ID to recognize a game on the next refresh. A partial scan can update valid entries without marking unseen games uninstalled. The library controller runs scans on a worker so Qt keeps handling input.
+
+Read [steam.py](gamehub/core/library/steam.py), [models.py](gamehub/core/library/models.py), [library.py](gamehub/core/storage/library.py), and [library_controller.py](gamehub/ui/library_controller.py).
+
+Try it yourself. Add one broken manifest to a synthetic library fixture and check which entries remain after refresh.

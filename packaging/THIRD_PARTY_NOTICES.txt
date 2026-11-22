@@ -27,3 +27,6 @@ allow reverse engineering for debugging such modifications.
 The executable uses the PyInstaller bootloader with its distribution
 exception. Source and component notices are available from the project.
 https://pyinstaller.org/en/stable/license.html
+
+The Steam launcher parser uses ValvePython vdf under the MIT license.
+https://github.com/ValvePython/vdf

@@ -11,13 +11,13 @@
 - ⬜ M7 — Settings and Arabic/English [complex]
 - ⬜ M8 — Packaging and release [complex]
 
-**Current task** — M1 library discovery, persistence, and library UI.
+**Current task** — Run M1 hosted verification and Council review, then publish the m1 release.
 
 **Last completed**
 
-- Opened the native window and tray and checked close, reopen, quit, and local activation.
-- Passed Windows pytest, Ruff, and startup CI.
-- Published and verified the PRIVATE m0 installer and portable release.
-- Recorded M0 Council approval.
+- Implemented Steam, Epic, Xbox and manual library paths.
+- Added SQLite persistence and the library view.
+- Verified live Steam rows in the view and after reopening a temporary database.
+- Verified manual add with a local executable and synthetic cases for all launchers.
 
-**Tests** — Three pytest tests, Ruff, native tray, and hosted source, installer and extracted package startup pass for m0. M1 fixture and live discovery checks are pending.
+**Tests** — Local M1 parser, storage, view, launcher discovery and startup checks passed. Hosted M1 tests and packaging checks are pending.

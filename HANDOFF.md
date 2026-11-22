@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin M1 by defining `gamehub/core/library/models.py` for source sightings, stable source IDs, and validated exact tracking targets. Implement detector adapters, the initial SQLite library schema and repository, and the library view using the existing design. Validate with synthetic fixtures, an accessible installed game, and a manual executable.
+Local M1 tests, Ruff and the frozen smoke passed. Verify the hosted `m1` tag run and private installer and portable release, then close the M1 Council review. Next implementation is M2 process sampling and persisted session transitions.
 
 ## Run the app and tests
 
@@ -25,6 +25,8 @@ From the PowerShell repository root:
 - `docs/reviews/` — Council deliberations and verdicts.
 - `docs/TESTING.md` — Windows manual acceptance checklist.
 - `gamehub/app.py` and `gamehub/single_instance.py` — desktop entry point, tray, and local instance control.
+- `gamehub/core/library/` and `gamehub/core/storage/` — detector adapters, source models, and SQLite.
+- `gamehub/ui/library_view.py` — library table and manual executable actions.
 - `tests/test_app.py` — window, local activation, and entry point tests.
 - `packaging/` and `.github/workflows/windows.yml` — Windows bundle, installer, and release workflow.
 - `DECISIONS.md` — decisions and rationale.
@@ -34,6 +36,7 @@ From the PowerShell repository root:
 
 - GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
 - [M0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) passed native tray and tagged Windows CI with both release packages smoke-tested.
+- Live Steam entries loaded and persisted. Epic manifests were unavailable and no accessible Xbox titles were found on this machine. Fixture coverage verified those adapters. [Launcher limitations](docs/launcher-detection.md)
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.
 
 ## Open questions for owner

@@ -1,0 +1,10 @@
+{
+  "AppName": "GameHubSample",
+  "DisplayName": "Synthetic Epic Game",
+  "InstallLocation": "C:\\Examples\\SyntheticEpicGame",
+  "LaunchExecutable": "Bin\\SyntheticGame.exe",
+  "CatalogNamespace": "synthetic-sandbox",
+  "CatalogItemId": "synthetic-catalog",
+  "bIsIncompleteInstall": false,
+  "bIsApplication": true
+}
