@@ -50,18 +50,31 @@ class CaptureService:
             and self._tracker.active_for(lease.window.process) == lease.session
         )
 
-    def sample(self, lease: CaptureLease) -> bool:
+    def capture_webp(self, lease: CaptureLease) -> bytes | None:
+        """Capture and encode one verified foreground frame without saving it to the ring."""
         if not self.is_current(lease):
-            return False
+            return None
         try:
             frame = self._capture.capture_once(lease, self.is_current)
             if frame is None:
-                return False
-            captured_at = time_ns() // 1_000_000
+                return None
             data = _encode(frame)
             if data is None:
                 LOGGER.warning("capture_empty_or_invalid_frame")
-                return False
+                return None
+            if not self.is_current(lease):
+                return None
+            return data
+        except (OSError, RuntimeError, ValueError):
+            LOGGER.warning("capture_request_unavailable")
+            return None
+
+    def sample(self, lease: CaptureLease) -> bool:
+        data = self.capture_webp(lease)
+        if data is None:
+            return False
+        captured_at = time_ns() // 1_000_000
+        try:
             if not self.is_current(lease):
                 return False
             return self._screenshots.append(

@@ -73,6 +73,7 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
     library.assignRequested.connect(lambda game_id, selection: events.append((game_id, selection)))
     library.lastMomentsRequested.connect(lambda game_id: events.append(("moments", game_id)))
     library.playRequested.connect(lambda game_id: events.append(("play", game_id)))
+    library.gameOpened.connect(lambda game_id: events.append(("open", game_id)))
 
     QTest.keyClick(library._refresh, Qt.Key.Key_Space)
     library._add.click()
@@ -80,6 +81,7 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
     library._add.click()
     library.present_games([game])
     assert not library._play.isEnabled()
+    assert not library._open_game.isEnabled()
     assert not library._assign.isEnabled()
     assert not library._last_moments.isEnabled()
     assert library.selected_game() is None
@@ -90,6 +92,7 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
     library._play.click()
     library._table.setFocus()
     QTest.keyClick(library._table, Qt.Key.Key_Return)
+    library._open_game.click()
     library._assign.click()
     QTest.keyClick(library._last_moments, Qt.Key.Key_Space)
     assert events == [
@@ -97,6 +100,7 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
         ("add", path),
         ("play", game.id),
         ("play", game.id),
+        ("open", game.id),
         (game.id, path),
         ("moments", game.id),
     ]

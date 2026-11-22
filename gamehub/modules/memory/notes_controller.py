@@ -14,6 +14,7 @@ from gamehub.core.audio.recorder import AudioRecorder, RecordingError
 from gamehub.core.sessions.models import GameStopped, SessionIdentity
 from gamehub.core.storage.db import StorageError
 from gamehub.core.storage.library import LibraryRepository
+from gamehub.core.storage.memory import MemoryChanged
 from gamehub.core.storage.notes import MAX_TEXT_LENGTH, NoteRepository
 from gamehub.modules.memory.note_dialog import NoteDialog
 
@@ -23,6 +24,7 @@ MAX_RECORD_MS = 60_000
 
 @dataclass(slots=True)
 class _VoiceNote:
+    game_id: str
     session_id: str
     source: str
     dialog: NoteDialog | None
@@ -44,6 +46,8 @@ class NotesController(QObject):
         foreground_session: Callable[[], SessionIdentity | None],
         indicate_recording: Callable[[bool], None],
         notify: Callable[[str], None],
+        *,
+        publish: Callable[[MemoryChanged], None] | None = None,
     ) -> None:
         super().__init__(parent)
         self._window = parent
@@ -53,6 +57,7 @@ class NotesController(QObject):
         self._foreground_session = foreground_session
         self._indicate_recording = indicate_recording
         self._notify = notify
+        self._publish = publish
         self._worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="game-notes")
         self._done.connect(self._complete, Qt.ConnectionType.QueuedConnection)
         self._timer = QTimer(self)
@@ -82,7 +87,7 @@ class NotesController(QObject):
             return
         session = self._foreground_session()
         if session is not None:
-            self._start_voice(session.session_id, "hotkey", expected=session)
+            self._start_voice(session.game_id, session.session_id, "hotkey", expected=session)
 
     def _show_next(self) -> None:
         if self._dialog is not None:
@@ -99,10 +104,14 @@ class NotesController(QObject):
             dialog = NoteDialog(game.name, self._window)
             self._dialog = dialog
             dialog.textRequested.connect(
-                lambda text, d=dialog, sid=event.session_id: self._save_text(d, sid, text)
+                lambda text, d=dialog, gid=event.game_id, sid=event.session_id: self._save_text(
+                    d, gid, sid, text
+                )
             )
             dialog.recordRequested.connect(
-                lambda d=dialog, sid=event.session_id: self._toggle_from_prompt(d, sid)
+                lambda d=dialog, gid=event.game_id, sid=event.session_id: self._toggle_from_prompt(
+                    d, gid, sid
+                )
             )
             dialog.promptDisabled.connect(self._disable_prompts)
             dialog.finished.connect(lambda _, d=dialog: self._prompt_closed(d))
@@ -137,13 +146,13 @@ class NotesController(QObject):
         dialog.deleteLater()
         QTimer.singleShot(0, self, self._show_next)
 
-    def _save_text(self, dialog: NoteDialog, session_id: str, text: str) -> None:
+    def _save_text(self, dialog: NoteDialog, game_id: str, session_id: str, text: str) -> None:
         dialog.clear_error()
         dialog.set_busy(True)
 
         def saved(future):
             try:
-                future.result()
+                note_id = future.result()
             except StorageError:
                 self._show_error(dialog, self.tr("Game Hub could not save this text note."))
                 if self._dialog is dialog:
@@ -156,14 +165,16 @@ class NotesController(QObject):
                 if self._dialog is dialog:
                     dialog.set_busy(False)
             else:
+                if self._publish is not None:
+                    self._publish(MemoryChanged(game_id, session_id, "text_note", note_id))
                 if self._dialog is dialog:
                     dialog.accept()
 
         self._submit(lambda: self._notes.save_text(session_id, text), saved)
 
-    def _toggle_from_prompt(self, dialog: NoteDialog, session_id: str) -> None:
+    def _toggle_from_prompt(self, dialog: NoteDialog, game_id: str, session_id: str) -> None:
         if self._voice is None:
-            self._start_voice(session_id, "popup", dialog)
+            self._start_voice(game_id, session_id, "popup", dialog)
         elif self._voice.dialog is dialog:
             self._stop_voice()
         else:
@@ -171,13 +182,14 @@ class NotesController(QObject):
 
     def _start_voice(
         self,
+        game_id: str,
         session_id: str,
         source: str,
         dialog: NoteDialog | None = None,
         *,
         expected: SessionIdentity | None = None,
     ) -> None:
-        voice = _VoiceNote(session_id, source, dialog)
+        voice = _VoiceNote(game_id, session_id, source, dialog)
         self._voice = voice
         if dialog is not None:
             dialog.clear_error()
@@ -291,7 +303,7 @@ class NotesController(QObject):
     def _voice_saved(self, voice: _VoiceNote, future: Future) -> None:
         dialog = voice.dialog
         try:
-            future.result()
+            note_id = future.result()
         except StorageError:
             self._retry_voice(voice)
         except ValueError:
@@ -299,6 +311,8 @@ class NotesController(QObject):
             self._show_error(dialog, self.tr("Game Hub could not save this voice note."))
         else:
             self._finish_voice(voice)
+            if self._publish is not None:
+                self._publish(MemoryChanged(voice.game_id, voice.session_id, "voice_note", note_id))
             if dialog is not None and self._dialog is dialog:
                 dialog.accept()
             elif dialog is None:

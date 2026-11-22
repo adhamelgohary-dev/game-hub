@@ -6,7 +6,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 INITIAL_SCHEMA = (
     """
@@ -94,6 +94,20 @@ NOTE_SCHEMA = (
     """,
 )
 
+CONTROLS_SCHEMA = (
+    """
+    CREATE TABLE controls (
+        id TEXT PRIMARY KEY NOT NULL,
+        game_id TEXT NOT NULL REFERENCES games(id) ON DELETE RESTRICT,
+        kind TEXT NOT NULL CHECK (kind IN ('image', 'text')),
+        path_or_text TEXT NOT NULL CHECK (length(trim(path_or_text)) > 0),
+        created_at INTEGER NOT NULL
+    ) STRICT
+    """,
+    "CREATE INDEX controls_timeline ON controls (game_id, created_at, id)",
+    "CREATE UNIQUE INDEX controls_image_path ON controls (path_or_text) WHERE kind = 'image'",
+)
+
 
 class StorageError(RuntimeError):
     """The application cannot safely complete a local storage operation."""
@@ -152,7 +166,7 @@ class Database:
         if 0 < version < SCHEMA_VERSION:
             self._backup(version)
 
-        migrations = (INITIAL_SCHEMA, SCREENSHOT_SCHEMA, NOTE_SCHEMA)
+        migrations = (INITIAL_SCHEMA, SCREENSHOT_SCHEMA, NOTE_SCHEMA, CONTROLS_SCHEMA)
         for next_version, statements in enumerate(migrations[version:], start=version + 1):
             for statement in statements:
                 connection.execute(statement)

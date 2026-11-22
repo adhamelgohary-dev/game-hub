@@ -221,3 +221,29 @@ def reconcile_files(
         pass
     except OSError:
         LOGGER.warning("%s", failure_code)
+
+
+def reconcile_game_subfolder(
+    media: Path,
+    subfolder: str,
+    owned: set[str],
+    file_pattern: re.Pattern[str],
+    failure_code: str,
+) -> None:
+    """Sweep managed files inside a fixed per-game subfolder such as controls."""
+    try:
+        with protect_directory(media):
+            for game in media.iterdir():
+                if not UUID.fullmatch(game.name):
+                    continue
+                try:
+                    with _pin_directory(game):
+                        target = game / subfolder
+                        if target.exists():
+                            _reconcile_session(target, media.parent, owned, file_pattern, failure_code)
+                except OSError:
+                    LOGGER.warning("%s", failure_code)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        LOGGER.warning("%s", failure_code)

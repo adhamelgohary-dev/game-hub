@@ -29,7 +29,7 @@ def test_initial_schema_and_read_connection(database: db.Database) -> None:
         assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         tables = connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")
         assert {row["name"] for row in tables} == {
-            "games", "game_targets", "sessions", "screenshots", "notes", "settings",
+            "games", "game_targets", "sessions", "screenshots", "notes", "settings", "controls",
         }
 
     with pytest.raises(sqlite3.ProgrammingError, match="closed database"):

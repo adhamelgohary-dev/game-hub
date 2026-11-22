@@ -61,3 +61,11 @@ Reading related tables inside a single SQLite `BEGIN DEFERRED` snapshot keeps th
 Read [memory.py](gamehub/core/storage/memory.py), [launcher.py](gamehub/core/library/launcher.py), [player.py](gamehub/core/audio/player.py), [last_time_card.py](gamehub/modules/memory/last_time_card.py), and [last_time_controller.py](gamehub/modules/memory/last_time_controller.py).
 
 Try it yourself. Trace what happens when you click **Play**, then **Launch**, and the watcher observes the game start 5 seconds later versus 95 seconds later.
+
+## M6 — Controls card and timeline
+
+Schema migrations upgrade an existing database safely by writing a consistent backup (`gamehub.db-v3.bak`) before applying DDL and bumping `PRAGMA user_version` inside the same transaction. Uploaded user images are never copied raw: Game Hub reads bounded bytes, restricts Pillow to explicit image formats, applies EXIF orientation, strips original metadata, and writes managed WebP files under `media/<game_id>/controls/`. Sharing one `CaptureScheduler` worker and one `VoicePlayer` across features prevents overlapping native captures and overlapping audio clips.
+
+Read [controls.py](gamehub/core/storage/controls.py), [controls_controller.py](gamehub/modules/memory/controls_controller.py), [game_page.py](gamehub/ui/game_page.py), and [memory.py](gamehub/core/storage/memory.py).
+
+Try it yourself. Open a game's page, delete one voice note file from disk while keeping the database row, and verify that the rest of the session timeline stays usable.

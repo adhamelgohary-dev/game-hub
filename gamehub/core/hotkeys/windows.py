@@ -14,6 +14,7 @@ MOD_NOREPEAT = 0x4000
 WM_HOTKEY = 0x0312
 RECORD_NOTE_ID = 0x6600
 LAST_TIME_ID = 0x6601
+PIN_CONTROLS_ID = 0x6602
 
 
 class GlobalHotkeys(QAbstractNativeEventFilter):

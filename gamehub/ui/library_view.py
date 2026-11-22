@@ -27,6 +27,7 @@ class LibraryView(QWidget):
     assignRequested = Signal(str, str)
     lastMomentsRequested = Signal(str)
     playRequested = Signal(str)
+    gameOpened = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -44,6 +45,9 @@ class LibraryView(QWidget):
         self._play = QPushButton(self.tr("&Play…"), self)
         self._play.setToolTip(self.tr("Preview Last time and launch the selected game."))
         self._play.clicked.connect(self._open_play)
+        self._open_game = QPushButton(self.tr("&Open game…"), self)
+        self._open_game.setToolTip(self.tr("Open Controls and Session Timeline for the selected game."))
+        self._open_game.clicked.connect(self._open_selected_game)
         self._assign = QPushButton(self.tr("Assign &executable…"), self)
         self._assign.setToolTip(self.tr("Choose an executable to track for the selected game."))
         self._assign.clicked.connect(self._pick_tracking_target)
@@ -55,6 +59,7 @@ class LibraryView(QWidget):
         toolbar.addWidget(self._refresh)
         toolbar.addWidget(self._add)
         toolbar.addWidget(self._play)
+        toolbar.addWidget(self._open_game)
         toolbar.addWidget(self._assign)
         toolbar.addWidget(self._last_moments)
         toolbar.addStretch()
@@ -103,7 +108,8 @@ class LibraryView(QWidget):
         layout.addWidget(self._content, stretch=1)
         QWidget.setTabOrder(self._add, self._table)
         QWidget.setTabOrder(self._table, self._play)
-        QWidget.setTabOrder(self._play, self._assign)
+        QWidget.setTabOrder(self._play, self._open_game)
+        QWidget.setTabOrder(self._open_game, self._assign)
         QWidget.setTabOrder(self._assign, self._last_moments)
         self._update_actions()
 
@@ -188,6 +194,7 @@ class LibraryView(QWidget):
         self._add.setEnabled(not self._busy)
         rows = self._table.selectionModel().selectedRows()
         self._play.setEnabled(not self._busy and bool(rows))
+        self._open_game.setEnabled(not self._busy and bool(rows))
         self._assign.setEnabled(
             not self._busy and bool(rows and rows[0].data(Qt.ItemDataRole.UserRole + 1))
         )
@@ -199,6 +206,13 @@ class LibraryView(QWidget):
         game_id = self._selected_game()
         if game_id is not None:
             self.playRequested.emit(game_id)
+
+    def _open_selected_game(self) -> None:
+        if self._busy:
+            return
+        game_id = self._selected_game()
+        if game_id is not None:
+            self.gameOpened.emit(game_id)
 
     def _open_last_moments(self) -> None:
         game_id = self._selected_game()

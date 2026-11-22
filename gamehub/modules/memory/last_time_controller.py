@@ -33,11 +33,14 @@ class LastTimeController(QObject):
         selected_game: Callable[[], str | None],
         reveal_library: Callable[[], None],
         notify: Callable[[str], None],
+        *,
+        load_control_image: Callable[[Path], bytes | None] | None = None,
     ) -> None:
         super().__init__(parent)
         self._window = parent
         self._memory = memory
         self._load_image = load_image
+        self._load_control_image = load_control_image or (lambda _path: None)
         self._player = player
         self._launcher = launcher
         self._foreground_session = foreground_session
@@ -157,6 +160,7 @@ class LastTimeController(QObject):
             allow_launch=allow_launch,
             already_running=game_id in self._active_sessions,
             load_image=self._load_image,
+            load_control_image=self._load_control_image,
             parent=None,
         )
         self._card = card

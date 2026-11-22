@@ -94,6 +94,7 @@ class LastTimeCard(QDialog):
         allow_launch: bool,
         already_running: bool = False,
         load_image: Callable[[Path], bytes | None],
+        load_control_image: Callable[[Path], bytes | None] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -103,9 +104,12 @@ class LastTimeCard(QDialog):
 
         self._data = data
         self._load_image = load_image
+        self._load_control_image = load_control_image or (lambda _path: None)
         self._paths = data.screenshots
+        self._control_images = data.control_images
         self._index = 0
         self._picture = QPixmap()
+        self._control_picture = QPixmap()
         self._playing = False
         self._played_once = False
         self._voice_error: str | None = None
@@ -214,7 +218,26 @@ class LastTimeCard(QDialog):
 
         # Controls preview
         body_layout.addWidget(_section_heading(self.tr("Controls"), body))
-        controls_text = "\n".join(data.controls) if data.controls else self.tr("No controls pinned yet.")
+        self._control_preview: QLabel | None = None
+        if self._control_images:
+            self._control_preview = QLabel(body)
+            self._control_preview.setAccessibleName(self.tr("Pinned controls preview"))
+            self._control_preview.setTextFormat(Qt.TextFormat.PlainText)
+            self._control_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._control_preview.setWordWrap(True)
+            self._control_preview.setFrameShape(QFrame.Shape.StyledPanel)
+            self._control_preview.setMinimumSize(280, 140)
+            self._control_preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+            body_layout.addWidget(self._control_preview)
+        controls_text = (
+            "\n".join(data.controls)
+            if data.controls
+            else (
+                self.tr("Pinned controls images: {count}").format(count=len(self._control_images))
+                if self._control_images
+                else self.tr("No controls pinned yet.")
+            )
+        )
         self._controls = QLabel(controls_text, body)
         self._controls.setTextFormat(Qt.TextFormat.PlainText)
         self._controls.setWordWrap(True)
@@ -277,6 +300,7 @@ class LastTimeCard(QDialog):
         self._update_voice_controls()
         self._update_launch_button()
         self._show_current_shot()
+        self._show_control_preview()
         if self._launch is not None and self._launch.isEnabled():
             self._launch.setFocus()
         elif self._play_voice.isEnabled():
@@ -452,3 +476,21 @@ class LastTimeCard(QDialog):
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
+        if self._control_preview is not None and not self._control_picture.isNull():
+            self._control_preview.setPixmap(
+                self._control_picture.scaled(
+                    self._control_preview.contentsRect().size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+
+    def _show_control_preview(self) -> None:
+        if self._control_preview is None or not self._control_images:
+            return
+        self._control_picture = _decode_preview(self._load_control_image(self._control_images[-1]))
+        if self._control_picture.isNull():
+            self._control_preview.setPixmap(QPixmap())
+            self._control_preview.setText(self.tr("This controls image is unavailable."))
+        else:
+            self._fit_picture()

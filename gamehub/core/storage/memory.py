@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from gamehub.core.library.models import LaunchTarget
+from gamehub.core.storage import controls as controls_storage
 from gamehub.core.storage import media, notes, settings
 from gamehub.core.storage.db import Database, StorageError
 
@@ -44,6 +45,38 @@ class TextNoteSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class MemoryChanged:
+    game_id: str
+    session_id: str | None
+    item_kind: str
+    item_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class SessionCursor:
+    started_at: int
+    session_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class TimelineSession:
+    id: str
+    started_at: int
+    ended_at: int | None
+    duration_sec: int
+    status: str
+    screenshots: tuple[Path, ...]
+    voice_notes: tuple[VoiceNoteSnapshot, ...]
+    text_notes: tuple[TextNoteSnapshot, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class TimelinePage:
+    sessions: tuple[TimelineSession, ...]
+    next_cursor: SessionCursor | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class LastTimeData:
     game_id: str
     game_name: str
@@ -56,6 +89,7 @@ class LastTimeData:
     text_note: TextNoteSnapshot | None
     screenshots: tuple[Path, ...]
     controls: tuple[str, ...] = ()
+    control_images: tuple[Path, ...] = ()
 
 
 def _screenshot_path(game_id: str, session_id: str, screenshot_id: str) -> PurePosixPath:
@@ -143,6 +177,10 @@ class MemoryRepository:
                     """,
                     (last_row["id"],),
                 ).fetchall()
+            control_rows = connection.execute(
+                "SELECT id, kind, path_or_text FROM controls WHERE game_id = ? ORDER BY created_at, id",
+                (game_id,),
+            ).fetchall()
 
         installed = bool(game["installed"])
         launch = (
@@ -173,6 +211,7 @@ class MemoryRepository:
             else None
         )
         screenshots = self._build_screenshots(game_id, last_session, shot_rows)
+        control_texts, control_images = self._build_controls(game_id, control_rows)
         return LastTimeData(
             game_id=game["id"],
             game_name=game["name"],
@@ -184,7 +223,120 @@ class MemoryRepository:
             voice_note=voice_note,
             text_note=text_note,
             screenshots=screenshots,
+            controls=control_texts,
+            control_images=control_images,
         )
+
+    def timeline(
+        self,
+        game_id: str,
+        cursor: SessionCursor | None = None,
+        limit: int = 20,
+    ) -> TimelinePage:
+        """Return newest-first sessions and their screenshots and notes from one snapshot."""
+        if limit < 1:
+            raise ValueError("Timeline page size must be at least one.")
+        limit = min(limit, 100)
+        if not media.UUID.fullmatch(game_id):
+            return TimelinePage(())
+
+        with self._database.read_snapshot() as connection:
+            visible = connection.execute(
+                "SELECT 1 FROM games WHERE id = ? AND hidden = 0", (game_id,)
+            ).fetchone()
+            if visible is None:
+                return TimelinePage(())
+            if cursor is not None:
+                session_rows = connection.execute(
+                    """
+                    SELECT id, started_at, ended_at, duration_sec, status
+                    FROM sessions
+                    WHERE game_id = ?
+                      AND (started_at < ? OR (started_at = ? AND id < ?))
+                    ORDER BY started_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (game_id, cursor.started_at, cursor.started_at, cursor.session_id, limit + 1),
+                ).fetchall()
+            else:
+                session_rows = connection.execute(
+                    """
+                    SELECT id, started_at, ended_at, duration_sec, status
+                    FROM sessions
+                    WHERE game_id = ?
+                    ORDER BY started_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (game_id, limit + 1),
+                ).fetchall()
+
+            has_more = len(session_rows) > limit
+            page_rows = session_rows[:limit]
+            if not page_rows:
+                return TimelinePage(())
+
+            session_ids = [row["id"] for row in page_rows]
+            placeholders = ", ".join("?" for _ in session_ids)
+            shot_rows = connection.execute(
+                f"""
+                SELECT id, session_id, path FROM screenshots
+                WHERE session_id IN ({placeholders})
+                ORDER BY captured_at, id
+                """,
+                session_ids,
+            ).fetchall()
+            note_rows = connection.execute(
+                f"""
+                SELECT id, session_id, kind, path_or_text, created_at FROM notes
+                WHERE session_id IN ({placeholders})
+                ORDER BY created_at DESC, id DESC
+                """,
+                session_ids,
+            ).fetchall()
+
+        shots_by_session: dict[str, list[Path]] = {sid: [] for sid in session_ids}
+        for row in shot_rows:
+            sid = row["session_id"]
+            if media.UUID.fullmatch(sid) and media.UUID.fullmatch(row["id"]):
+                relative = _screenshot_path(game_id, sid, row["id"])
+                if row["path"] == relative.as_posix():
+                    shots_by_session[sid].append(self._root.joinpath(*relative.parts))
+
+        voices_by_session: dict[str, list[VoiceNoteSnapshot]] = {sid: [] for sid in session_ids}
+        texts_by_session: dict[str, list[TextNoteSnapshot]] = {sid: [] for sid in session_ids}
+        for row in note_rows:
+            sid = row["session_id"]
+            if row["kind"] == "voice":
+                voice = self._build_voice(game_id, row)
+                if voice is not None:
+                    voices_by_session[sid].append(voice)
+            elif row["kind"] == "text":
+                texts_by_session[sid].append(
+                    TextNoteSnapshot(
+                        id=row["id"],
+                        session_id=sid,
+                        created_at=row["created_at"],
+                        text=row["path_or_text"],
+                    )
+                )
+
+        items = tuple(
+            TimelineSession(
+                id=row["id"],
+                started_at=row["started_at"],
+                ended_at=row["ended_at"],
+                duration_sec=row["duration_sec"],
+                status=row["status"],
+                screenshots=tuple(shots_by_session[row["id"]]),
+                voice_notes=tuple(voices_by_session[row["id"]]),
+                text_notes=tuple(texts_by_session[row["id"]]),
+            )
+            for row in page_rows
+        )
+        next_cursor = (
+            SessionCursor(items[-1].started_at, items[-1].id) if has_more else None
+        )
+        return TimelinePage(items, next_cursor)
 
     def read_voice(self, path: Path) -> bytes | None:
         """Read bounded Ogg bytes for a validated, database-owned voice note."""
@@ -276,3 +428,17 @@ class MemoryRepository:
                 if row["path"] == relative.as_posix():
                     paths.append(self._root.joinpath(*relative.parts))
         return tuple(paths)
+
+    def _build_controls(
+        self, game_id: str, rows: list[sqlite3.Row]
+    ) -> tuple[tuple[str, ...], tuple[Path, ...]]:
+        texts: list[str] = []
+        images: list[Path] = []
+        for row in rows:
+            if row["kind"] == "text":
+                texts.append(row["path_or_text"])
+            elif media.UUID.fullmatch(row["id"]):
+                relative = controls_storage.control_image_path(game_id, row["id"])
+                if row["path_or_text"] == relative.as_posix():
+                    images.append(self._root.joinpath(*relative.parts))
+        return tuple(texts), tuple(images)

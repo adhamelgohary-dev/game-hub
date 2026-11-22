@@ -1,5 +1,12 @@
 # Changelog
 
+## m6
+
+- Upgrade local SQLite storage to schema 4 with the `controls` table and automatic pre-upgrade backup.
+- Pin a controls screenshot of the focused tracked game window with Ctrl+Alt+C reusing the exact-window capture gate.
+- Upload local PNG, JPEG, WebP, or BMP controls images (sanitized and re-encoded to managed WebP) and save per-game strategy notes.
+- Add the per-game Game page with Play, pinned Controls, and a paginated chronological Session Timeline showing screenshots, voice notes, text notes, and missing-media fallbacks.
+
 ## m5
 
 - Show the always-on-top Last time card when a tracked game starts, with prior play summary, independent latest voice and text notes, screenshots carousel, and controls section.
