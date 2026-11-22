@@ -68,6 +68,11 @@ class NotesController(QObject):
         self._voice: _VoiceNote | None = None
         self._prompts_enabled = notes.prompt_enabled()
 
+    def set_prompts_enabled(self, enabled: bool) -> None:
+        self._prompts_enabled = enabled
+        if not enabled:
+            self._queue.clear()
+
     def game_stopped(self, event: GameStopped) -> None:
         voice = self._voice
         if (

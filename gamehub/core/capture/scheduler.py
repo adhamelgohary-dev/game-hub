@@ -30,6 +30,12 @@ class CaptureScheduler(QObject):
     def start(self) -> None:
         self._timer.start()
 
+    def pause(self) -> None:
+        self._timer.stop()
+
+    def set_interval_sec(self, interval_sec: float) -> None:
+        self._timer.setInterval(round(interval_sec * 1000))
+
     def sample_foreground(self) -> None:
         if self._closed or (self._current is not None and not self._current.done()):
             return

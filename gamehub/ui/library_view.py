@@ -28,15 +28,17 @@ class LibraryView(QWidget):
     lastMomentsRequested = Signal(str)
     playRequested = Signal(str)
     gameOpened = Signal(str)
+    settingsRequested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._busy = False
+        self._games: tuple[GameSummary, ...] = ()
 
-        title = QLabel(self.tr("Library"), self)
-        title_font = title.font()
+        self._title = QLabel(self.tr("Library"), self)
+        title_font = self._title.font()
         title_font.setBold(True)
-        title.setFont(title_font)
+        self._title.setFont(title_font)
 
         self._refresh = QPushButton(self.tr("&Refresh"), self)
         self._refresh.clicked.connect(self.refreshRequested)
@@ -54,6 +56,8 @@ class LibraryView(QWidget):
         self._last_moments = QPushButton(self.tr("Last &moments…"), self)
         self._last_moments.setToolTip(self.tr("View recent screenshots for the selected game."))
         self._last_moments.clicked.connect(self._open_last_moments)
+        self._settings = QPushButton(self.tr("&Settings"), self)
+        self._settings.clicked.connect(self.settingsRequested)
 
         toolbar = QHBoxLayout()
         toolbar.addWidget(self._refresh)
@@ -63,6 +67,7 @@ class LibraryView(QWidget):
         toolbar.addWidget(self._assign)
         toolbar.addWidget(self._last_moments)
         toolbar.addStretch()
+        toolbar.addWidget(self._settings)
 
         self._progress = QLabel(self.tr("Updating library…"), self)
         self._progress.hide()
@@ -101,7 +106,7 @@ class LibraryView(QWidget):
         self._content.addWidget(self._table)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(title)
+        layout.addWidget(self._title)
         layout.addLayout(toolbar)
         layout.addWidget(self._progress)
         layout.addWidget(self._error)
@@ -111,10 +116,39 @@ class LibraryView(QWidget):
         QWidget.setTabOrder(self._play, self._open_game)
         QWidget.setTabOrder(self._open_game, self._assign)
         QWidget.setTabOrder(self._assign, self._last_moments)
+        QWidget.setTabOrder(self._last_moments, self._settings)
         self._update_actions()
+
+    def retranslate_ui(self) -> None:
+        self._title.setText(self.tr("Library"))
+        self._refresh.setText(self.tr("&Refresh"))
+        self._add.setText(self.tr("&Add game…"))
+        self._play.setText(self.tr("&Play…"))
+        self._play.setToolTip(self.tr("Preview Last time and launch the selected game."))
+        self._open_game.setText(self.tr("&Open game…"))
+        self._open_game.setToolTip(
+            self.tr("Open Controls and Session Timeline for the selected game.")
+        )
+        self._assign.setText(self.tr("Assign &executable…"))
+        self._assign.setToolTip(self.tr("Choose an executable to track for the selected game."))
+        self._last_moments.setText(self.tr("Last &moments…"))
+        self._last_moments.setToolTip(self.tr("View recent screenshots for the selected game."))
+        self._settings.setText(self.tr("&Settings"))
+        self._progress.setText(self.tr("Updating library…"))
+        self._empty.setText(self.tr("No games in your library. Refresh or add a game."))
+        self._table.setAccessibleName(self.tr("Game library"))
+        self._table.setHorizontalHeaderLabels([
+            self.tr("Name"),
+            self.tr("Source"),
+            self.tr("Install path"),
+            self.tr("Last played"),
+            self.tr("Total playtime"),
+        ])
+        self.present_games(self._games)
 
     def present_games(self, games: Sequence[GameSummary]) -> None:
         """Refresh the table while preserving selection if the game remains."""
+        self._games = tuple(games)
         selected = self._selected_game()
         self._table.clearSelection()
         self._table.setRowCount(len(games))
@@ -136,10 +170,13 @@ class LibraryView(QWidget):
             if game.last_played is not None:
                 date = QDateTime.fromMSecsSinceEpoch(game.last_played).toLocalTime()
                 last_played = locale.toString(date, QLocale.FormatType.ShortFormat)
+            install_text = (
+                str(game.install_dir) if game.install_dir is not None else self.tr("Unavailable")
+            )
             values = (
                 game.name,
                 source,
-                str(game.install_dir) if game.install_dir is not None else self.tr("Unavailable"),
+                install_text,
                 last_played,
                 self._format_playtime(game.total_playtime),
             )

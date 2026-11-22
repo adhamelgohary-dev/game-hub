@@ -370,12 +370,13 @@ class LastTimeCard(QDialog):
     def _handle_carousel_key(self, event: QKeyEvent) -> bool:
         if isinstance(self.focusWidget(), QPlainTextEdit):
             return False
+        rtl = self.layoutDirection() == Qt.LayoutDirection.RightToLeft
         if event.key() == Qt.Key.Key_Left:
-            self._go_previous()
+            self._move(1 if rtl else -1)
             event.accept()
             return True
         if event.key() == Qt.Key.Key_Right:
-            self._go_next()
+            self._move(-1 if rtl else 1)
             event.accept()
             return True
         return False

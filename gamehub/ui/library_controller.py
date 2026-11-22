@@ -80,16 +80,24 @@ class LibraryController(QObject):
         try:
             result = future.result()
         except ValueError:
-            self._view.show_error("Choose a local game executable that is available for tracking.")
+            self._view.show_error(
+                self.tr("Choose a local game executable that is available for tracking.")
+            )
             return
         except (OSError, StorageError):
             if not quiet:
-                self._view.show_error("Game Hub could not read or update your library. Try again.")
+                self._view.show_error(
+                    self.tr("Game Hub could not read or update your library. Try again.")
+                )
             return
         self._view.present_games(result.games)
         if result.partial_sources:
             names = ", ".join(SOURCE_NAMES[source] for source in result.partial_sources)
-            self._view.show_error(f"These launchers could only be partially scanned: {names}.")
+            self._view.show_error(
+                self.tr("These launchers could only be partially scanned: {names}.").format(
+                    names=names
+                )
+            )
 
     def close(self) -> None:
         self._worker.shutdown(cancel_futures=True)

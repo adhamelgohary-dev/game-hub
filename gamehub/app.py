@@ -2,12 +2,13 @@
 
 import argparse
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from PySide6.QtCore import QStandardPaths, QTimer
-from PySide6.QtGui import QCloseEvent, QImageReader
+from PySide6.QtCore import QObject, QStandardPaths, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QCloseEvent, QDesktopServices, QImageReader
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -26,12 +27,11 @@ from gamehub.core.capture.windows import WgcCapture, WindowProbe
 from gamehub.core.events import EventBus
 from gamehub.core.hotkeys.windows import (
     LAST_TIME_ID,
-    MOD_ALT,
-    MOD_CONTROL,
     PIN_CONTROLS_ID,
     RECORD_NOTE_ID,
     GlobalHotkeys,
 )
+from gamehub.core.i18n import apply_language
 from gamehub.core.library.epic import EpicDetector
 from gamehub.core.library.launcher import LaunchCoordinator, WindowsLauncher
 from gamehub.core.library.models import LibraryChanged
@@ -42,9 +42,12 @@ from gamehub.core.sessions.models import GameStarted, GameStopped, SessionIdenti
 from gamehub.core.sessions.processes import ProcessProbe
 from gamehub.core.sessions.tracker import SessionTracker
 from gamehub.core.sessions.watcher import SessionWatcher
+from gamehub.core.settings import SettingsChanged, SettingsService, SettingsSnapshot
+from gamehub.core.startup import StartupRegistration
 from gamehub.core.storage.controls import ControlsRepository
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
+from gamehub.core.storage.location import StoreLocation, resolve_data_root
 from gamehub.core.storage.memory import MemoryChanged, MemoryRepository
 from gamehub.core.storage.notes import NoteRepository
 from gamehub.core.storage.screenshots import ScreenshotRepository
@@ -57,6 +60,7 @@ from gamehub.ui.game_page import GamePage
 from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
 from gamehub.ui.library_view import LibraryView
+from gamehub.ui.settings_view import SettingsView
 
 
 class GameHubWindow(QMainWindow):
@@ -69,9 +73,11 @@ class GameHubWindow(QMainWindow):
 
         self.library = LibraryView(self)
         self.game_page = GamePage(self)
+        self.settings_view = SettingsView(self)
         self._pages = QStackedWidget(self)
         self._pages.addWidget(self.library)
         self._pages.addWidget(self.game_page)
+        self._pages.addWidget(self.settings_view)
         self.setCentralWidget(self._pages)
 
         icon = self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
@@ -82,8 +88,8 @@ class GameHubWindow(QMainWindow):
         self._recording = False
 
         self.tray_menu = QMenu(self)
-        self.tray_menu.addAction("Open Game Hub", self.reveal)
-        self.tray_menu.addAction("Quit", app.quit)
+        self._open_action = self.tray_menu.addAction(self.tr("Open Game Hub"), self.reveal)
+        self._quit_action = self.tray_menu.addAction(self.tr("Quit"), app.quit)
         self._tray_status = self.tray_menu.addAction("")
         self._tray_status.setEnabled(False)
         self.tray.setContextMenu(self.tray_menu)
@@ -128,8 +134,19 @@ class GameHubWindow(QMainWindow):
     def show_game_page(self) -> None:
         self._pages.setCurrentWidget(self.game_page)
 
+    def show_settings(self) -> None:
+        self._pages.setCurrentWidget(self.settings_view)
+
     def is_game_page_open(self, game_id: str) -> bool:
         return self._pages.currentWidget() is self.game_page and self.game_page.game_id == game_id
+
+    def retranslate_ui(self) -> None:
+        self._open_action.setText(self.tr("Open Game Hub"))
+        self._quit_action.setText(self.tr("Quit"))
+        self._show_tracking_status()
+        self.library.retranslate_ui()
+        self.game_page.retranslate_ui()
+        self.settings_view.retranslate_ui()
 
     def reveal(self) -> None:
         if self.isMinimized():
@@ -151,18 +168,27 @@ class GameHubWindow(QMainWindow):
             self.reveal()
 
 
-def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
+def _run(
+    app: QApplication,
+    data_root: Path,
+    *,
+    smoke_test: bool,
+    default_root: Path | None = None,
+) -> int:
+    effective_default = default_root if default_root is not None else data_root
     window = GameHubWindow(app)
-    instance = SingleInstance(data_root, window.reveal)
+    instance = SingleInstance(effective_default, window.reveal)
     controller = None
     log_handler = None
     watcher = None
     capture_scheduler = None
+    capture_service = None
     notes_controller = None
     last_time_controller = None
     controls_controller = None
     voice_player = None
     hotkeys = None
+    move_worker = None
     try:
         if not instance.claim_or_activate():
             return 0
@@ -175,6 +201,10 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
         screenshots = _open_screenshot_store(database, data_root)
         controls = _open_controls_store(database, data_root)
         memory = _open_memory_store(database, data_root)
+        initial_settings = SettingsService(database).read()
+        apply_language(app, initial_settings.language)
+        window.retranslate_ui()
+
         service = LibraryService(library, detectors, events.publish)
         window.library.present_games(service.current().games)
         controller = LibraryController(window.library, service)
@@ -186,6 +216,7 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
             load_screenshot=screenshots.read_image if screenshots is not None else (lambda _p: None),
         )
         window.game_page.backRequested.connect(window.show_library)
+        window.settings_view.backRequested.connect(window.show_library)
         tray_available = QSystemTrayIcon.isSystemTrayAvailable()
         app.setQuitOnLastWindowClosed(not tray_available)
         if tray_available:
@@ -213,8 +244,16 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
 
             if screenshots is not None and windows is not None:
                 try:
-                    capture_service = CaptureService(windows, tracker, WgcCapture(), screenshots)
-                    capture_scheduler = CaptureScheduler(capture_service, window)
+                    capture_service = CaptureService(
+                        windows,
+                        tracker,
+                        WgcCapture(),
+                        screenshots,
+                        buffer_size=initial_settings.capture_buffer_size,
+                    )
+                    capture_scheduler = CaptureScheduler(
+                        capture_service, window, interval_sec=initial_settings.capture_interval_sec
+                    )
                 except (OSError, RuntimeError):
                     logging.getLogger("gamehub").warning("capture_startup_unavailable")
 
@@ -274,7 +313,29 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
 
             _wire_game_page(window, library, controls, memory, voice_player, events)
             hotkeys = _start_hotkeys(
-                app, window, windows, notes_controller, last_time_controller, controls_controller
+                app,
+                window,
+                windows,
+                initial_settings,
+                notes_controller,
+                last_time_controller,
+                controls_controller,
+            )
+            store_location = StoreLocation(effective_default, data_root, database)
+            move_worker = _wire_settings(
+                app,
+                window,
+                database,
+                store_location,
+                hotkeys,
+                windows,
+                watcher,
+                capture_service,
+                capture_scheduler,
+                notes_controller,
+                last_time_controller,
+                controls_controller,
+                events,
             )
             watcher.start()
             if capture_scheduler is not None:
@@ -284,6 +345,8 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
     finally:
         if hotkeys is not None:
             hotkeys.close()
+        if move_worker is not None:
+            move_worker.shutdown(wait=True)
         if voice_player is not None:
             voice_player.stop()
         if controls_controller is not None:
@@ -500,6 +563,7 @@ def _start_hotkeys(
     app: QApplication,
     window: GameHubWindow,
     windows: WindowProbe | None,
+    initial: SettingsSnapshot,
     notes_controller: NotesController | None,
     last_time_controller: LastTimeController | None,
     controls_controller: ControlsController | None,
@@ -519,26 +583,173 @@ def _start_hotkeys(
     if (
         notes_controller is not None
         and windows is not None
-        and not hotkeys.bind(RECORD_NOTE_ID, MOD_CONTROL | MOD_ALT, ord("N"), notes_controller.toggle_hotkey)
+        and not hotkeys.bind_shortcut(
+            RECORD_NOTE_ID, initial.hotkey_record_note, notes_controller.toggle_hotkey
+        )
     ):
         window.notify(
             window.tr("Ctrl+Alt+N is unavailable. You can record from the game-close prompt.")
         )
     if (
         last_time_controller is not None
-        and not hotkeys.bind(LAST_TIME_ID, MOD_CONTROL | MOD_ALT, ord("L"), last_time_controller.reopen_hotkey)
+        and not hotkeys.bind_shortcut(
+            LAST_TIME_ID, initial.hotkey_last_time, last_time_controller.reopen_hotkey
+        )
     ):
         window.notify(
             window.tr("Ctrl+Alt+L is unavailable. You can open Last time from Play in Library.")
         )
     if (
         controls_controller is not None
-        and not hotkeys.bind(PIN_CONTROLS_ID, MOD_CONTROL | MOD_ALT, ord("C"), controls_controller.pin_hotkey)
+        and not hotkeys.bind_shortcut(
+            PIN_CONTROLS_ID, initial.hotkey_pin_controls, controls_controller.pin_hotkey
+        )
     ):
         window.notify(
             window.tr("Ctrl+Alt+C is unavailable. You can upload controls images from the game page.")
         )
     return hotkeys
+
+
+class _MoveBridge(QObject):
+    finished = Signal(bool, object)
+
+
+def _wire_settings(
+    app: QApplication,
+    window: GameHubWindow,
+    database: Database,
+    store_location: StoreLocation,
+    hotkeys: GlobalHotkeys | None,
+    windows: WindowProbe | None,
+    watcher: SessionWatcher,
+    capture_service: CaptureService | None,
+    capture_scheduler: CaptureScheduler | None,
+    notes_controller: NotesController | None,
+    last_time_controller: LastTimeController | None,
+    controls_controller: ControlsController | None,
+    events: EventBus,
+) -> ThreadPoolExecutor:
+    action_map = {
+        "hotkey.record_note": (
+            RECORD_NOTE_ID,
+            notes_controller.toggle_hotkey
+            if notes_controller is not None and windows is not None
+            else None,
+        ),
+        "hotkey.last_time": (
+            LAST_TIME_ID,
+            last_time_controller.reopen_hotkey if last_time_controller is not None else None,
+        ),
+        "hotkey.pin_controls": (
+            PIN_CONTROLS_ID,
+            controls_controller.pin_hotkey if controls_controller is not None else None,
+        ),
+    }
+    id_to_key = {ident: key for key, (ident, _) in action_map.items()}
+
+    def rebind_hotkeys(changes: dict[str, str]) -> tuple[bool, str | None, str | None]:
+        if hotkeys is None:
+            for key, shortcut in changes.items():
+                if shortcut:
+                    return False, key, "hotkeys_unavailable"
+            return True, None, None
+        batch = {}
+        for key, shortcut in changes.items():
+            ident, handler = action_map[key]
+            if handler is None:
+                if shortcut:
+                    return False, key, "hotkeys_unavailable"
+                continue
+            batch[ident] = (shortcut, handler)
+        ok, failed_id = hotkeys.rebind_batch(batch)
+        if not ok:
+            return False, id_to_key.get(failed_id or -1), "shortcut_conflict"
+        return True, None, None
+
+    settings_service = SettingsService(
+        database,
+        publish=events.publish,
+        rebind_hotkeys=rebind_hotkeys,
+        startup=StartupRegistration(),
+    )
+    move_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="store-move")
+    move_bridge = _MoveBridge(window)
+
+    def open_settings() -> None:
+        try:
+            current = settings_service.read()
+        except StorageError:
+            window.library.show_error(window.tr("Game Hub could not read your settings."))
+            return
+        window.settings_view.load_settings(current, store_location.current())
+        window.settings_view.show_field_errors({})
+        window.show_settings()
+
+    def save_settings(patch: dict) -> None:
+        result = settings_service.update(patch)
+        if result.ok:
+            window.settings_view.load_settings(result.snapshot, store_location.current())
+            window.settings_view.show_status("settings_saved")
+        else:
+            window.settings_view.show_field_errors(result.errors)
+
+    def open_folder() -> None:
+        url = QUrl.fromLocalFile(str(store_location.current()))
+        if not QDesktopServices.openUrl(url):
+            window.settings_view.show_field_errors({"data_location": "open_folder_failed"})
+
+    def move_completed(ok: bool, diag: object) -> None:
+        if ok:
+            # Keep background writers stopped so no post-move writes land in the old store.
+            watcher.close()
+            if hotkeys is not None:
+                hotkeys.close()
+            window.settings_view.set_restart_required()
+            window.settings_view.show_status("location_moved_restart")
+        else:
+            watcher.resume()
+            if capture_scheduler is not None:
+                capture_scheduler.start()
+            window.settings_view.set_busy(False)
+            window.settings_view.show_field_errors(
+                {"data_location": str(diag) if diag else "location_move_failed"}
+            )
+
+    move_bridge.finished.connect(move_completed, Qt.ConnectionType.QueuedConnection)
+
+    def move_folder(destination: str) -> None:
+        window.settings_view.set_busy(True)
+        if capture_scheduler is not None:
+            capture_scheduler.pause()
+
+        def run_move() -> None:
+            watcher.pause()
+            ok, diag = store_location.move(Path(destination))
+            move_bridge.finished.emit(ok, diag)
+
+        move_worker.submit(run_move)
+
+    def apply_changed(event: SettingsChanged) -> None:
+        snap = event.snapshot
+        if "ui.language" in event.keys:
+            apply_language(app, snap.language)
+            window.retranslate_ui()
+        if "capture.interval_sec" in event.keys and capture_scheduler is not None:
+            capture_scheduler.set_interval_sec(snap.capture_interval_sec)
+        if "capture.buffer_size" in event.keys and capture_service is not None:
+            capture_service.set_buffer_size(snap.capture_buffer_size)
+        if "memory.prompt_on_end" in event.keys and notes_controller is not None:
+            notes_controller.set_prompts_enabled(snap.prompt_on_end)
+        if "memory.autoplay_voice" in event.keys and last_time_controller is not None:
+            last_time_controller.set_autoplay_enabled(snap.autoplay_voice)
+
+    window.library.settingsRequested.connect(open_settings)
+    window.settings_view.saveRequested.connect(save_settings)
+    window.settings_view.openFolderRequested.connect(open_folder)
+    window.settings_view.moveFolderRequested.connect(move_folder)
+    events.subscribe(SettingsChanged, apply_changed)
+    return move_worker
 
 
 def _check_capture_runtime() -> None:
@@ -586,7 +797,7 @@ def _open_last_moments(
     game_id: str,
 ) -> None:
     if screenshots is None:
-        window.library.show_error("Game Hub could not open your screenshot folder.")
+        window.library.show_error(window.tr("Game Hub could not open your screenshot folder."))
         return
     try:
         game = library.get_game(game_id)
@@ -594,7 +805,7 @@ def _open_last_moments(
             return
         images = screenshots.last_moments(game_id)
     except (OSError, StorageError):
-        window.library.show_error("Game Hub could not load the screenshots for this game.")
+        window.library.show_error(window.tr("Game Hub could not load the screenshots for this game."))
         return
     LastMomentsDialog(game.name, images, window, load_image=screenshots.read_image).exec()
 
@@ -631,8 +842,18 @@ def main(argv: list[str] | None = None) -> int:
             return _run(app, Path(temp_dir), smoke_test=True)
 
     local_data = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericDataLocation)
+    default_root = Path(local_data) / "GameHub"
+    resolved_root, location_error = resolve_data_root(default_root)
+    if location_error is not None:
+        QMessageBox.critical(
+            None,
+            "Game Hub",
+            "Game Hub could not find its configured data folder. "
+            "Restore the folder or remove store-location.json before starting again.",
+        )
+        return 1
     try:
-        return _run(app, Path(local_data) / "GameHub", smoke_test=False)
+        return _run(app, resolved_root, smoke_test=False, default_root=default_root)
     except (OSError, RuntimeError, StorageError):
         QMessageBox.critical(
             None, "Game Hub", "Game Hub could not start. Check that your local data folder is available."

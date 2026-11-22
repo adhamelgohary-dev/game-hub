@@ -34,6 +34,9 @@ class CaptureService:
         self._screenshots = screenshots
         self._buffer_size = buffer_size
 
+    def set_buffer_size(self, buffer_size: int) -> None:
+        self._buffer_size = buffer_size
+
     def acquire(self) -> CaptureLease | None:
         window = self._windows.foreground()
         if window is None:

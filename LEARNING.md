@@ -69,3 +69,11 @@ Schema migrations upgrade an existing database safely by writing a consistent ba
 Read [controls.py](gamehub/core/storage/controls.py), [controls_controller.py](gamehub/modules/memory/controls_controller.py), [game_page.py](gamehub/ui/game_page.py), and [memory.py](gamehub/core/storage/memory.py).
 
 Try it yourself. Open a game's page, delete one voice note file from disk while keeping the database row, and verify that the rest of the session timeline stays usable.
+
+## M7 — Settings and Arabic/English
+
+Changing OS-backed settings like global hotkeys or Windows startup requires coordinating external side effects with SQLite so a failure never leaves the app half-configured. A two-phase probe-and-rebind lets users swap two shortcuts cleanly while guaranteeing that a conflict with another application never unregisters a working shortcut. For offline data-folder moves, pausing background workers, copying via SQLite's online backup API into a pinned staging directory, verifying schema and media sizes, and only then replacing `store-location.json` keeps user data intact even if a move fails mid-way.
+
+Read [settings.py](gamehub/core/settings.py), [location.py](gamehub/core/storage/location.py), [windows.py](gamehub/core/hotkeys/windows.py), [i18n](gamehub/core/i18n/__init__.py), and [settings_view.py](gamehub/ui/settings_view.py).
+
+Try it yourself. Run `tests/test_i18n_and_settings_ui.py` after adding a new `self.tr(...)` string to any widget and see how the AST parity test immediately reports the missing Arabic entry.

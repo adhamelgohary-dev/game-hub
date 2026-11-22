@@ -59,6 +59,11 @@ class LastTimeController(QObject):
         self._player.playingChanged.connect(self._playing_changed)
         self._player.failed.connect(self._playback_failed)
 
+    def set_autoplay_enabled(self, enabled: bool) -> None:
+        self._autoplay = enabled
+        if self._card is not None:
+            self._card.set_autoplay_checked(enabled)
+
     def game_started(self, event: GameStarted) -> None:
         if self._closed:
             return

@@ -76,6 +76,7 @@ class GamePage(QWidget):
         self._load_control_image = load_control_image or (lambda _path: None)
         self._load_screenshot = load_screenshot or (lambda _path: None)
         self._game: GameSummary | None = None
+        self._control_items: tuple[ControlItem, ...] = ()
         self._control_images: tuple[ControlItem, ...] = ()
         self._control_index = 0
         self._control_pixmap = QPixmap()
@@ -155,6 +156,11 @@ class GamePage(QWidget):
             self.set_saving_control_text(False)
             self.reset_voice_state()
         self._title.setText(game.name)
+        self._update_summary(game)
+        self.present_controls(controls)
+        self.present_timeline(timeline, append=False)
+
+    def _update_summary(self, game: GameSummary) -> None:
         sources = {
             GameSource.STEAM: self.tr("Steam"),
             GameSource.EPIC: self.tr("Epic Games"),
@@ -173,12 +179,11 @@ class GamePage(QWidget):
                 playtime=_format_duration(self, game.total_playtime),
             )
         )
-        self.present_controls(controls)
-        self.present_timeline(timeline, append=False)
 
     def present_controls(
         self, controls: Sequence[ControlItem], *, select_latest: bool = False
     ) -> None:
+        self._control_items = tuple(controls)
         self._control_images = tuple(item for item in controls if item.kind == "image")
         if select_latest and self._control_images:
             self._control_index = len(self._control_images) - 1
@@ -256,6 +261,35 @@ class GamePage(QWidget):
         self._error.setText(message)
         self._error.setVisible(bool(message))
 
+    def retranslate_ui(self) -> None:
+        self._back.setText(self.tr("&Back to Library"))
+        self._play.setText(self.tr("&Play…"))
+        self._tabs.setTabText(0, self.tr("Controls"))
+        self._tabs.setTabText(1, self.tr("Timeline"))
+        self._hint_label.setText(
+            self.tr(
+                "Press Ctrl+Alt+C while this game is focused to pin its controls screen, "
+                "or upload a local image below."
+            )
+        )
+        self._upload_image.setText(self.tr("&Upload controls image…"))
+        self._control_preview.setAccessibleName(self.tr("Pinned controls image preview"))
+        self._prev_control.setText(self.tr("Pre&vious"))
+        self._prev_control.setAccessibleName(self.tr("Previous controls image"))
+        self._next_control.setText(self.tr("&Next"))
+        self._next_control.setAccessibleName(self.tr("Next controls image"))
+        self._note_label.setText(self.tr("Controls and stra&tegy notes"))
+        self._control_input.setAccessibleName(self.tr("Controls and strategy note"))
+        self._control_input.setPlaceholderText(
+            self.tr("Key bindings, combat tips, or reminders for this game…")
+        )
+        self._save_control_text.setText(self.tr("&Save controls note"))
+        self._load_more.setText(self.tr("Load &more sessions"))
+        if self._game is not None:
+            self._update_summary(self._game)
+            self.present_controls(self._control_items)
+            self._rebuild_timeline_widgets()
+
     def clear_error(self) -> None:
         self.show_error("")
 
@@ -267,16 +301,16 @@ class GamePage(QWidget):
         content = QWidget(self)
         layout = QVBoxLayout(content)
 
-        hint = QLabel(
+        self._hint_label = QLabel(
             self.tr(
                 "Press Ctrl+Alt+C while this game is focused to pin its controls screen, "
                 "or upload a local image below."
             ),
             content,
         )
-        hint.setTextFormat(Qt.TextFormat.PlainText)
-        hint.setWordWrap(True)
-        layout.addWidget(hint)
+        self._hint_label.setTextFormat(Qt.TextFormat.PlainText)
+        self._hint_label.setWordWrap(True)
+        layout.addWidget(self._hint_label)
 
         self._upload_image = QPushButton(self.tr("&Upload controls image…"), content)
         self._upload_image.clicked.connect(self._pick_control_image)
@@ -310,8 +344,8 @@ class GamePage(QWidget):
         nav.addWidget(self._next_control)
         layout.addLayout(nav)
 
-        note_label = QLabel(self.tr("Controls and stra&tegy notes"), content)
-        note_label.setWordWrap(True)
+        self._note_label = QLabel(self.tr("Controls and stra&tegy notes"), content)
+        self._note_label.setWordWrap(True)
         self._control_input = QPlainTextEdit(content)
         self._control_input.setAccessibleName(self.tr("Controls and strategy note"))
         self._control_input.setTabChangesFocus(True)
@@ -320,7 +354,7 @@ class GamePage(QWidget):
         )
         self._control_input.setMinimumHeight(70)
         self._control_input.setMaximumHeight(120)
-        note_label.setBuddy(self._control_input)
+        self._note_label.setBuddy(self._control_input)
 
         self._save_control_text = QPushButton(self.tr("&Save controls note"), content)
         self._save_control_text.clicked.connect(self._submit_control_text)
@@ -329,7 +363,7 @@ class GamePage(QWidget):
         save_row.addStretch()
 
         self._controls_text_list = QVBoxLayout()
-        layout.addWidget(note_label)
+        layout.addWidget(self._note_label)
         layout.addWidget(self._control_input)
         layout.addLayout(save_row)
         layout.addLayout(self._controls_text_list)

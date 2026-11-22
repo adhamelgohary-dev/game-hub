@@ -60,8 +60,8 @@ class LastMomentsDialog(QDialog):
         layout.addLayout(navigation)
         layout.addWidget(actions)
 
-        QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(self._go_previous)
-        QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self._go_next)
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self).activated.connect(self._step_left)
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self).activated.connect(self._step_right)
         self.resize(720, 480)
         self._show_current()
         if self._next.isEnabled():
@@ -78,6 +78,12 @@ class LastMomentsDialog(QDialog):
 
     def _go_next(self) -> None:
         self._move(1)
+
+    def _step_left(self) -> None:
+        self._move(1 if self.layoutDirection() == Qt.LayoutDirection.RightToLeft else -1)
+
+    def _step_right(self) -> None:
+        self._move(-1 if self.layoutDirection() == Qt.LayoutDirection.RightToLeft else 1)
 
     def _move(self, step: int) -> None:
         next_index = self._index + step

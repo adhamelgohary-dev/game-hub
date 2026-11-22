@@ -1,5 +1,12 @@
 # Changelog
 
+## m7
+
+- Add Settings for language, capture interval (5–300 s), screenshot ring size (1–50), voice autoplay, close prompt, all three global hotkeys, Windows startup, and data folder.
+- Add atomic batch hotkey rebinding that supports swapping shortcuts and preserves working bindings when Windows reports a conflict.
+- Add per-user Windows startup registration and verified offline data-folder relocation with `store-location.json` and integrity checks.
+- Add live English and Arabic localization with full catalog parity, RTL layout mirroring, updated `QLocale`, and RTL-aware carousel navigation.
+
 ## m6
 
 - Upgrade local SQLite storage to schema 4 with the `controls` table and automatic pre-upgrade backup.
