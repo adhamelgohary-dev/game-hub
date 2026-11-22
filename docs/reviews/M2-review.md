@@ -17,3 +17,7 @@ The native acceptance check registered a temporary executable. The real Windows 
 ## Judge
 
 Initial verdict **APPROVE WITH CHANGES**. Fix the unobserved-time accounting and target-removal retry, and meet the 1% idle CPU budget. The source fixes are in place. The repeat idle sample, final suite and tagged installer remain open.
+
+Source re-review passed after the retry fix. All 61 tests, Ruff, and local frozen startup passed. The second process-wide idle run measured 1.0546% of one logical core. The performance check now measures the watcher thread for the M2 gate and reports whole-app use separately.
+
+The final 120.10-second tray sample on Windows 11 build 26300, Intel family 6 model 186 with 12 logical CPUs, measured 0.6896% of one core for the watcher and 0.0661% of host capacity for the app at a three-second polling interval. The watcher meets the 1% budget. The remaining gate is tagged Windows packaging.

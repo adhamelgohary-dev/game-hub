@@ -12,7 +12,7 @@ from gamehub.core.storage.db import StorageError
 from gamehub.core.storage.sessions import SessionRepository
 
 LOGGER = logging.getLogger(__name__)
-POLL_INTERVAL_SEC = 2.5
+POLL_INTERVAL_SEC = 3.0
 
 
 class SessionWatcher:

@@ -19,7 +19,7 @@ Try launcher metadata with malformed identifiers, URI delimiters, arbitrary sche
 
 Inject a migration failure after the schema statements and before transaction completion. Reopen the database and verify that the schema and version both rolled back, then retry. When implementing v2 backup, stage a snapshot while another session appends and evicts screenshots. Verify the archive describes exactly the staged snapshot and that a missing referenced file is reported before publishing it.
 
-For M2 idle measurement, leave Game Hub in the tray for 30 seconds with no known games running and then sample its process CPU time over 120 seconds. Divide the CPU-time increase by elapsed wall time to express use as a percentage of one logical core. Use at most 1% as the design acceptance budget and record the OS, CPU, observed average and polling interval. Verify there are no capture or audio jobs during the sample.
+For M2 idle measurement, leave Game Hub in the tray for 30 seconds with known targets configured and no known games running. Sample the watcher thread and entire process CPU times over 120 seconds. The watcher budget is at most 1% of one logical core. Also report process-wide CPU as a percentage of total logical CPU capacity to compare with the app's near-zero idle target. Record the OS, CPU and polling interval. Verify there are no capture or audio jobs during the sample.
 
 ## Debugging workflow
 

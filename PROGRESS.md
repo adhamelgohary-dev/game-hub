@@ -15,8 +15,8 @@
 
 **Last completed**
 
-- Added the Windows process observer and 2.5-second background watcher.
+- Added the Windows process observer and three-second background watcher.
 - Persisted session transitions and recovered abandoned checkpoints.
 - Updated the tray and library from typed events on the Qt thread.
 
-**Tests** — 59 native-privilege tests and source smoke pass. M2 live process, idle CPU, and tagged release checks are pending.
+**Tests** — 61 tests, Ruff, native session and tray behavior, frozen startup, and the 120-second watcher CPU budget pass. Tagged Windows installer and portable checks are pending.
