@@ -24,3 +24,5 @@ All 158 automated tests and Ruff pass, covering v3-to-v4 migration with backup a
 ## Judge
 
 Initial verdict **APPROVE WITH CHANGES** for the six Critic blockers above. Re-review confirms all six blockers and the accompanying validation, accessibility, and lifecycle fixes are implemented and covered by tests. All 158 tests, Ruff, native hotkey/storage verification, and frozen startup pass. Verify the tagged Windows release packages before closing the milestone.
+
+Final verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/45052424866) passed tests, lint, and startup from both the installer and portable bundle. Both packages are published in the [private m6 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m6).

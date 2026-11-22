@@ -6,11 +6,11 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin M6 with schema v4 migration adding the `controls` table in `gamehub/core/storage/db.py` and `ControlsRepository` in `gamehub/core/storage/controls.py`, extend `MemoryRepository` with paginated `timeline()` and controls in `last_time()`, wire `Ctrl+Alt+C` foreground pinning reusing `CaptureService`, and build the Game page with Controls and chronological Timeline views.
+Begin M7 with validated settings management (`gamehub/core/settings.py`), atomic hotkey rebinding (`gamehub/core/hotkeys/windows.py`), per-user Windows startup registration (`gamehub/core/startup.py`), verified offline data-folder relocation (`gamehub/core/storage/location.py`), English/Arabic catalogs + RTL switching (`gamehub/core/i18n/`), and the Settings view (`gamehub/ui/settings_view.py`).
 
 ## In progress
 
-Starting M6 (Controls card and timeline). M5 is complete and published as private release `m5`.
+Starting M7 (Settings and Arabic/English). M6 is complete and published as private release `m6`.
 
 ## Fragile spots
 
@@ -56,6 +56,8 @@ From the PowerShell repository root:
 - [M3 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m3) passed tagged Windows CI with both release packages smoke-tested.
 - [M4 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m4) passed tagged Windows CI with both release packages smoke-tested.
 - [M5 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m5) passed tagged Windows CI with both release packages smoke-tested.
+- [M6 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m6) passed tagged Windows CI with both release packages smoke-tested.
+- Native `Ctrl+Alt+C` binding and uploaded controls/timeline persistence across reopen were verified locally; live in-game `Ctrl+Alt+C` capture remains part of manual game capture acceptance.
 - Native `Ctrl+Alt+L`, Last time card rendering, and Qt Multimedia Ogg Vorbis playback were verified locally alongside Steam discovery and registered `steam://` URI handler; live interactive Steam game launch and exclusive fullscreen switching remain manual acceptance items.
 - Native WGC accepted 12 frames from a synthetic Windows 11 test window, retained and displayed the newest ten, and skipped unfocused and minimized cases. Protected games and Windows 10 capture hardware remain unverified.
 - Native Ctrl+Alt+N and the stored Ogg note were verified with generated audio. Microphone denial and recording limits were exercised with input doubles.
