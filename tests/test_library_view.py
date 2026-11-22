@@ -71,6 +71,7 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
     library.refreshRequested.connect(lambda: events.append("refresh"))
     library.addRequested.connect(lambda selection: events.append(("add", selection)))
     library.assignRequested.connect(lambda game_id, selection: events.append((game_id, selection)))
+    library.lastMomentsRequested.connect(lambda game_id: events.append(("moments", game_id)))
 
     QTest.keyClick(library._refresh, Qt.Key.Key_Space)
     library._add.click()
@@ -78,11 +79,13 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
     library._add.click()
     library.present_games([game])
     assert not library._assign.isEnabled()
+    assert not library._last_moments.isEnabled()
     assert library._table.item(0, 3).text() != "Never"
     library._table.selectRow(0)
     library.present_games([game])
     library._assign.click()
-    assert events == ["refresh", ("add", path), (game.id, path)]
+    QTest.keyClick(library._last_moments, Qt.Key.Key_Space)
+    assert events == ["refresh", ("add", path), (game.id, path), ("moments", game.id)]
 
 
 def test_library_busy_and_error_feedback(library: LibraryView) -> None:

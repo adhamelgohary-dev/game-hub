@@ -1,5 +1,11 @@
 # Changelog
 
+## m3
+
+- Capture only the foreground window of a currently tracked game using Windows Graphics Capture.
+- Keep up to ten recent screenshots per session and show them from the library's Last moments action.
+- Preserve existing library and session data during the screenshot schema upgrade.
+
 ## m2
 
 - Track registered games from the Windows tray.

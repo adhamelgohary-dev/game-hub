@@ -23,10 +23,10 @@ Use immutable value objects for IDs, timestamps and worker results. ID types dis
 
 | Contract | Purpose |
 | --- | --- |
-| `CaptureEligibility.acquire(purpose: CapturePurpose) -> Result[CaptureLease]` | Issue a short-lived lease for periodic or controls capture. It carries HWND, process identity, game and session IDs, deadline, and generation. |
-| `CaptureEligibility.is_current(lease: CaptureLease) -> bool` | Check live foreground, identity, active session, expiry, and generation. |
-| `WindowCapture.capture_once(lease: CaptureLease) -> Result[CaptureFrame]` | WGC adapter binds the lease HWND. It checks eligibility before binding and on arrival, returns one fresh owned frame or skips, and releases native resources on exit. |
-| `CaptureService.sample(purpose: CapturePurpose) -> Result[MediaRecord]` | Acquire eligibility, request a frame, validate image content, encode, and route to either the session's bounded screenshots or the game's pinned controls. |
+| `CaptureService.acquire() -> CaptureLease \| None` | Issue a short-lived lease carrying the exact foreground HWND and process identity, owning game and session IDs, a monotonic deadline, and the minimum compositor timestamp. The controls feature can reuse this acquisition path. |
+| `CaptureService.is_current(lease: CaptureLease) -> bool` | Check live foreground, exact process identity, active session, and expiry. |
+| `WgcCapture.capture_once(lease: CaptureLease, is_current: Callable[[CaptureLease], bool]) -> CaptureFrame \| None` | Bind the lease HWND. Check eligibility before binding and on arrival, return one fresh owned frame or skip, and release native resources on exit. |
+| `CaptureService.sample(lease: CaptureLease) -> bool` | Request one frame, validate and encode it, and save it to the current session's bounded screenshot ring. Return whether the image was retained. |
 | `Recorder.start(session_id: SessionId, source: NoteSource, limit_sec: int) -> Result[RecordingId]` | Start a single microphone-only recording. Bind the session and source at start and stop automatically at an application cap of 60 seconds. |
 | `Recorder.stop(recording_id: RecordingId) -> Result[EncodedClip]` | Finish asynchronously, yielding an owned staged result. The recording retains its original session if game or window focus changes. |
 | `NoteCommands.save_voice(clip: EncodedClip) -> Result[NoteId]` | Persist into the immutable target session using the managed file protocol. |
@@ -35,7 +35,7 @@ Use immutable value objects for IDs, timestamps and worker results. ID types dis
 | `Hotkeys.apply(shortcuts: Mapping[HotkeyAction, Shortcut]) -> Result[None]` | Reserve new OS chords before changing any action, reuse existing registration IDs when actions swap chords, and release obsolete registrations after the replacement commits. A conflict releases only temporary registrations. If the previous registrations cannot be restored after an OS failure, disable affected actions and show the actual degraded status. |
 | `StartupRegistration.apply(enabled: bool) -> Result[None]` | Apply or remove the per-user startup entry without elevation. |
 
-`CaptureFrame` contains owned pixels, dimensions, and capture timing metadata (UTC and adapter-native frame time). The platform adapter interprets native timestamps and owns all native buffer lifetime. `CapturePurpose` has `periodic` and `controls` in v1. `HotkeyAction` has `record_note`, `last_time`, and `pin_controls`. Relevant recoverable outcomes include `no_active_game`, `ambiguous_game`, `focus_lost`, `capture_unavailable`, `protected_or_empty_frame`, `mic_unavailable`, `audio_busy`, `shortcut_conflict`, `launch_unavailable`, `media_missing`, and `storage_unavailable`.
+`CaptureFrame` contains packed owned BGRA pixels and dimensions. The adapter interprets native timestamps while the buffer is mapped and releases the mapping after copying. `HotkeyAction` has `record_note`, `last_time`, and `pin_controls`. Relevant recoverable outcomes include `no_active_game`, `ambiguous_game`, `focus_lost`, `capture_unavailable`, `protected_or_empty_frame`, `mic_unavailable`, `audio_busy`, `shortcut_conflict`, `launch_unavailable`, `media_missing`, and `storage_unavailable`.
 
 ## Repositories and settings
 
@@ -48,7 +48,8 @@ Use immutable value objects for IDs, timestamps and worker results. ID types dis
 | `SessionWrite.finish(session_id: SessionId, end: SessionEnd) -> SessionSummary` | Idempotent terminal transition and atomic marking of retained screenshots |
 | `MemoryRead.last_time(game_id: GameId, exclude_session_id: SessionId \| None) -> LastTimeData` | Fetch prior terminal session, latest eligible note of each kind, screenshots, controls, and display stats from a consistent snapshot |
 | `MemoryRead.timeline(game_id: GameId, cursor: SessionCursor \| None, limit: int) -> TimelinePage` | Return newest-first session summaries and their saved memories. The cursor combines UTC start and ID to break ties. |
-| `CaptureWrite.keep_latest(lease: CaptureLease, image: EncodedImage, count: int) -> Result[ScreenshotId]` | Admit a frame only for an eligible open session and prune active buffer to count |
+| `ScreenshotRepository.append(game_id: str, session_id: str, data: bytes, captured_at: int, limit: int) -> bool` | Write a WebP only for the matching open session and prune its active ring to the limit |
+| `ScreenshotRepository.last_moments(game_id: str) -> tuple[Path, ...]` and `read_image(path: Path) -> bytes \| None` | List canonical slots from the latest terminal session, then lazily read one image through protected storage. Preserve missing slots and return an unavailable result when a protected read fails. |
 | `ControlsWrite.pin_image(game_id: GameId, image: EncodedImage) -> Result[ControlId]` / `ControlsWrite.pin_text(game_id: GameId, text: str) -> Result[ControlId]` | Save controls through the same managed media boundary |
 | `MediaRead.open(ref: MediaRef) -> Result[LocalMedia]` | Resolve a managed reference after containment validation |
 | `Settings.read() -> SettingsSnapshot` / `Settings.update(patch: SettingsPatch) -> Result[SettingsSnapshot]` | Read or update a validated setting set with a runtime revision. Coordinate startup and hotkey side effects before publishing changes. |

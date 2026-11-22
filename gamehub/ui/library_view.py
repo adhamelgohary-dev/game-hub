@@ -25,6 +25,7 @@ class LibraryView(QWidget):
     refreshRequested = Signal()
     addRequested = Signal(str)
     assignRequested = Signal(str, str)
+    lastMomentsRequested = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -42,11 +43,15 @@ class LibraryView(QWidget):
         self._assign = QPushButton(self.tr("Assign &executable…"), self)
         self._assign.setToolTip(self.tr("Choose an executable to track for the selected game."))
         self._assign.clicked.connect(self._pick_tracking_target)
+        self._last_moments = QPushButton(self.tr("Last &moments…"), self)
+        self._last_moments.setToolTip(self.tr("View recent screenshots for the selected game."))
+        self._last_moments.clicked.connect(self._open_last_moments)
 
         toolbar = QHBoxLayout()
         toolbar.addWidget(self._refresh)
         toolbar.addWidget(self._add)
         toolbar.addWidget(self._assign)
+        toolbar.addWidget(self._last_moments)
         toolbar.addStretch()
 
         self._progress = QLabel(self.tr("Updating library…"), self)
@@ -92,6 +97,7 @@ class LibraryView(QWidget):
         layout.addWidget(self._content, stretch=1)
         QWidget.setTabOrder(self._add, self._table)
         QWidget.setTabOrder(self._table, self._assign)
+        QWidget.setTabOrder(self._assign, self._last_moments)
         self._update_actions()
 
     def present_games(self, games: Sequence[GameSummary]) -> None:
@@ -174,6 +180,12 @@ class LibraryView(QWidget):
         self._assign.setEnabled(
             not self._busy and bool(rows and rows[0].data(Qt.ItemDataRole.UserRole + 1))
         )
+        self._last_moments.setEnabled(not self._busy and bool(rows))
+
+    def _open_last_moments(self) -> None:
+        game_id = self._selected_game()
+        if game_id is not None:
+            self.lastMomentsRequested.emit(game_id)
 
     def _pick_executable(self, title: str) -> str:
         path, _ = QFileDialog.getOpenFileName(self, title, "", self.tr("Windows executables (*.exe)"))

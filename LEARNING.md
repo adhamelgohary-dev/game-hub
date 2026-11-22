@@ -37,3 +37,11 @@ Windows can reuse process IDs. Pairing the ID with the creation time tells the w
 Read [processes.py](gamehub/core/sessions/processes.py), [tracker.py](gamehub/core/sessions/tracker.py), [session storage](gamehub/core/storage/sessions.py), and [events.py](gamehub/core/events.py).
 
 Try it yourself. Change a synthetic sample so a previous PID appears with a different creation time. Predict the event sequence and check it with pytest.
+
+## M3 — Screenshots
+
+A foreground capture request binds a window handle to the watched process and session. It expires quickly and is checked again when a frame arrives. A ring keeps the newest images by evicting older entries as new ones are saved. The file is staged before SQLite references it, and startup recovery removes abandoned managed files.
+
+Read [service.py](gamehub/core/capture/service.py), [windows.py](gamehub/core/capture/windows.py), [screenshots.py](gamehub/core/storage/screenshots.py), and [last_moments.py](gamehub/ui/last_moments.py).
+
+Try it yourself. Change the buffer size in a test, save two additional frames, and verify which images remain when the session closes.

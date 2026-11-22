@@ -4,8 +4,9 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 INITIAL_SCHEMA = (
     """
@@ -56,6 +57,19 @@ INITIAL_SCHEMA = (
     "CREATE UNIQUE INDEX sessions_open_game ON sessions (game_id) WHERE status = 'open'",
 )
 
+SCREENSHOT_SCHEMA = (
+    """
+    CREATE TABLE screenshots (
+        id TEXT PRIMARY KEY NOT NULL,
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE RESTRICT,
+        path TEXT NOT NULL UNIQUE,
+        captured_at INTEGER NOT NULL,
+        is_last_moment INTEGER NOT NULL DEFAULT 0 CHECK (is_last_moment IN (0, 1))
+    ) STRICT
+    """,
+    "CREATE INDEX screenshots_timeline ON screenshots (session_id, captured_at, id)",
+)
+
 
 class StorageError(RuntimeError):
     """The application cannot safely complete a local storage operation."""
@@ -98,8 +112,7 @@ class Database:
                 connection.execute("ROLLBACK")
             raise
 
-    @staticmethod
-    def _initialize(connection: sqlite3.Connection) -> None:
+    def _initialize(self, connection: sqlite3.Connection) -> None:
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version > SCHEMA_VERSION:
             raise StorageError("This database requires a newer version of Game Hub.")
@@ -113,7 +126,26 @@ class Database:
                 raise StorageError("Game Hub found an unrecognized database schema.")
             for statement in INITIAL_SCHEMA:
                 connection.execute(statement)
+        elif version == 1:
+            self._backup_v1()
+
+        if version < 2:
+            for statement in SCREENSHOT_SCHEMA:
+                connection.execute(statement)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+    def _backup_v1(self) -> None:
+        # The updating connection reserves the writer lock. A separate reader
+        # can take a consistent backup while that lock prevents competing writes.
+        backup = self.path.with_name(f"{self.path.name}-v1.bak")
+        try:
+            with TemporaryDirectory(prefix="gamehub-upgrade-", dir=self.path.parent) as folder:
+                staged = Path(folder) / backup.name
+                with self.read() as source, closing(sqlite3.connect(staged)) as destination:
+                    source.backup(destination)
+                staged.replace(backup)
+        except OSError as error:
+            raise StorageError("Game Hub could not back up its database before upgrading.") from error
 
     @contextmanager
     def read(self) -> Iterator[sqlite3.Connection]:

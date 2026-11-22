@@ -33,3 +33,12 @@ https://github.com/ValvePython/vdf
 
 Process observation uses psutil under the BSD 3-Clause license.
 https://github.com/giampaolo/psutil
+
+Game screenshot capture uses Windows Capture under the MIT license and
+image encoding uses Pillow under MIT-CMU. The capture wheel also uses
+NumPy and the Apache-licensed OpenCV wheel. The included license
+directories cover their bundled third-party components.
+https://github.com/NiiightmareXD/windows-capture
+https://github.com/python-pillow/Pillow
+https://numpy.org/
+https://github.com/opencv/opencv-python

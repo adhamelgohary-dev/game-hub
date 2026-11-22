@@ -11,14 +11,12 @@
 - ⬜ M7 — Settings and Arabic/English [complex]
 - ⬜ M8 — Packaging and release [complex]
 
-**Current task** — M3 exact-window eligibility, Windows Graphics Capture, and persisted last moments.
+**Current task** — Run M3 native capture, Council review, packaging, and tagged installer checks.
 
 **Last completed**
 
-- Added the Windows process observer and three-second background watcher.
-- Persisted session transitions and recovered abandoned checkpoints.
-- Updated the tray and library from typed events on the Qt thread.
-- Verified 0.69% watcher CPU on one logical core and 0.066% app CPU across the machine.
-- Passed the Council and published the private m2 installer and portable bundle.
+- Added exact foreground capture leases and a Windows Graphics Capture adapter.
+- Added SQLite migration, temporary-file recovery, and per-session screenshot retention.
+- Connected the Last moments browser to completed sessions.
 
-**Tests** — 61 tests, Ruff, native session and tray behavior, 120-second CPU validation, and hosted m2 installed and portable startup pass. M3 capture checks are pending.
+**Tests** — 89 tests, source startup, and native 12-frame capture with ten displayed after session exit passed. The tagged installer and portable verification are pending.

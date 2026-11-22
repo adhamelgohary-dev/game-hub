@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin M3 with the exact foreground HWND and process identity lease in `gamehub/core/capture/`. The verified Windows Capture 2.0.1 wheel exposes `window_hwnd` and compositor frame timestamps. Add the foreground checks, SQLite screenshot ring, and last-moments view before testing native capture.
+M3 native capture, retention, and protected carousel reads passed. Check the tagged `m3` Windows run, installer and portable release, then finish the Council review. Begin M4 with the note schema, local voice recorder, and Windows hotkey manager.
 
 ## Run the app and tests
 
@@ -27,6 +27,7 @@ From the PowerShell repository root:
 - `gamehub/app.py` and `gamehub/single_instance.py` — desktop entry point, tray, and local instance control.
 - `gamehub/core/library/` and `gamehub/core/storage/` — detector adapters, source models, and SQLite.
 - `gamehub/core/sessions/` and `gamehub/core/events.py` — process identity, session state, and Qt event delivery.
+- `gamehub/core/capture/` and `gamehub/core/storage/screenshots.py` — foreground privacy checks, WGC and the screenshot ring.
 - `gamehub/ui/library_view.py` — library table and manual executable actions.
 - `tests/test_app.py` — window, local activation, and entry point tests.
 - `packaging/` and `.github/workflows/windows.yml` — Windows bundle, installer, and release workflow.
@@ -39,6 +40,7 @@ From the PowerShell repository root:
 - [M0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) passed native tray and tagged Windows CI with both release packages smoke-tested.
 - [M1 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m1) passed tagged Windows CI with both release packages smoke-tested.
 - [M2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2) passed tagged Windows CI with both release packages smoke-tested.
+- Native WGC accepted 12 frames from a synthetic Windows 11 test window, retained and displayed the newest ten, and skipped unfocused and minimized cases. Protected games and Windows 10 capture hardware remain unverified.
 - The M2 native watcher produced one completed session row and matching tray states. The final 120-second run measured 0.69% of one core for the watcher and 0.066% of total CPU capacity for the app.
 - Live Steam entries loaded and persisted. Epic manifests were unavailable and no accessible Xbox titles were found on this machine. Fixture coverage verified those adapters. [Launcher limitations](docs/launcher-detection.md)
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.

@@ -22,7 +22,10 @@ if not python_license.is_file():
     raise FileNotFoundError(f'CPython license file is missing: {python_license}')
 notices.append((str(python_license), f'{notice_dir}/CPython'))
 
-for package in ('PySide6-Essentials', 'shiboken6', 'PyInstaller', 'psutil', 'vdf'):
+for package in (
+    'PySide6-Essentials', 'shiboken6', 'PyInstaller', 'psutil', 'vdf',
+    'Pillow', 'numpy', 'opencv-python', 'windows-capture',
+):
     installed = distribution(package)
     license_files = [
         file for file in installed.files or ()

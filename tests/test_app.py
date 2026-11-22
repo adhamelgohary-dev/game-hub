@@ -7,10 +7,11 @@ import pytest
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QTableWidget
 
+from gamehub import app as gamehub_app
 from gamehub.app import GameHubWindow
 from gamehub.core.library.service import LibraryService
 from gamehub.core.sessions.models import GameStarted, GameStopped
-from gamehub.core.storage.db import Database
+from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
 from gamehub.single_instance import SingleInstance
 from gamehub.ui.library_controller import LibraryController
@@ -108,3 +109,16 @@ def test_library_manual_add_reaches_view_and_persists(app: QApplication, tmp_pat
     finally:
         controller.close()
         window.close()
+
+
+def test_screenshot_root_failure_leaves_library_storage_available(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = Database(tmp_path / "gamehub.db")
+
+    def unavailable(*_):
+        raise StorageError("Unsafe screenshot location")
+
+    monkeypatch.setattr(gamehub_app, "ScreenshotRepository", unavailable)
+    assert gamehub_app._open_screenshot_store(database, tmp_path) is None
+    assert LibraryRepository(database).list_games() == ()

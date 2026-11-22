@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from PySide6.QtCore import QStandardPaths, QTimer
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QImageReader
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -17,6 +17,9 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
 )
 
+from gamehub.core.capture.scheduler import CaptureScheduler
+from gamehub.core.capture.service import CaptureService
+from gamehub.core.capture.windows import WgcCapture, WindowProbe
 from gamehub.core.events import EventBus
 from gamehub.core.library.epic import EpicDetector
 from gamehub.core.library.models import LibraryChanged
@@ -29,8 +32,10 @@ from gamehub.core.sessions.tracker import SessionTracker
 from gamehub.core.sessions.watcher import SessionWatcher
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
+from gamehub.core.storage.screenshots import ScreenshotRepository
 from gamehub.core.storage.sessions import SessionRepository
 from gamehub.single_instance import SingleInstance
+from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
 from gamehub.ui.library_view import LibraryView
 
@@ -105,6 +110,7 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
     controller = None
     log_handler = None
     watcher = None
+    capture_scheduler = None
     try:
         if not instance.claim_or_activate():
             return 0
@@ -113,13 +119,19 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
         database = Database(data_root / "gamehub.db")
         detectors = () if smoke_test else (SteamDetector(), EpicDetector(), XboxDetector())
         events = EventBus(window)
-        service = LibraryService(LibraryRepository(database), detectors, events.publish)
+        library = LibraryRepository(database)
+        screenshots = _open_screenshot_store(database, data_root)
+        service = LibraryService(library, detectors, events.publish)
         window.library.present_games(service.current().games)
         controller = LibraryController(window.library, service)
+        window.library.lastMomentsRequested.connect(
+            lambda game_id: _open_last_moments(window, library, screenshots, game_id)
+        )
         if QSystemTrayIcon.isSystemTrayAvailable():
             window.tray.show()
         window.show()
         if smoke_test:
+            _check_capture_runtime()
             QTimer.singleShot(0, app.quit)
         else:
             events.subscribe(GameStarted, window.game_started)
@@ -131,10 +143,19 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
             watcher = SessionWatcher(sessions, ProcessProbe(), tracker)
             events.subscribe(LibraryChanged, watcher.library_changed)
             watcher.start()
+            if screenshots is not None:
+                try:
+                    capture_service = CaptureService(WindowProbe(), tracker, WgcCapture(), screenshots)
+                    capture_scheduler = CaptureScheduler(capture_service, window)
+                    capture_scheduler.start()
+                except (OSError, RuntimeError):
+                    logging.getLogger("gamehub").warning("capture_startup_unavailable")
             QTimer.singleShot(0, controller.refresh)
         return app.exec()
     finally:
         window.tray.hide()
+        if capture_scheduler is not None:
+            capture_scheduler.close()
         if watcher is not None:
             watcher.close()
         if controller is not None:
@@ -143,6 +164,50 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
             logging.getLogger("gamehub").removeHandler(log_handler)
             log_handler.close()
         instance.close()
+
+
+def _check_capture_runtime() -> None:
+    from inspect import signature
+
+    from windows_capture import WindowsCapture
+
+    if "window_hwnd" not in signature(WindowsCapture).parameters:
+        raise RuntimeError("The exact-window capture adapter is unavailable.")
+    if b"webp" not in QImageReader.supportedImageFormats():
+        raise RuntimeError("The Qt WebP reader is unavailable.")
+
+
+def _open_screenshot_store(database: Database, data_root: Path) -> ScreenshotRepository | None:
+    try:
+        screenshots = ScreenshotRepository(database, data_root)
+    except (OSError, StorageError):
+        logging.getLogger("gamehub").warning("capture_store_unavailable")
+        return None
+    try:
+        screenshots.recover_files()
+    except (OSError, StorageError):
+        logging.getLogger("gamehub").warning("capture_recovery_incomplete")
+    return screenshots
+
+
+def _open_last_moments(
+    window: GameHubWindow,
+    library: LibraryRepository,
+    screenshots: ScreenshotRepository | None,
+    game_id: str,
+) -> None:
+    if screenshots is None:
+        window.library.show_error("Game Hub could not open your screenshot folder.")
+        return
+    try:
+        game = library.get_game(game_id)
+        if game is None:
+            return
+        images = screenshots.last_moments(game_id)
+    except (OSError, StorageError):
+        window.library.show_error("Game Hub could not load the screenshots for this game.")
+        return
+    LastMomentsDialog(game.name, images, window, load_image=screenshots.read_image).exec()
 
 
 def _add_file_log(data_root: Path) -> logging.Handler | None:

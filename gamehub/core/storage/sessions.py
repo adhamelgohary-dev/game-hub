@@ -65,7 +65,7 @@ class SessionRepository:
         if duration_sec < 0:
             raise ValueError("Observed playtime cannot be negative.")
         with self._database.write() as connection:
-            connection.execute(
+            update = connection.execute(
                 """
                 UPDATE sessions
                 SET status = ?, ended_at = MAX(last_seen_at, ?), duration_sec = MAX(duration_sec, ?)
@@ -73,10 +73,19 @@ class SessionRepository:
                 """,
                 (status, ended_at, duration_sec, session_id),
             )
+            if update.rowcount:
+                connection.execute(
+                    "UPDATE screenshots SET is_last_moment = 1 WHERE session_id = ?",
+                    (session_id,),
+                )
 
     def recover(self) -> int:
         """Close sessions left open by the previous run at their last committed checkpoint."""
         with self._database.write() as connection:
+            connection.execute(
+                "UPDATE screenshots SET is_last_moment = 1 "
+                "WHERE session_id IN (SELECT id FROM sessions WHERE status = 'open')"
+            )
             update = connection.execute(
                 "UPDATE sessions SET status = 'interrupted', ended_at = last_seen_at "
                 "WHERE status = 'open'"
