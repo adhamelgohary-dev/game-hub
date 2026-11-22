@@ -11,12 +11,12 @@
 - ✅ M7 — Settings and Arabic/English [complex]
 - 🔄 M8 — Packaging and release [complex]
 
-**Current task** — M8 v1.0.0 Packaging, clean-machine Windows verification, English & Arabic user guides, and final private v1 release.
+**Current task** — M8 v1.0.0 release verification on tagged Windows CI.
 
 **Last completed**
 
-- Built `SettingsService`, two-phase batch hotkey rebinding, per-user Windows `StartupRegistration`, verified offline `StoreLocation` relocation with `store-location.json`, English/Arabic `QTranslator` catalog with RTL layout and `QLocale` switching, and `SettingsView`.
-- Addressed all six Review Council Critic blockers (ASCII `QFileDialog` globs in Arabic, off-UI-thread relocation with paused workers and split-brain prevention, `lstat`/pinned/schema-verified storage move, batch hotkey swap + `Shift`-only alphanumeric rejection, `effective_default` single-instance lock, and full `.tr()` + `QLocale` + `GamePage` summary coverage).
-- Passed the Council and published the private `m7` installer and portable bundle.
+- Set `__version__ = "1.0.0"`, added static zero-network, no-injection, and packaging/license audits (`tests/test_packaging.py`), hardened `packaging/installer.iss` for clean upgrades (`_internal`) and uninstall (`Run` cleanup), filtered macOS `libportaudio.dylib`, and updated `THIRD_PARTY_NOTICES.txt`.
+- Enhanced `.github/workflows/windows.yml` to verify portable startup, installed startup, in-place upgrade, silent uninstall, and user-data preservation with Python stripped from `PATH`.
+- Published English `README.md` updates and full Arabic user guide (`docs/USER-GUIDE-AR.md`), and verified local zero-Python-`PATH` frozen startup (`exit: 0`).
 
-**Tests** — 167 tests, Ruff, native hotkey conflict / Arabic RTL / relocation checks, and both tagged Windows startup checks pass. M8 final v1.0.0 packaging, guides, and clean-Windows verification are next.
+**Tests** — 169 tests, Ruff, and local zero-Python-`PATH` frozen startup pass. Tagged `m8` (v1.0.0) CI verification is pending.

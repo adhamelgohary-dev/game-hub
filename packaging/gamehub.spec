@@ -55,11 +55,13 @@ analysis = Analysis(
     datas=notices,
 )
 # The app declares a Windows x64 target and uses the Windows default input.
-analysis.binaries = [
-    item for item in analysis.binaries
-    if not Path(item[0]).name.lower().startswith('libportaudio')
-    or Path(item[0]).name.lower() == 'libportaudio64bit.dll'
-]
+def _keep_portaudio(item):
+    name = Path(item[0]).name.lower()
+    return not name.startswith('libportaudio') or name == 'libportaudio64bit.dll'
+
+
+analysis.binaries = [item for item in analysis.binaries if _keep_portaudio(item)]
+analysis.datas = [item for item in analysis.datas if _keep_portaudio(item)]
 archive = PYZ(analysis.pure)
 exe = EXE(
     archive,

@@ -8,16 +8,34 @@ The app opens a local library and stays available in the Windows notification ar
 
 [View the library with sample games](https://github.com/adhamelgohary-dev/game-hub/releases/download/m1/GameHub-Library.png).
 
+## Default shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+Alt+N` | Start or stop a 60-second voice note for the focused tracked game |
+| `Ctrl+Alt+L` | Reopen the Last time card |
+| `Ctrl+Alt+C` | Pin a controls screenshot of the focused tracked game |
+
+All shortcuts can be customized or disabled in **Settings**. For games that run in exclusive fullscreen, use **Play** inside Game Hub to review your Last time card before launching, or press `Alt+Tab` and `Ctrl+Alt+L`.
+
 ## Download and install
 
-Use Windows 10 version 1809 or later, or Windows 11, on a 64-bit PC.
+Use Windows 10 version 1809 or later, or Windows 11, on a 64-bit PC. No Python installation is required.
 Window screenshots require Windows 10 version 1903 or later, and Windows capture access for the game.
 
 1. Sign in to GitHub with access to the [private releases](https://github.com/adhamelgohary-dev/game-hub/releases).
 2. Open the latest milestone release and download **GameHub-Setup.exe** from **Assets**.
-3. Double-click the download, follow the installer, then open **Game Hub** from the Start menu.
+3. Double-click the download, follow the per-user installer (no administrator rights required), then open **Game Hub** from the Start menu.
 
-For a portable install, download **GameHub-Windows-x64.zip**, extract the entire folder, and double-click **GameHub.exe** inside it. Keep the runtime files alongside the executable.
+For a portable install, download **GameHub-Windows-x64.zip**, extract the entire folder, and double-click **GameHub.exe** inside it. Keep the `_internal` runtime folder alongside the executable.
+
+To upgrade, run the newer **GameHub-Setup.exe** over your existing installation; your local data under `%LOCALAPPDATA%\GameHub\` (or your chosen data folder) is preserved. To uninstall, remove **Game Hub** from Windows Settings → Installed apps.
+
+## Privacy and local data
+
+- Game Hub v1 runs **100% offline** with zero network requests, no accounts, and no telemetry.
+- Game Hub never injects overlays, hooks games, or reads game memory; it uses public Windows process metadata and exact-window Windows Graphics Capture.
+- All library records, session history, screenshots, voice notes, controls, and logs remain in your local data folder (`%LOCALAPPDATA%\GameHub\` by default) and can be moved safely from **Settings**.
 
 ## Run from source (for developers)
 
@@ -35,28 +53,31 @@ py -3.12 -m venv .venv
 
 ```text
 gamehub/                       Windows desktop application
-  core/                        Shared game discovery and storage
+  core/                        Shared game discovery, settings, localization, and storage
     library/                   Steam, Epic and Xbox detectors, launcher dispatch and library service
     sessions/                  Windows process sampling and session tracking
     capture/                   Exact-window capture and screenshot scheduling
     audio/                     Local microphone recording, Ogg encoding and voice playback
-    hotkeys/                   Windows shortcut registration
-    storage/                   Versioned local SQLite database and repository
+    hotkeys/                   Windows shortcut registration and atomic batch rebinding
+    i18n/                      English and Arabic translation catalog and RTL switching
+    storage/                   Versioned SQLite database, media safety, and store relocation
+    settings.py                Validated settings service and change notifications
+    startup.py                 Per-user Windows startup registration
   modules/                     Feature modules
-    memory/                    Last time card, session notes and the memory experience
-  ui/                          Library view and background task controller
+    memory/                    Last time card, session notes, controls pinning and memory flows
+  ui/                          Library, Game page, Settings, and background task controller
 tests/                         Automated test suite
   fixtures/                    Synthetic launcher manifests
-docs/                          Windows manual checklist and project documentation
+docs/                          Manual checklist, Arabic user guide, and project documentation
   design/                      Requirements and design contracts
   reviews/                     Review Council records
-packaging/                     PyInstaller and Inno Setup configuration
+packaging/                     PyInstaller, Inno Setup, and third-party license notices
 .github/                       Contribution templates and GitHub Actions
 ```
 
 ## Tech stack
 
-Python 3.12+, PySide6, pytest, Ruff, PyInstaller, Inno Setup, and GitHub Actions. Later v1 milestones use SQLite for local data and Windows Graphics Capture for screenshots.
+Python 3.12+, PySide6 (Essentials + Qt Multimedia), SQLite, Windows Graphics Capture, Pillow, PortAudio (`sounddevice`), libsndfile (`soundfile`), psutil, vdf, pytest, Ruff, PyInstaller, Inno Setup, and GitHub Actions.
 
 ## Roadmap
 
@@ -69,7 +90,9 @@ Read the [design](docs/design/README.md), [progress](PROGRESS.md), or [handoff](
 
 ## العربية
 
-يساعدك Game Hub على متابعة ألعابك ووقت اللعب. تعرض المكتبة الألعاب المكتشفة ويمكنك إضافة لعبة يدويًا. للتثبيت، افتح صفحة الإصدارات الخاصة على GitHub ونزّل GameHub-Setup.exe ثم شغّله.
+يساعدك **Game Hub** على متابعة ألعابك ووقت اللعب وتذكّر آخر ملاحظاتك الصوتية والنصية ولقطات الشاشة وبطاقة التحكم قبل استئناف اللعب—بشكل محلي كامل دون إنترنت. للتثبيت، افتح صفحة الإصدارات الخاصة على GitHub ونزّل `GameHub-Setup.exe` ثم شغّله، ويمكنك تحويل واجهة التطبيق إلى العربية من **الإعدادات**.
+
+اقرأ [دليل المستخدم الكامل بالعربية](docs/USER-GUIDE-AR.md).
 
 ## License
 

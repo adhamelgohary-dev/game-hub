@@ -18,9 +18,10 @@ https://code.qt.io/cgit/pyside/pyside-setup.git/tag/?h=v6.12.0
 
 Qt Multimedia bundles FFmpeg shared libraries (avcodec-63.dll, avformat-63.dll,
 avutil-61.dll, swresample-7.dll, swscale-10.dll) and ffmpegmediaplugin.dll under
-the GNU Lesser General Public License version 2.1 or later. A verbatim copy of
-LGPL-2.1 is included under third-party/FFmpeg. Corresponding FFmpeg sources are
-available from FFmpeg and Qt's upstream FFmpeg distribution.
+the GNU Lesser General Public License version 2.1 or later; OpenCV also bundles
+opencv_videoio_ffmpeg510_64.dll under _internal/cv2/ under LGPL-2.1+. A verbatim
+copy of LGPL-2.1 is included under third-party/FFmpeg. Corresponding FFmpeg
+sources are available from FFmpeg and Qt's upstream FFmpeg distribution.
 
 https://ffmpeg.org/download.html
 https://download.qt.io/development_releases/prebuilt/ffmpeg/

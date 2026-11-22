@@ -77,3 +77,11 @@ Changing OS-backed settings like global hotkeys or Windows startup requires coor
 Read [settings.py](gamehub/core/settings.py), [location.py](gamehub/core/storage/location.py), [windows.py](gamehub/core/hotkeys/windows.py), [i18n](gamehub/core/i18n/__init__.py), and [settings_view.py](gamehub/ui/settings_view.py).
 
 Try it yourself. Run `tests/test_i18n_and_settings_ui.py` after adding a new `self.tr(...)` string to any widget and see how the AST parity test immediately reports the missing Arabic entry.
+
+## M8 — Packaging and release
+
+Shipping a desktop app means verifying more than the first install: in-place upgrades must clear stale runtime libraries from `_internal` without touching `%LOCALAPPDATA%\GameHub\`, and uninstalling must remove the optional per-user Windows startup entry while leaving user history intact. Stripping Python from `PATH` and clearing `PYTHONHOME`/`PYTHONPATH` during smoke tests proves the frozen PyInstaller bundle is self-contained, and static AST checks ensure offline and non-invasive boundaries hold across every release.
+
+Read [gamehub.spec](packaging/gamehub.spec), [installer.iss](packaging/installer.iss), [windows.yml](.github/workflows/windows.yml), [test_packaging.py](tests/test_packaging.py), and [USER-GUIDE-AR.md](docs/USER-GUIDE-AR.md).
+
+Try it yourself. Run `python -m pytest tests/test_packaging.py` and trace how the test suite statically enforces zero network imports, zero game-injection Win32 calls, and full third-party license coverage.

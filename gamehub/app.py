@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
 )
 
+from gamehub import __version__
 from gamehub.core.audio.player import VoicePlayer
 from gamehub.core.audio.recorder import AudioRecorder
 from gamehub.core.capture.scheduler import CaptureScheduler
@@ -836,6 +837,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     app = QApplication(["Game Hub"])
     app.setApplicationName("Game Hub")
+    app.setApplicationVersion(__version__)
 
     if args.smoke_test:
         with TemporaryDirectory(prefix="gamehub-smoke-") as temp_dir:

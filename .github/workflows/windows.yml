@@ -74,19 +74,38 @@ jobs:
           $version = if ($tag -eq 'm8') { '1.0.0' } else { "0.1.$($tag.Substring(1))" }
           & $compiler "/DAppVersion=$version" 'packaging/installer.iss'
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)." }
-      - name: Smoke test the extracted portable package and installed application
+      - name: Smoke test the extracted portable package, install, upgrade, and uninstall
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
           function Test-GameHub($applicationDir) {
             $exe = Join-Path $applicationDir 'GameHub.exe'
-            $notice = Join-Path $applicationDir '_internal/third-party/THIRD_PARTY_NOTICES.txt'
-            if (!(Test-Path -LiteralPath $notice -PathType Leaf)) {
-              throw "The application package is missing third-party notices: $applicationDir"
+            foreach ($rel in @(
+              '_internal/third-party/THIRD_PARTY_NOTICES.txt',
+              '_internal/third-party/Qt/LGPL-3.0.txt',
+              '_internal/third-party/FFmpeg/LGPL-2.1.txt'
+            )) {
+              $file = Join-Path $applicationDir $rel
+              if (!(Test-Path -LiteralPath $file -PathType Leaf)) {
+                throw "The application package is missing required notice file ($rel): $applicationDir"
+              }
             }
-            $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' `
-              -WorkingDirectory $env:RUNNER_TEMP -WindowStyle Hidden -Wait -PassThru
-            if ($process.ExitCode -ne 0) { throw "Game Hub smoke test failed ($($process.ExitCode))." }
+            $savedPath = $env:PATH
+            $savedPythonHome = $env:PYTHONHOME
+            $savedPythonPath = $env:PYTHONPATH
+            try {
+              # Run with only Windows system directories on PATH to confirm zero Python dependency.
+              $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+              Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+              Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+              $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' `
+                -WorkingDirectory $env:RUNNER_TEMP -WindowStyle Hidden -Wait -PassThru
+              if ($process.ExitCode -ne 0) { throw "Game Hub smoke test failed ($($process.ExitCode))." }
+            } finally {
+              $env:PATH = $savedPath
+              if ($null -ne $savedPythonHome) { $env:PYTHONHOME = $savedPythonHome }
+              if ($null -ne $savedPythonPath) { $env:PYTHONPATH = $savedPythonPath }
+            }
           }
 
           $portable = Join-Path $env:RUNNER_TEMP 'Game Hub Portable'
@@ -100,6 +119,35 @@ jobs:
             -WindowStyle Hidden -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Game Hub installation failed ($($process.ExitCode))." }
           Test-GameHub $installed
+
+          # Preserve user data canary across upgrade and uninstall.
+          $userData = Join-Path $env:LOCALAPPDATA 'GameHub'
+          New-Item -ItemType Directory -Path $userData -Force | Out-Null
+          $canary = Join-Path $userData 'upgrade-canary.txt'
+          Set-Content -LiteralPath $canary -Value 'preserve-me' -Encoding utf8
+
+          # Exercise in-place upgrade over the existing installation.
+          $upgrade = Start-Process -FilePath $setup -ArgumentList $installerArgs `
+            -WindowStyle Hidden -Wait -PassThru
+          if ($upgrade.ExitCode -ne 0) { throw "Game Hub upgrade failed ($($upgrade.ExitCode))." }
+          Test-GameHub $installed
+
+          # Exercise silent uninstall and verify executable removal while preserving user data.
+          $uninstaller = Join-Path $installed 'unins000.exe'
+          if (!(Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
+            throw "Uninstaller missing after installation: $uninstaller"
+          }
+          $remove = Start-Process -FilePath $uninstaller `
+            -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' `
+            -WindowStyle Hidden -Wait -PassThru
+          if ($remove.ExitCode -ne 0) { throw "Game Hub uninstall failed ($($remove.ExitCode))." }
+          if (Test-Path -LiteralPath (Join-Path $installed 'GameHub.exe')) {
+            throw 'GameHub.exe still exists after uninstall.'
+          }
+          if (!(Test-Path -LiteralPath $canary -PathType Leaf)) {
+            throw 'User data was unexpectedly removed during upgrade or uninstall.'
+          }
+          Remove-Item -LiteralPath $canary -Force
       - name: Publish Windows assets in the private repository
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,5 +1,12 @@
 # Changelog
 
+## m8
+
+- Release Game Hub v1.0.0 for Windows 10/11 x64 as a per-user installer (`GameHub-Setup.exe`) and portable bundle (`GameHub-Windows-x64.zip`).
+- Harden Inno Setup for clean in-place upgrades (`_internal` cleanup) and clean uninstall (removing the per-user Windows startup entry while preserving local user data).
+- Add Python-free `PATH` smoke testing, upgrade/uninstall verification, static offline/no-injection audits, and complete third-party license notices including Qt, FFmpeg, PortAudio, and libsndfile.
+- Add updated English documentation (`README.md`) and a full Arabic user guide (`docs/USER-GUIDE-AR.md`).
+
 ## m7
 
 - Add Settings for language, capture interval (5–300 s), screenshot ring size (1–50), voice autoplay, close prompt, all three global hotkeys, Windows startup, and data folder.
