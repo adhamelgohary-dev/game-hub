@@ -17,3 +17,5 @@ Native Ctrl+Alt+N started and stopped the recorder flow while the synthetic wind
 Initial verdict **APPROVE WITH CHANGES**. Cancel queued input on dismissal or quit, preserve a successfully encoded clip if saving fails, and show the processing state apart from active capture. Re-review confirms the fixes. All 110 tests, Ruff and source startup passed. Verify the final frozen build and tagged packages before closing the milestone.
 
 The native shortcut passed again after the asynchronous save change. The isolated frozen build loaded PortAudio and confirmed Ogg Vorbis support. The hosted release verification remains open.
+
+Final verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/45043234228) passed tests, lint, and startup from both the installer and portable bundle. Both packages are published in the [private m4 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m4).

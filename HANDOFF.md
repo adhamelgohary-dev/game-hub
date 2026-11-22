@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-M4 local tests, native Ctrl+Alt+N with generated audio, and packaged audio startup pass. Verify the tagged `m4` installer and portable package, then close the Council review and start M5 Last time.
+Begin M5 with a storage snapshot of prior ended sessions in `gamehub/core/storage/memory.py`, then connect it to the Qt Last time card, local Ogg playback, Ctrl+Alt+L, and the explicit Play launch flow.
 
 ## Run the app and tests
 
@@ -42,6 +42,7 @@ From the PowerShell repository root:
 - [M1 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m1) passed tagged Windows CI with both release packages smoke-tested.
 - [M2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2) passed tagged Windows CI with both release packages smoke-tested.
 - [M3 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m3) passed tagged Windows CI with both release packages smoke-tested.
+- [M4 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m4) passed tagged Windows CI with both release packages smoke-tested.
 - Native WGC accepted 12 frames from a synthetic Windows 11 test window, retained and displayed the newest ten, and skipped unfocused and minimized cases. Protected games and Windows 10 capture hardware remain unverified.
 - Native Ctrl+Alt+N and the stored Ogg note were verified with generated audio. Microphone denial and recording limits were exercised with input doubles.
 - The M2 native watcher produced one completed session row and matching tray states. The final 120-second run measured 0.69% of one core for the watcher and 0.066% of total CPU capacity for the app.
