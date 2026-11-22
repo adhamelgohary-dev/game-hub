@@ -6,13 +6,19 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Run Part E public-readiness audit & signing prep (full git-history secret/PII scan, MIT `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, SignPath Foundation prep, EXE version-info & app manifest, SemVer workflow), then present **Owner Gate 1**:
-1. Fluent UI mockups (`docs/design/mockups/index.html` + 11 PNGs) for approval before implementing Part D (`M11`).
-2. Proposed `m0–m8` old-releases cleanup list for owner "OK" before deleting any GitHub Releases.
+Wait for owner approval at **Owner Gate 1**, then execute in order:
+1. **M11 (Part D — Fluent UI redesign)** `[complex]` once owner approves `docs/design/mockups/` (or requests tweaks):
+   - Implement Windows 11 / Fluent QSS theme engine (`gamehub/ui/theme.py` for Dark, Light, and System themes, live theme switching wired to `SettingsChanged`), persistent sidebar navigation, responsive cover-art Library grid (discovering local Steam `appcache/librarycache` and Epic covers with stylized placeholders), redesigned Game page, Last-time card, Note prompt, and Settings view, smooth transitions (`QGraphicsOpacityEffect` / `QPropertyAnimation`), multi-size app icon (`packaging/assets/GameHub.ico`), and Inno Setup wizard branding BMPs.
+   - Update README screenshots with real captured app screens, run full tests + Review Council (`docs/reviews/M11-review.md`), tag plain internal git tag `m11`.
+2. **M12b (Parts F & G — Release cleanup + `v1.1.0-rc.1`)** `[complex]`:
+   - Once owner gives `"OK"` on the `m0–m8` release cleanup list: convert `m8` release to `v1.0.0` (keep `m8` tag) and delete GitHub Releases `m0–m7` (keep tags `m0–m7`).
+   - Update `gamehub/__init__.py` (`__version__ = "1.1.0-rc.1"`), `CHANGELOG.md` (`## v1.1.0-rc.1` with Added/Changed/Fixed/Security), and `tests/test_packaging.py`; push tag `v1.1.0-rc.1` so Windows CI builds and publishes `GameHub-Setup-v1.1.0-rc.1.exe`, `GameHub-Portable-v1.1.0-rc.1.zip`, and `SHA256SUMS.txt`.
+   - Download/copy `GameHub-Setup-v1.1.0-rc.1.exe` to owner's Desktop (`%USERPROFILE%\Desktop\`) and provide the 10-item click-only test checklist in Egyptian Arabic.
+3. **M13 (Part G — Final `v1.1.0`)** `[simple]`: After owner replies `"verified"`, update `__version__ = "1.1.0"` and `CHANGELOG.md` (`## v1.1.0`), tag and publish `v1.1.0`.
 
 ## In progress
 
-Game Hub v1.1 — `M10` approved and tagged (`m10`); starting Part E public-readiness audit & signing prep.
+Paused cleanly on green `main` at **Owner Gate 1** (mockups + `m0–m8` cleanup approval). `D-v1.1`, `M9`, `M10`, and `M12a` are complete, reviewed, committed, and pushed. Repository is now **PUBLIC**.
 
 ## Fragile spots
 
@@ -52,7 +58,7 @@ From the PowerShell repository root:
 
 ## Known issues and blockers
 
-- GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
+- GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PUBLIC (switched in M12a after clean full-history `gitleaks 8.30.1` and 561-blob PII audit). Local Git is on `main` with `origin` connected.
 - [M0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) passed native tray and tagged Windows CI with both release packages smoke-tested.
 - [M1 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m1) passed tagged Windows CI with both release packages smoke-tested.
 - [M2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2) passed tagged Windows CI with both release packages smoke-tested.

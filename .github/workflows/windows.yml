@@ -3,7 +3,7 @@ name: Windows
 on:
   push:
     branches: ['**']
-    tags: ['m[0-8]']
+    tags: ['v*']
 
 permissions:
   contents: read
@@ -34,7 +34,7 @@ jobs:
 
   release:
     name: Build and publish release
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     needs: test
     runs-on: windows-2025
     timeout-minutes: 25
@@ -54,6 +54,7 @@ jobs:
         run: python -m pip install -r requirements.txt -r requirements-dev.txt
       - name: Build the portable application
         run: |
+          $tag = $env:GITHUB_REF_NAME
           $python = python -c 'import sys; print(sys.base_prefix); print(sys.version.split()[0])'
           if ($LASTEXITCODE -ne 0) { throw 'Could not identify the CPython installation.' }
           if (!(Test-Path -LiteralPath (Join-Path $python[0] 'LICENSE.txt') -PathType Leaf)) {
@@ -63,7 +64,7 @@ jobs:
           }
           python -m PyInstaller --noconfirm --clean packaging/gamehub.spec
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)." }
-          Compress-Archive -LiteralPath dist/GameHub -DestinationPath dist/GameHub-Windows-x64.zip
+          Compress-Archive -LiteralPath dist/GameHub -DestinationPath "dist/GameHub-Portable-$tag.zip"
       - name: Build the per-user installer
         run: |
           $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
@@ -71,30 +72,32 @@ jobs:
             throw 'Inno Setup 6 is unavailable on this runner.'
           }
           $tag = $env:GITHUB_REF_NAME
-          $version = if ($tag -eq 'm8') { '1.0.0' } else { "0.1.$($tag.Substring(1))" }
-          & $compiler "/DAppVersion=$version" 'packaging/installer.iss'
+          $version = $tag.TrimStart('v')
+          $setupBase = "GameHub-Setup-$tag"
+          & $compiler "/DAppVersion=$version" "/DOutputFilename=$setupBase" 'packaging/installer.iss'
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)." }
       - name: Smoke test the extracted portable package, install, upgrade, and uninstall
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
+          $tag = $env:GITHUB_REF_NAME
           function Test-GameHub($applicationDir) {
             $exe = Join-Path $applicationDir 'GameHub.exe'
             foreach ($rel in @(
               '_internal/third-party/THIRD_PARTY_NOTICES.txt',
               '_internal/third-party/Qt/LGPL-3.0.txt',
-              '_internal/third-party/FFmpeg/LGPL-2.1.txt'
+              '_internal/third-party/FFmpeg/LGPL-2.1.txt',
+              '_internal/gamehub/core/protection/protected_games.json'
             )) {
               $file = Join-Path $applicationDir $rel
               if (!(Test-Path -LiteralPath $file -PathType Leaf)) {
-                throw "The application package is missing required notice file ($rel): $applicationDir"
+                throw "The application package is missing required file ($rel): $applicationDir"
               }
             }
             $savedPath = $env:PATH
             $savedPythonHome = $env:PYTHONHOME
             $savedPythonPath = $env:PYTHONPATH
             try {
-              # Run with only Windows system directories on PATH to confirm zero Python dependency.
               $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
               Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
               Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
@@ -109,30 +112,37 @@ jobs:
           }
 
           $portable = Join-Path $env:RUNNER_TEMP 'Game Hub Portable'
-          Expand-Archive -LiteralPath dist/GameHub-Windows-x64.zip -DestinationPath $portable
+          Expand-Archive -LiteralPath "dist/GameHub-Portable-$tag.zip" -DestinationPath $portable
           Test-GameHub (Join-Path $portable 'GameHub')
 
+          # Seed a synthetic v1.0 legacy Run key and confirm installer upgrade deletes it.
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          New-Item -Path $runKey -Force | Out-Null
+          Set-ItemProperty -Path $runKey -Name 'GameHub' -Value '"C:\Legacy\GameHub.exe"'
+
           $installed = Join-Path $env:RUNNER_TEMP 'Game Hub Installed'
-          $setup = (Resolve-Path -LiteralPath dist/GameHub-Setup.exe).Path
+          $setup = (Resolve-Path -LiteralPath "dist/GameHub-Setup-$tag.exe").Path
           $installerArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /DIR="{0}"' -f $installed
           $process = Start-Process -FilePath $setup -ArgumentList $installerArgs `
             -WindowStyle Hidden -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Game Hub installation failed ($($process.ExitCode))." }
           Test-GameHub $installed
 
-          # Preserve user data canary across upgrade and uninstall.
+          $remainingRun = (Get-ItemProperty -Path $runKey -Name 'GameHub' -ErrorAction SilentlyContinue).GameHub
+          if ($null -ne $remainingRun) {
+            throw 'Legacy HKCU Run\GameHub entry was not removed during install/upgrade.'
+          }
+
           $userData = Join-Path $env:LOCALAPPDATA 'GameHub'
           New-Item -ItemType Directory -Path $userData -Force | Out-Null
           $canary = Join-Path $userData 'upgrade-canary.txt'
           Set-Content -LiteralPath $canary -Value 'preserve-me' -Encoding utf8
 
-          # Exercise in-place upgrade over the existing installation.
           $upgrade = Start-Process -FilePath $setup -ArgumentList $installerArgs `
             -WindowStyle Hidden -Wait -PassThru
           if ($upgrade.ExitCode -ne 0) { throw "Game Hub upgrade failed ($($upgrade.ExitCode))." }
           Test-GameHub $installed
 
-          # Exercise silent uninstall and verify executable removal while preserving user data.
           $uninstaller = Join-Path $installed 'unins000.exe'
           if (!(Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
             throw "Uninstaller missing after installation: $uninstaller"
@@ -148,16 +158,54 @@ jobs:
             throw 'User data was unexpectedly removed during upgrade or uninstall.'
           }
           Remove-Item -LiteralPath $canary -Force
-      - name: Publish Windows assets in the private repository
+
+      # SignPath Foundation free open-source code signing (disabled until approved; enable via vars.SIGNPATH_ENABLED == 'true').
+      - name: Upload unsigned installer for SignPath
+        if: vars.SIGNPATH_ENABLED == 'true'
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-installer-${{ github.ref_name }}
+          path: dist/GameHub-Setup-${{ github.ref_name }}.exe
+          retention-days: 1
+
+      - name: Sign installer via SignPath Foundation
+        if: vars.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: game-hub
+          signing-policy-slug: release
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: dist/signed
+
+      - name: Replace installer with SignPath-signed executable
+        if: vars.SIGNPATH_ENABLED == 'true'
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $signed = Get-ChildItem -LiteralPath 'dist/signed' -Filter '*.exe' | Select-Object -First 1
+          if ($null -eq $signed) { throw 'SignPath did not return a signed installer.' }
+          Move-Item -LiteralPath $signed.FullName -Destination "dist/GameHub-Setup-$tag.exe" -Force
+
+      - name: Generate SHA256SUMS.txt
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $files = @("dist/GameHub-Setup-$tag.exe", "dist/GameHub-Portable-$tag.zip")
+          $lines = foreach ($f in $files) {
+            $hash = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $(Split-Path -Leaf $f)"
+          }
+          Set-Content -LiteralPath 'dist/SHA256SUMS.txt' -Value $lines -Encoding ascii
+
+      - name: Publish SemVer GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $repo = $env:GITHUB_REPOSITORY
           $tag = $env:GITHUB_REF_NAME
-          $visibility = gh repo view $repo --json visibility --jq .visibility
-          if ($LASTEXITCODE -ne 0 -or $visibility -ne 'PRIVATE') {
-            throw 'GitHub did not confirm PRIVATE visibility. Release stopped.'
-          }
+          $isPrerelease = $tag -like '*-*'
 
           $changelog = Get-Content -LiteralPath CHANGELOG.md -Raw
           $pattern = '(?ms)^##[ \t]+{0}[ \t]*\r?\n(.*?)(?=^##[ \t]+|\z)' -f [regex]::Escape($tag)
@@ -168,10 +216,17 @@ jobs:
           $notesPath = Join-Path $env:RUNNER_TEMP 'game-hub-release-notes.md'
           Set-Content -LiteralPath $notesPath -Value $match.Groups[1].Value.Trim() -Encoding utf8
           $title = "Game Hub $tag"
-          $assets = @('dist/GameHub-Windows-x64.zip', 'dist/GameHub-Setup.exe')
+          $assets = @(
+            "dist/GameHub-Setup-$tag.exe",
+            "dist/GameHub-Portable-$tag.zip",
+            "dist/SHA256SUMS.txt"
+          )
           $existing = gh release view $tag --repo $repo --json name,isDraft,assets 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --repo $repo --verify-tag --title $title --notes-file $notesPath @assets
+            $createArgs = @('release', 'create', $tag, '--repo', $repo, '--verify-tag', '--title', $title, '--notes-file', $notesPath)
+            if ($isPrerelease) { $createArgs += '--prerelease' }
+            $createArgs += $assets
+            & gh @createArgs
           } else {
             $release = $existing | ConvertFrom-Json
             if (!$release.isDraft) {
@@ -181,12 +236,14 @@ jobs:
                   throw "The published release is missing a required asset: $asset"
                 }
               }
-              Write-Host "Game Hub $tag is already published with both Windows assets."
+              Write-Host "Game Hub $tag is already published with all Windows assets."
               exit 0
             }
             if ($release.name -ne $title) { throw "An unrelated draft exists for $tag." }
             gh release upload $tag --repo $repo --clobber @assets
             if ($LASTEXITCODE -ne 0) { throw "GitHub asset upload failed ($LASTEXITCODE)." }
-            gh release edit $tag --repo $repo --draft=false --notes-file $notesPath
+            $editArgs = @('release', 'edit', $tag, '--repo', $repo, '--draft=false', '--notes-file', $notesPath)
+            if ($isPrerelease) { $editArgs += '--prerelease' }
+            & gh @editArgs
           }
           if ($LASTEXITCODE -ne 0) { throw "GitHub release failed ($LASTEXITCODE)." }

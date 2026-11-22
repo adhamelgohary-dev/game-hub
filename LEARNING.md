@@ -115,3 +115,11 @@ Separating **what** games are protected (`protected_games.json`) from **how** th
 Read [protected_games.json](gamehub/core/protection/protected_games.json), [catalog.py](gamehub/core/protection/catalog.py), [lifecycle.py](gamehub/core/protection/lifecycle.py), [processes.py](gamehub/core/sessions/processes.py), and [windows.py](gamehub/core/capture/windows.py).
 
 Try it yourself. Run `python -m pytest tests/test_protection_and_lifecycle.py -k never_opens` to see how the test asserts that `VALORANT-Win64-Shipping.exe` is detected passively while `inspect()` (the `OpenProcess` wrapper) is never called for its PID.
+
+## M12a — Public-readiness audit, EXE metadata, and SignPath signing
+
+Before making a private repository public, scanning only the working tree is not enough—deleted secrets still live inside historical git blobs. Running `gitleaks detect` across every commit and scanning all historical blobs verifies the entire history is clean. Embedding a Windows `VSVersionInfo` resource and an `asInvoker` + `PerMonitorV2` application manifest into `GameHub.exe` gives Windows and antivirus scanners transparent publisher/version metadata, while preparing a SignPath Foundation workflow step lets reproducible GitHub Actions releases earn trusted Authenticode signatures for free once approved.
+
+Read [LICENSE](LICENSE), [SECURITY.md](SECURITY.md), [SIGNPATH-APPLICATION.md](docs/SIGNPATH-APPLICATION.md), [version_info.txt](packaging/version_info.txt), and [windows.yml](.github/workflows/windows.yml).
+
+Try it yourself. Right-click a built `dist/GameHub/GameHub.exe` → **Properties → Details** to see the embedded Product Name, File Version, Description, and MIT copyright fields populated from `packaging/version_info.txt`.

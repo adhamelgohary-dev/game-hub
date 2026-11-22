@@ -77,6 +77,8 @@ exe = EXE(
     name='GameHub',
     console=False,
     upx=False,
+    version=str(root / 'packaging' / 'version_info.txt'),
+    manifest=str(root / 'packaging' / 'GameHub.manifest'),
 )
 collect = COLLECT(
     exe,

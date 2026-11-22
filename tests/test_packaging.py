@@ -80,6 +80,21 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert "Flags: deletevalue uninsdeletevalue dontcreatekey" in installer_text
     assert "ValueType: none" in installer_text
     assert "[InstallDelete]" in installer_text
+    assert "protected_games.json" in spec_text
+    assert "version_info.txt" in spec_text
+    assert "GameHub.manifest" in spec_text
     assert "FFmpeg" in notices_text
     assert "PySide6 Addons" in notices_text
+    assert "MIT License" in notices_text
+    assert (root / "LICENSE").is_file()
+    assert "MIT License" in (root / "LICENSE").read_text(encoding="utf-8")
+    assert (root / "SECURITY.md").is_file()
+    assert (root / "CONTRIBUTING.md").is_file()
+    assert (root / "docs" / "SIGNPATH-APPLICATION.md").is_file()
+    assert (root / "packaging" / "version_info.txt").is_file()
+    assert (root / "packaging" / "GameHub.manifest").is_file()
     assert (root / "docs" / "USER-GUIDE-AR.md").is_file()
+    workflow_text = (root / ".github" / "workflows" / "windows.yml").read_text(encoding="utf-8")
+    assert "SIGNPATH_ENABLED" in workflow_text
+    assert "SHA256SUMS.txt" in workflow_text
+    assert "tags: ['v*']" in workflow_text

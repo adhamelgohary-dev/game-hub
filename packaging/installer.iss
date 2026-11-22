@@ -1,5 +1,8 @@
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.1.0"
+#endif
+#ifndef OutputFilename
+  #define OutputFilename "GameHub-Setup-v" + AppVersion
 #endif
 
 [Setup]
@@ -14,7 +17,7 @@ MinVersion=10.0.17763
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
-OutputBaseFilename=GameHub-Setup
+OutputBaseFilename={#OutputFilename}
 Compression=lzma2
 SolidCompression=yes
 CloseApplications=yes
@@ -35,7 +38,7 @@ Source: "..\dist\GameHub\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "GameHub"; ValueType: none; Flags: deletevalue uninsdeletevalue dontcreatekey
 
 [Icons]
-Name: "{group}\Game Hub"; Filename: "{app}\GameHub.exe"; WorkingDir: "{app}"
+Name: "{group}\Game Hub"; Filename: "{app}\GameHub.exe"; WorkingDir: "{app}"; AppUserModelID: "GameHub.Desktop"
 Name: "{group}\Third-party notices"; Filename: "{app}\_internal\third-party\THIRD_PARTY_NOTICES.txt"
 
 [Run]
