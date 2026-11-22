@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Local M1 tests, Ruff and the frozen smoke passed. Verify the hosted `m1` tag run and private installer and portable release, then close the M1 Council review. Next implementation is M2 process sampling and persisted session transitions.
+Begin M2 with `gamehub/core/sessions/models.py` for immutable process identity and session events. Then implement the Windows process sampler, persisted state machine, and tray updates. Test starts, stops, access loss, crash recovery, and the 120-second idle CPU budget before tagging.
 
 ## Run the app and tests
 
@@ -36,6 +36,7 @@ From the PowerShell repository root:
 
 - GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
 - [M0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) passed native tray and tagged Windows CI with both release packages smoke-tested.
+- [M1 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m1) passed tagged Windows CI with both release packages smoke-tested.
 - Live Steam entries loaded and persisted. Epic manifests were unavailable and no accessible Xbox titles were found on this machine. Fixture coverage verified those adapters. [Launcher limitations](docs/launcher-detection.md)
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.
 

@@ -17,3 +17,5 @@ The library displays name, source, install path, last played and playtime. It id
 Initial verdict **APPROVE WITH CHANGES**. Preserve valid Steam siblings when one index entry is inaccessible, display cached library rows before refresh, and make missing tracking targets visible. The fixes are in place. Re-review after final local, hosted, and release verification.
 
 Source re-review passed. All 41 local tests, Ruff, and the local frozen application smoke passed. The hosted tagged installer and release checks are the remaining gate.
+
+Final verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/44985356606) passed tests, lint, installed startup and portable startup. Both Windows packages are published in the [private m1 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m1).
