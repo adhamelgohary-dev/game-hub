@@ -58,6 +58,11 @@ class GameSummary:
     tracking: bool
 
 
+@dataclass(frozen=True, slots=True)
+class LibraryChanged:
+    game_ids: tuple[str, ...]
+
+
 class GameDetector(Protocol):
     @property
     def source(self) -> GameSource: ...

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QTableWidget
 
 from gamehub.app import GameHubWindow
 from gamehub.core.library.service import LibraryService
+from gamehub.core.sessions.models import GameStarted, GameStopped
 from gamehub.core.storage.db import Database
 from gamehub.core.storage.library import LibraryRepository
 from gamehub.single_instance import SingleInstance
@@ -32,7 +33,12 @@ def test_window_has_tray_and_quit_action(app: QApplication) -> None:
         assert [action.text() for action in window.tray_menu.actions()] == [
             "Open Game Hub",
             "Quit",
+            "Watching for games",
         ]
+        window.game_started(GameStarted("game", "session", 0))
+        assert "Tracking 1 game" in window.tray.toolTip()
+        window.game_stopped(GameStopped("game", "session", 5000, 5, "completed", "process_exit"))
+        assert "Watching for games" in window.tray.toolTip()
         if QSystemTrayIcon.isSystemTrayAvailable():
             window.tray.show()
             assert window.tray.isVisible()

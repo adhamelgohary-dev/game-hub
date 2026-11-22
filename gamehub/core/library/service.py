@@ -1,7 +1,7 @@
 """Coordinate independent game detectors and persistence."""
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +10,7 @@ from gamehub.core.library.models import (
     GameDetector,
     GameSource,
     GameSummary,
+    LibraryChanged,
 )
 from gamehub.core.storage.library import LibraryRepository
 
@@ -23,9 +24,15 @@ class LibrarySnapshot:
 
 
 class LibraryService:
-    def __init__(self, repository: LibraryRepository, detectors: Sequence[GameDetector]) -> None:
+    def __init__(
+        self,
+        repository: LibraryRepository,
+        detectors: Sequence[GameDetector],
+        publish: Callable[[LibraryChanged], None] | None = None,
+    ) -> None:
         self._repository = repository
         self._detectors = tuple(detectors)
+        self._publish = publish
 
     def refresh(self) -> LibrarySnapshot:
         partial_sources = []
@@ -36,7 +43,7 @@ class LibraryService:
                 batch = DiscoveryBatch(state="partial", diagnostics=("launcher_scan_failed",))
             for diagnostic in batch.diagnostics:
                 LOGGER.warning("library_scan source=%s status=%s", detector.source.value, diagnostic)
-            self._repository.reconcile(detector.source, batch)
+            self._notify(self._repository.reconcile(detector.source, batch))
             if batch.state == "partial":
                 partial_sources.append(detector.source)
         return LibrarySnapshot(self._repository.list_games(), tuple(partial_sources))
@@ -45,9 +52,13 @@ class LibraryService:
         return LibrarySnapshot(self._repository.list_games())
 
     def add_manual(self, executable: Path) -> LibrarySnapshot:
-        self._repository.add_manual(executable)
+        self._notify((self._repository.add_manual(executable),))
         return self.current()
 
     def assign_target(self, game_id: str, executable: Path) -> LibrarySnapshot:
-        self._repository.assign_target(game_id, executable)
+        self._notify((self._repository.assign_target(game_id, executable),))
         return self.current()
+
+    def _notify(self, game_ids: tuple[str, ...]) -> None:
+        if self._publish is not None and game_ids:
+            self._publish(LibraryChanged(game_ids))

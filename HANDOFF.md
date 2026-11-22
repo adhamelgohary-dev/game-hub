@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin M2 with `gamehub/core/sessions/models.py` for immutable process identity and session events. Then implement the Windows process sampler, persisted state machine, and tray updates. Test starts, stops, access loss, crash recovery, and the 120-second idle CPU budget before tagging.
+M2 implementation is in `gamehub/core/sessions/` and `gamehub/core/storage/sessions.py`. Verify real Windows process start and stop, and measure the 120-second idle CPU budget. Run the full suite, review and package M2, then verify the tagged Windows installation and portable release.
 
 ## Run the app and tests
 
@@ -26,6 +26,7 @@ From the PowerShell repository root:
 - `docs/TESTING.md` — Windows manual acceptance checklist.
 - `gamehub/app.py` and `gamehub/single_instance.py` — desktop entry point, tray, and local instance control.
 - `gamehub/core/library/` and `gamehub/core/storage/` — detector adapters, source models, and SQLite.
+- `gamehub/core/sessions/` and `gamehub/core/events.py` — process identity, session state, and Qt event delivery.
 - `gamehub/ui/library_view.py` — library table and manual executable actions.
 - `tests/test_app.py` — window, local activation, and entry point tests.
 - `packaging/` and `.github/workflows/windows.yml` — Windows bundle, installer, and release workflow.

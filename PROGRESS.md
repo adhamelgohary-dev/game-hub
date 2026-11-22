@@ -11,14 +11,12 @@
 - ⬜ M7 — Settings and Arabic/English [complex]
 - ⬜ M8 — Packaging and release [complex]
 
-**Current task** — M2 process observation, persisted session transitions, and tray status.
+**Current task** — Verify M2 native Windows process and idle performance, then run the Council and release gates.
 
 **Last completed**
 
-- Implemented Steam, Epic, Xbox and manual library paths.
-- Added SQLite persistence and the library view.
-- Verified live Steam rows in the view and after reopening a temporary database.
-- Verified manual add with a local executable and synthetic cases for all launchers.
-- Passed Council review and published the private m1 installer and portable bundle.
+- Added the Windows process observer and 2.5-second background watcher.
+- Persisted session transitions and recovered abandoned checkpoints.
+- Updated the tray and library from typed events on the Qt thread.
 
-**Tests** — 41 tests, Ruff, local frozen smoke, and hosted m1 installer and portable startup pass. M2 tests are pending.
+**Tests** — 59 native-privilege tests and source smoke pass. M2 live process, idle CPU, and tagged release checks are pending.

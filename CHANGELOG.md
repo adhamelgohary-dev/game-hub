@@ -1,5 +1,11 @@
 # Changelog
 
+## m2
+
+- Track registered games from the Windows tray.
+- Record start, end, and observed playtime in the local database.
+- Recover interrupted sessions from the last verified checkpoint.
+
 ## m1
 
 - Discover installed Steam, Epic Games Store and supported local Xbox titles.

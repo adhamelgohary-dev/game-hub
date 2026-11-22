@@ -29,3 +29,11 @@ A detector turns launcher-specific metadata into the same kind of game record. T
 Read [steam.py](gamehub/core/library/steam.py), [models.py](gamehub/core/library/models.py), [library.py](gamehub/core/storage/library.py), and [library_controller.py](gamehub/ui/library_controller.py).
 
 Try it yourself. Add one broken manifest to a synthetic library fixture and check which entries remain after refresh.
+
+## M2 — Session tracking
+
+Windows can reuse process IDs. Pairing the ID with the creation time tells the watcher which specific process it saw. A session can span several matching processes, and a brief permission error leaves the last reliable checkpoint intact. The event bus sends committed changes to Qt so the worker never updates widgets directly.
+
+Read [processes.py](gamehub/core/sessions/processes.py), [tracker.py](gamehub/core/sessions/tracker.py), [session storage](gamehub/core/storage/sessions.py), and [events.py](gamehub/core/events.py).
+
+Try it yourself. Change a synthetic sample so a previous PID appears with a different creation time. Predict the event sequence and check it with pytest.

@@ -30,3 +30,6 @@ https://pyinstaller.org/en/stable/license.html
 
 The Steam launcher parser uses ValvePython vdf under the MIT license.
 https://github.com/ValvePython/vdf
+
+Process observation uses psutil under the BSD 3-Clause license.
+https://github.com/giampaolo/psutil
