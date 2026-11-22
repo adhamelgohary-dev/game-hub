@@ -20,3 +20,5 @@ All 169 automated tests and Ruff pass, including static zero-network and no-inje
 ## Judge
 
 Initial verdict **APPROVE WITH CHANGES** for the two Critic blockers above. Re-review confirms both blockers and the accompanying packaging, license, documentation, and CI verification improvements are complete and tested. Verify the tagged `m8` (v1.0.0) Windows release run before recording final milestone approval.
+
+Final verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/45056815742) passed tests, lint, Python-free `PATH` portable and installed startup, in-place upgrade, silent uninstall, and user-data canary preservation. Both v1.0.0 packages are published in the [private m8 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m8).

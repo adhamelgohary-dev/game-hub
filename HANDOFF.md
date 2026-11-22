@@ -6,17 +6,20 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Complete M8 (v1.0.0 packaging and release): audit `packaging/installer.iss`, `packaging/gamehub.spec`, `packaging/THIRD_PARTY_NOTICES.txt`, and `.github/workflows/windows.yml` (including clean-environment Python-independent smoke verification and upgrade/uninstall checks), write comprehensive English and Arabic user guides (`README.md` and `docs/USER-GUIDE-AR.md`), add packaging/offline verification tests, run Review Council, and publish private release `m8` (`1.0.0`).
+All v1 milestones (D and M0–M8) are complete and published as private release [m8](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m8) (`1.0.0`). Next steps are owner-driven:
+1. Run the manual Windows acceptance checks in [docs/TESTING.md](docs/TESTING.md) (live Steam/Epic/Xbox launchers, exclusive fullscreen switching, physical microphone, 150%/200% DPI + screen reader in English & Arabic, and clean Windows install without Python).
+2. If starting v2, begin with a design milestone (`docs/design/07-extensibility.md`) and Review Council before implementing replay clips or optional Google Drive backup.
 
 ## In progress
 
-Starting M8 (Packaging and release). M7 is complete and published as private release `m7`.
+None — v1.0.0 (`m8`) is complete and `main` is green.
 
 ## Fragile spots
 
-- `gamehub/app.py`: Keep `watcher.start()` strictly after all `EventBus.subscribe(...)` calls so startup sessions are never missed by `LastTimeController` or `NotesController`.
-- `gamehub/core/storage/media.py`: Preserve Windows directory pinning and reparse-point checks for all new managed control images under `media/<game_id>/controls/control_<uuid>.webp`.
-- `packaging/gamehub.spec` and `packaging/THIRD_PARTY_NOTICES.txt`: Keep `PySide6-Addons` and `third-party/FFmpeg/LGPL-2.1.txt` bundled with Qt Multimedia.
+- `gamehub/app.py`: Keep `watcher.start()` strictly after all `EventBus.subscribe(...)` calls, and keep `SingleInstance` anchored on `effective_default` so data-folder relocation never permits a second concurrent instance.
+- `gamehub/core/i18n/catalog.py`: Never place Unicode BiDi isolate characters (`\u2066`/`\u2069`) inside `QFileDialog` glob parentheses `(*.exe)` / `(*.png ...)` — `tests/test_i18n_and_settings_ui.py` enforces both AST `.tr()` parity and `QDir.match` validity.
+- `gamehub/core/storage/media.py` and `location.py`: Preserve Windows directory pinning, `lstat()` reparse-point checks, and `PRAGMA user_version` verification for all managed media and store moves.
+- `packaging/gamehub.spec`, `packaging/installer.iss`, and `packaging/THIRD_PARTY_NOTICES.txt`: Keep `PySide6-Addons`, `third-party/FFmpeg/LGPL-2.1.txt`, `[InstallDelete]` on `{app}\_internal`, and `[Registry]` `uninsdeletevalue` cleanup intact.
 
 Last worked on by: Gemini 4 Neon (High), 2026-11-22
 
@@ -58,6 +61,7 @@ From the PowerShell repository root:
 - [M5 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m5) passed tagged Windows CI with both release packages smoke-tested.
 - [M6 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m6) passed tagged Windows CI with both release packages smoke-tested.
 - [M7 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m7) passed tagged Windows CI with both release packages smoke-tested.
+- [M8 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m8) (`1.0.0`) passed tagged Windows CI including Python-free `PATH` portable & installed startup, in-place upgrade, silent uninstall, and user-data preservation.
 - Native Windows hotkey conflict preservation (`code=1409`), verified `StoreLocation` relocation, and live Arabic RTL layout switching passed locally; 150%/200% DPI visual inspection and Windows screen-reader traversal remain manual acceptance checks.
 - Native `Ctrl+Alt+C` binding and uploaded controls/timeline persistence across reopen were verified locally; live in-game `Ctrl+Alt+C` capture remains part of manual game capture acceptance.
 - Native `Ctrl+Alt+L`, Last time card rendering, and Qt Multimedia Ogg Vorbis playback were verified locally alongside Steam discovery and registered `steam://` URI handler; live interactive Steam game launch and exclusive fullscreen switching remain manual acceptance items.
