@@ -17,23 +17,32 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
 )
 
+from gamehub.core.audio.recorder import AudioRecorder
 from gamehub.core.capture.scheduler import CaptureScheduler
 from gamehub.core.capture.service import CaptureService
 from gamehub.core.capture.windows import WgcCapture, WindowProbe
 from gamehub.core.events import EventBus
+from gamehub.core.hotkeys.windows import (
+    MOD_ALT,
+    MOD_CONTROL,
+    RECORD_NOTE_ID,
+    GlobalHotkeys,
+)
 from gamehub.core.library.epic import EpicDetector
 from gamehub.core.library.models import LibraryChanged
 from gamehub.core.library.service import LibraryService
 from gamehub.core.library.steam import SteamDetector
 from gamehub.core.library.xbox import XboxDetector
-from gamehub.core.sessions.models import GameStarted, GameStopped
+from gamehub.core.sessions.models import GameStarted, GameStopped, SessionIdentity
 from gamehub.core.sessions.processes import ProcessProbe
 from gamehub.core.sessions.tracker import SessionTracker
 from gamehub.core.sessions.watcher import SessionWatcher
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
+from gamehub.core.storage.notes import NoteRepository
 from gamehub.core.storage.screenshots import ScreenshotRepository
 from gamehub.core.storage.sessions import SessionRepository
+from gamehub.modules.memory.notes_controller import NotesController
 from gamehub.single_instance import SingleInstance
 from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
@@ -56,6 +65,7 @@ class GameHubWindow(QMainWindow):
         self.tray = QSystemTrayIcon(icon, self)
         self.tray.activated.connect(self._tray_activated)
         self._tracked_games: set[str] = set()
+        self._recording = False
 
         self.tray_menu = QMenu(self)
         self.tray_menu.addAction("Open Game Hub", self.reveal)
@@ -73,9 +83,21 @@ class GameHubWindow(QMainWindow):
         self._tracked_games.discard(event.game_id)
         self._show_tracking_status()
 
+    def set_recording(self, recording: bool) -> None:
+        self._recording = recording
+        self._show_tracking_status()
+
+    def notify(self, message: str) -> None:
+        if self.tray.isVisible():
+            self.tray.showMessage("Game Hub", message)
+        else:
+            self.library.show_error(message)
+
     def _show_tracking_status(self) -> None:
         count = len(self._tracked_games)
-        if count == 0:
+        if self._recording:
+            text = self.tr("Recording voice note")
+        elif count == 0:
             text = self.tr("Watching for games")
         elif count == 1:
             text = self.tr("Tracking 1 game")
@@ -111,6 +133,8 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
     log_handler = None
     watcher = None
     capture_scheduler = None
+    notes_controller = None
+    hotkeys = None
     try:
         if not instance.claim_or_activate():
             return 0
@@ -127,11 +151,14 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
         window.library.lastMomentsRequested.connect(
             lambda game_id: _open_last_moments(window, library, screenshots, game_id)
         )
-        if QSystemTrayIcon.isSystemTrayAvailable():
+        tray_available = QSystemTrayIcon.isSystemTrayAvailable()
+        app.setQuitOnLastWindowClosed(not tray_available)
+        if tray_available:
             window.tray.show()
         window.show()
         if smoke_test:
             _check_capture_runtime()
+            _check_audio_runtime()
             QTimer.singleShot(0, app.quit)
         else:
             events.subscribe(GameStarted, window.game_started)
@@ -143,9 +170,13 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
             watcher = SessionWatcher(sessions, ProcessProbe(), tracker)
             events.subscribe(LibraryChanged, watcher.library_changed)
             watcher.start()
-            if screenshots is not None:
+            windows = _open_window_probe()
+            notes_controller, hotkeys = _start_notes(app, window, database, data_root, library, windows, tracker)
+            if notes_controller is not None:
+                events.subscribe(GameStopped, notes_controller.game_stopped)
+            if screenshots is not None and windows is not None:
                 try:
-                    capture_service = CaptureService(WindowProbe(), tracker, WgcCapture(), screenshots)
+                    capture_service = CaptureService(windows, tracker, WgcCapture(), screenshots)
                     capture_scheduler = CaptureScheduler(capture_service, window)
                     capture_scheduler.start()
                 except (OSError, RuntimeError):
@@ -153,6 +184,10 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
             QTimer.singleShot(0, controller.refresh)
         return app.exec()
     finally:
+        if hotkeys is not None:
+            hotkeys.close()
+        if notes_controller is not None:
+            notes_controller.close()
         window.tray.hide()
         if capture_scheduler is not None:
             capture_scheduler.close()
@@ -166,6 +201,53 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
         instance.close()
 
 
+def _open_window_probe() -> WindowProbe | None:
+    try:
+        return WindowProbe()
+    except OSError:
+        logging.getLogger("gamehub").warning("foreground_probe_unavailable")
+        return None
+
+
+def _start_notes(
+    app: QApplication,
+    window: GameHubWindow,
+    database: Database,
+    data_root: Path,
+    library: LibraryRepository,
+    windows: WindowProbe | None,
+    tracker: SessionTracker,
+) -> tuple[NotesController | None, GlobalHotkeys | None]:
+    def foreground_session() -> SessionIdentity | None:
+        foreground = windows.foreground() if windows is not None else None
+        return tracker.active_for(foreground.process) if foreground is not None else None
+
+    try:
+        repository = NoteRepository(database, data_root)
+        controller = NotesController(
+            window, repository, library, AudioRecorder(),
+            foreground_session, window.set_recording, window.notify,
+        )
+    except (OSError, StorageError):
+        logging.getLogger("gamehub").warning("note_store_unavailable")
+        return None, None
+
+    try:
+        repository.recover_files()
+    except (OSError, StorageError):
+        logging.getLogger("gamehub").warning("note_recovery_incomplete")
+    if windows is None:
+        return controller, None
+    try:
+        hotkeys = GlobalHotkeys(app)
+    except OSError:
+        logging.getLogger("gamehub").warning("note_hotkeys_unavailable")
+        return controller, None
+    if not hotkeys.bind(RECORD_NOTE_ID, MOD_CONTROL | MOD_ALT, ord("N"), controller.toggle_hotkey):
+        window.notify(window.tr("Ctrl+Alt+N is unavailable. You can record from the game-close prompt."))
+    return controller, hotkeys
+
+
 def _check_capture_runtime() -> None:
     from inspect import signature
 
@@ -175,6 +257,14 @@ def _check_capture_runtime() -> None:
         raise RuntimeError("The exact-window capture adapter is unavailable.")
     if b"webp" not in QImageReader.supportedImageFormats():
         raise RuntimeError("The Qt WebP reader is unavailable.")
+
+
+def _check_audio_runtime() -> None:
+    from sounddevice import get_portaudio_version
+    from soundfile import check_format
+
+    if not get_portaudio_version() or not check_format("OGG", "VORBIS"):
+        raise RuntimeError("The local audio recorder is unavailable.")
 
 
 def _open_screenshot_store(database: Database, data_root: Path) -> ScreenshotRepository | None:

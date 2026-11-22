@@ -42,3 +42,13 @@ https://github.com/NiiightmareXD/windows-capture
 https://github.com/python-pillow/Pillow
 https://numpy.org/
 https://github.com/opencv/opencv-python
+
+Voice notes use sounddevice and the standard x64 PortAudio input library
+under their permissive licenses. SoundFile uses a replaceable libsndfile
+library under the LGPL. Its COPYING file accompanies the DLL under
+_internal/_soundfile_data. CFFI and its Python support dependencies keep
+their separate licenses.
+https://github.com/spatialaudio/python-sounddevice
+https://github.com/PortAudio/portaudio
+https://github.com/bastibe/python-soundfile
+https://github.com/libsndfile/libsndfile/tree/1.2.2

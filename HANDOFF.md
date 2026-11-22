@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin M4 with the SQLite notes schema, a bounded local input recorder, and a Win32 `RegisterHotKey` manager for Ctrl+Alt+N. Route each note to the captured session ID and offer the optional prompt only after a confirmed game exit.
+M4 local tests, native Ctrl+Alt+N with generated audio, and packaged audio startup pass. Verify the tagged `m4` installer and portable package, then close the Council review and start M5 Last time.
 
 ## Run the app and tests
 
@@ -28,6 +28,7 @@ From the PowerShell repository root:
 - `gamehub/core/library/` and `gamehub/core/storage/` — detector adapters, source models, and SQLite.
 - `gamehub/core/sessions/` and `gamehub/core/events.py` — process identity, session state, and Qt event delivery.
 - `gamehub/core/capture/` and `gamehub/core/storage/screenshots.py` — foreground privacy checks, WGC and the screenshot ring.
+- `gamehub/core/audio/`, `gamehub/core/hotkeys/` and `gamehub/modules/memory/` — voice capture, global shortcuts and the session note prompt.
 - `gamehub/ui/library_view.py` — library table and manual executable actions.
 - `tests/test_app.py` — window, local activation, and entry point tests.
 - `packaging/` and `.github/workflows/windows.yml` — Windows bundle, installer, and release workflow.
@@ -42,6 +43,7 @@ From the PowerShell repository root:
 - [M2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2) passed tagged Windows CI with both release packages smoke-tested.
 - [M3 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m3) passed tagged Windows CI with both release packages smoke-tested.
 - Native WGC accepted 12 frames from a synthetic Windows 11 test window, retained and displayed the newest ten, and skipped unfocused and minimized cases. Protected games and Windows 10 capture hardware remain unverified.
+- Native Ctrl+Alt+N and the stored Ogg note were verified with generated audio. Microphone denial and recording limits were exercised with input doubles.
 - The M2 native watcher produced one completed session row and matching tray states. The final 120-second run measured 0.69% of one core for the watcher and 0.066% of total CPU capacity for the app.
 - Live Steam entries loaded and persisted. Epic manifests were unavailable and no accessible Xbox titles were found on this machine. Fixture coverage verified those adapters. [Launcher limitations](docs/launcher-detection.md)
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.

@@ -6,7 +6,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 INITIAL_SCHEMA = (
     """
@@ -70,6 +70,30 @@ SCREENSHOT_SCHEMA = (
     "CREATE INDEX screenshots_timeline ON screenshots (session_id, captured_at, id)",
 )
 
+NOTE_SCHEMA = (
+    """
+    CREATE TABLE notes (
+        id TEXT PRIMARY KEY NOT NULL,
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE RESTRICT,
+        kind TEXT NOT NULL CHECK (kind IN ('voice', 'text')),
+        path_or_text TEXT NOT NULL CHECK (length(trim(path_or_text)) > 0),
+        created_at INTEGER NOT NULL,
+        source TEXT NOT NULL CHECK (source IN ('popup', 'hotkey')),
+        CHECK (kind != 'text' OR source = 'popup')
+    ) STRICT
+    """,
+    "CREATE INDEX notes_timeline ON notes (session_id, kind, created_at DESC, id)",
+    "CREATE UNIQUE INDEX notes_voice_path ON notes (path_or_text) WHERE kind = 'voice'",
+    """
+    CREATE TABLE settings (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL CHECK (
+            json_valid(value) AND json_type(value) NOT IN ('array', 'object')
+        )
+    ) STRICT
+    """,
+)
+
 
 class StorageError(RuntimeError):
     """The application cannot safely complete a local storage operation."""
@@ -116,28 +140,28 @@ class Database:
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version > SCHEMA_VERSION:
             raise StorageError("This database requires a newer version of Game Hub.")
+        if version < 0:
+            raise StorageError("Game Hub found an unrecognized database schema.")
         if connection.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
             raise StorageError("Game Hub could not verify its database.")
         if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
             raise StorageError("Game Hub found inconsistent records in its database.")
 
-        if version == 0:
-            if connection.execute("SELECT 1 FROM sqlite_schema LIMIT 1").fetchone() is not None:
-                raise StorageError("Game Hub found an unrecognized database schema.")
-            for statement in INITIAL_SCHEMA:
-                connection.execute(statement)
-        elif version == 1:
-            self._backup_v1()
+        if version == 0 and connection.execute("SELECT 1 FROM sqlite_schema LIMIT 1").fetchone() is not None:
+            raise StorageError("Game Hub found an unrecognized database schema.")
+        if 0 < version < SCHEMA_VERSION:
+            self._backup(version)
 
-        if version < 2:
-            for statement in SCREENSHOT_SCHEMA:
+        migrations = (INITIAL_SCHEMA, SCREENSHOT_SCHEMA, NOTE_SCHEMA)
+        for next_version, statements in enumerate(migrations[version:], start=version + 1):
+            for statement in statements:
                 connection.execute(statement)
-            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            connection.execute(f"PRAGMA user_version = {next_version}")
 
-    def _backup_v1(self) -> None:
+    def _backup(self, version: int) -> None:
         # The updating connection reserves the writer lock. A separate reader
         # can take a consistent backup while that lock prevents competing writes.
-        backup = self.path.with_name(f"{self.path.name}-v1.bak")
+        backup = self.path.with_name(f"{self.path.name}-v{version}.bak")
         try:
             with TemporaryDirectory(prefix="gamehub-upgrade-", dir=self.path.parent) as folder:
                 staged = Path(folder) / backup.name

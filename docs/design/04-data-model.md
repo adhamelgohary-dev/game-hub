@@ -110,7 +110,7 @@ Resolve and validate managed paths at operation time, rejecting traversal, roote
 
 ## Versions and folder changes
 
-Track ordered migrations using SQLite `user_version`. Apply migrations before starting services and take a local SQLite-consistent backup before upgrading an existing store. Set `user_version` inside the same transaction as its migration so schema and version commit together. A newer unsupported schema or failed integrity check opens a recovery screen and blocks writes. Exercise each older supported schema in migration tests, force a migration failure and reopen to verify both schema and version rolled back, and verify that IDs, media paths and history remain readable. Resolve per-format or bootstrap versions independently of database schema versions.
+Track ordered migrations using SQLite `user_version`. Apply migrations before starting services and take a local SQLite-consistent backup before upgrading an existing store. Store the backup alongside the database as `gamehub.db-v1.bak` or `gamehub.db-v2.bak` for the schema opened by the upgrade. Set `user_version` inside the same transaction as its migration so schema and version commit together. A newer unsupported schema or failed integrity check opens a recovery screen and blocks writes. Exercise each older supported schema in migration tests, force a migration failure and reopen to verify both schema and version rolled back, and verify that IDs, media paths and history remain readable. Resolve per-format or bootstrap versions independently of database schema versions.
 
 The M3 migration from schema 1 to 2 stores its pre-upgrade backup beside the database as `gamehub.db-v1.bak`. A fresh store creates all four tables in one transaction without needing a backup.
 

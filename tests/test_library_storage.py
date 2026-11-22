@@ -28,7 +28,9 @@ def test_initial_schema_and_read_connection(database: db.Database) -> None:
         assert connection.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
         assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         tables = connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")
-        assert {row["name"] for row in tables} == {"games", "game_targets", "sessions", "screenshots"}
+        assert {row["name"] for row in tables} == {
+            "games", "game_targets", "sessions", "screenshots", "notes", "settings",
+        }
 
     with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
         connection.execute("SELECT 1")

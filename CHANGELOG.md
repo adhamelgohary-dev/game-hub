@@ -1,5 +1,12 @@
 # Changelog
 
+## m4
+
+- Save text or voice notes from the optional game-close prompt.
+- Start and stop a voice note for the tracked game with Ctrl+Alt+N.
+- Keep notes attached to their original session through focus changes.
+- Preserve the text draft or encoded clip after a failed save so it can be retried.
+
 ## m3
 
 - Capture only the foreground window of a currently tracked game using Windows Graphics Capture.

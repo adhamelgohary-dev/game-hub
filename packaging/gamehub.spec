@@ -14,6 +14,7 @@ notice_dir = 'third-party'
 notices = [(str(root / 'packaging' / 'THIRD_PARTY_NOTICES.txt'), notice_dir)]
 for name in ('GPL-3.0.txt', 'LGPL-3.0.txt'):
     notices.append((str(root / 'packaging' / 'licenses' / name), f'{notice_dir}/Qt'))
+notices.append((str(root / 'packaging' / 'licenses' / 'PortAudio.txt'), f'{notice_dir}/PortAudio'))
 
 python_license = python_home / 'LICENSE.txt'
 if not python_license.is_file() and environ.get('GAMEHUB_CPYTHON_LICENSE'):
@@ -25,6 +26,7 @@ notices.append((str(python_license), f'{notice_dir}/CPython'))
 for package in (
     'PySide6-Essentials', 'shiboken6', 'PyInstaller', 'psutil', 'vdf',
     'Pillow', 'numpy', 'opencv-python', 'windows-capture',
+    'sounddevice', 'soundfile', 'cffi', 'pycparser', 'typing-extensions',
 ):
     installed = distribution(package)
     license_files = [
@@ -51,6 +53,12 @@ analysis = Analysis(
     pathex=[str(root)],
     datas=notices,
 )
+# The app declares a Windows x64 target and uses the Windows default input.
+analysis.binaries = [
+    item for item in analysis.binaries
+    if not Path(item[0]).name.lower().startswith('libportaudio')
+    or Path(item[0]).name.lower() == 'libportaudio64bit.dll'
+]
 archive = PYZ(analysis.pure)
 exe = EXE(
     archive,

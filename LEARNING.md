@@ -45,3 +45,11 @@ A foreground capture request binds a window handle to the watched process and se
 Read [service.py](gamehub/core/capture/service.py), [windows.py](gamehub/core/capture/windows.py), [screenshots.py](gamehub/core/storage/screenshots.py), and [last_moments.py](gamehub/ui/last_moments.py).
 
 Try it yourself. Change the buffer size in a test, save two additional frames, and verify which images remain when the session closes.
+
+## M4 — Notes and shortcuts
+
+Windows posts a message to the app when a registered shortcut is pressed. The recorder opens one input stream, copies a bounded number of audio samples, and encodes them when the user stops. The note keeps the session ID chosen at the start. If saving fails, the encoded audio can be retried without recording again.
+
+Read [hotkeys](gamehub/core/hotkeys/windows.py), [recorder.py](gamehub/core/audio/recorder.py), [notes_controller.py](gamehub/modules/memory/notes_controller.py), and [note storage](gamehub/core/storage/notes.py).
+
+Try it yourself. Follow the code from Ctrl+Alt+N to a saved note, then run the test that switches foreground games before stopping the note.

@@ -8,6 +8,7 @@ import pytest
 
 from gamehub.core.storage import db
 from gamehub.core.storage.library import LibraryRepository
+from gamehub.core.storage.media import protect_directory
 from gamehub.core.storage.screenshots import ScreenshotRepository
 from gamehub.core.storage.sessions import SessionRepository
 
@@ -49,7 +50,7 @@ def test_version_one_upgrades_with_consistent_backup(tmp_path: Path) -> None:
     database = db.Database(path)
 
     with database.read() as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
         assert connection.execute("SELECT COUNT(*) FROM screenshots").fetchone()[0] == 0
     assert LibraryRepository(database).get_game("game-1").total_playtime == 4
 
@@ -188,7 +189,7 @@ def test_directory_chain_cannot_be_renamed_while_pinned(screenshot_store) -> Non
     folder = database.path.parent / "media" / game / session
     renamed = folder.with_name("renamed")
 
-    with screenshots._protect(folder), pytest.raises(OSError):
+    with protect_directory(folder), pytest.raises(OSError):
         folder.rename(renamed)
 
     folder.rename(renamed)

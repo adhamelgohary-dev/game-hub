@@ -11,14 +11,12 @@
 - ⬜ M7 — Settings and Arabic/English [complex]
 - ⬜ M8 — Packaging and release [complex]
 
-**Current task** — M4 voice and text notes, close prompt, and global recording shortcut.
+**Current task** — Complete the M4 Council re-review and packaged audio verification.
 
 **Last completed**
 
-- Added exact foreground capture leases and a Windows Graphics Capture adapter.
-- Added SQLite migration, temporary-file recovery, and per-session screenshot retention.
-- Connected the Last moments browser to completed sessions.
-- Retained and displayed ten of twelve native frames, and verified unfocused and minimized capture is skipped.
-- Passed the Council and published the private m3 installer and portable bundle.
+- Added session-bound voice and text notes and a persistent close-prompt preference.
+- Verified native Ctrl+Alt+N on a synthetic foreground window, with an Ogg note stored under the correct session.
+- Added queue cancellation and a retry for encoded clips whose save fails.
 
-**Tests** — 89 tests, Ruff, native capture and gallery, and both tagged Windows package smoke tests pass. M4 checks are pending.
+**Tests** — 110 tests, Ruff, native shortcut and session persistence with generated audio, and frozen PortAudio/Vorbis startup passed. The tagged Windows packages are pending.

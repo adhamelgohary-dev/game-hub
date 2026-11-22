@@ -1,2 +1,3 @@
 * text=auto eol=lf
 packaging/licenses/LGPL-3.0.txt text eol=lf whitespace=-blank-at-eol
+packaging/licenses/PortAudio.txt text eol=lf whitespace=-blank-at-eol
