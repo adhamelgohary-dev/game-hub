@@ -6,7 +6,19 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin M5 with a storage snapshot of prior ended sessions in `gamehub/core/storage/memory.py`, then connect it to the Qt Last time card, local Ogg playback, Ctrl+Alt+L, and the explicit Play launch flow.
+Begin M6 with schema v4 migration adding the `controls` table in `gamehub/core/storage/db.py` and `ControlsRepository` in `gamehub/core/storage/controls.py`, extend `MemoryRepository` with paginated `timeline()` and controls in `last_time()`, wire `Ctrl+Alt+C` foreground pinning reusing `CaptureService`, and build the Game page with Controls and chronological Timeline views.
+
+## In progress
+
+Starting M6 (Controls card and timeline). M5 is complete and published as private release `m5`.
+
+## Fragile spots
+
+- `gamehub/app.py`: Keep `watcher.start()` strictly after all `EventBus.subscribe(...)` calls so startup sessions are never missed by `LastTimeController` or `NotesController`.
+- `gamehub/core/storage/media.py`: Preserve Windows directory pinning and reparse-point checks for all new managed control images under `media/<game_id>/controls/control_<uuid>.webp`.
+- `packaging/gamehub.spec` and `packaging/THIRD_PARTY_NOTICES.txt`: Keep `PySide6-Addons` and `third-party/FFmpeg/LGPL-2.1.txt` bundled with Qt Multimedia.
+
+Last worked on by: Gemini 4 Neon (High), 2026-11-22
 
 ## Run the app and tests
 
@@ -43,6 +55,8 @@ From the PowerShell repository root:
 - [M2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2) passed tagged Windows CI with both release packages smoke-tested.
 - [M3 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m3) passed tagged Windows CI with both release packages smoke-tested.
 - [M4 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m4) passed tagged Windows CI with both release packages smoke-tested.
+- [M5 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m5) passed tagged Windows CI with both release packages smoke-tested.
+- Native `Ctrl+Alt+L`, Last time card rendering, and Qt Multimedia Ogg Vorbis playback were verified locally alongside Steam discovery and registered `steam://` URI handler; live interactive Steam game launch and exclusive fullscreen switching remain manual acceptance items.
 - Native WGC accepted 12 frames from a synthetic Windows 11 test window, retained and displayed the newest ten, and skipped unfocused and minimized cases. Protected games and Windows 10 capture hardware remain unverified.
 - Native Ctrl+Alt+N and the stored Ogg note were verified with generated audio. Microphone denial and recording limits were exercised with input doubles.
 - The M2 native watcher produced one completed session row and matching tray states. The final 120-second run measured 0.69% of one core for the watcher and 0.066% of total CPU capacity for the app.

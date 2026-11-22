@@ -24,3 +24,5 @@ All 149 automated tests and Ruff pass, covering prior snapshot consistency, inde
 ## Judge
 
 Initial verdict **APPROVE WITH CHANGES** for the six Critic blockers above. Re-review confirms all six blockers and the accompanying lifecycle, accessibility, and packaging fixes are implemented and covered by tests. All 149 tests, Ruff, native hotkey/playback verification, and the isolated frozen build with Qt Multimedia and LGPL-2.1 notices passed. Verify the tagged Windows release packages before closing the milestone.
+
+Final verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/45050079053) passed tests, lint, and startup from both the installer and portable bundle. Both packages are published in the [private m5 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m5).
