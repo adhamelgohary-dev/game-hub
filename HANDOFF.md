@@ -6,13 +6,14 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-All v1 milestones (D and M0–M8) are complete and published as private release [m8](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m8) (`1.0.0`). Next steps are owner-driven:
-1. Run the manual Windows acceptance checks in [docs/TESTING.md](docs/TESTING.md) (live Steam/Epic/Xbox launchers, exclusive fullscreen switching, physical microphone, 150%/200% DPI + screen reader in English & Arabic, and clean Windows install without Python).
-2. If starting v2, begin with a design milestone (`docs/design/07-extensibility.md`) and Review Council before implementing replay clips or optional Google Drive backup.
+Begin **M9 (Part B — Zero background & clean exit)**:
+1. Remove `QSystemTrayIcon`, tray menu, and minimize-to-tray behavior from `gamehub/app.py` so closing the main window exits the process completely (`quitOnLastWindowClosed = True`).
+2. Remove `app.start_with_windows` from `gamehub/core/settings.py`, `gamehub/ui/settings_view.py`, and `gamehub/core/i18n/catalog.py`; replace `StartupRegistration` with `remove_legacy_startup_entry()` to delete any v1.0 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\GameHub` entry on startup, and update `packaging/installer.iss` to delete it on install/upgrade as well.
+3. Add an automated subprocess close-exit test proving zero `GameHub` processes remain after window close, plus static audits in `tests/test_packaging.py` forbidding `QSystemTrayIcon` and `winreg.SetValueEx`.
 
 ## In progress
 
-None — v1.0.0 (`m8`) is complete and `main` is green.
+Game Hub v1.1 — `D-v1.1` approved (`docs/reviews/D-v1.1-review.md`); moving into `M9`.
 
 ## Fragile spots
 
@@ -21,7 +22,7 @@ None — v1.0.0 (`m8`) is complete and `main` is green.
 - `gamehub/core/storage/media.py` and `location.py`: Preserve Windows directory pinning, `lstat()` reparse-point checks, and `PRAGMA user_version` verification for all managed media and store moves.
 - `packaging/gamehub.spec`, `packaging/installer.iss`, and `packaging/THIRD_PARTY_NOTICES.txt`: Keep `PySide6-Addons`, `third-party/FFmpeg/LGPL-2.1.txt`, `[InstallDelete]` on `{app}\_internal`, and `[Registry]` `uninsdeletevalue` cleanup intact.
 
-Last worked on by: Gemini 4 Neon (High), 2026-11-22
+Last worked on by: Gemini 4 Neon (High), 2026-11-23
 
 ## Run the app and tests
 

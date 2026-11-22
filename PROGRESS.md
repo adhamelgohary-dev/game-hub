@@ -1,5 +1,6 @@
 # Progress
 
+## v1.0.0 (Completed)
 - ✅ D — Design [complex]
 - ✅ M0 — Setup [simple]
 - ✅ M1 — Library detection [complex]
@@ -11,17 +12,21 @@
 - ✅ M7 — Settings and Arabic/English [complex]
 - ✅ M8 — Packaging and release [complex]
 
-**Current task** — v1.0.0 complete (all milestones D and M0–M8 approved and published on the private repository). Ready for owner manual acceptance checks (`docs/TESTING.md`) or v2 roadmap planning (`docs/design/07-extensibility.md`).
+## v1.1 ("Zero background + anti-cheat safe + clean UI + public-ready")
+- ✅ D-v1.1 — Anti-cheat research, v1.1 design docs & Fluent UI mockups [complex]
+- ⬜ M9 — Zero background & clean process exit (Part B) [complex]
+- ⬜ M10 — Game-aware lifecycle, protected-games catalog, Strict mode & borderless WGC (Part C) [complex]
+- ⬜ Owner Gate 1 — Approve UI mockups (`docs/design/mockups/`) & `m0–m8` release cleanup plan [simple]
+- ⬜ M11 — Fluent UI redesign (Dark/Light + Arabic RTL + covers + icon + branding) (Part D) [complex]
+- ⬜ M12 — Public-readiness audit, MIT license, SignPath prep, SemVer CI & `v1.1.0-rc.1` (Parts E/F/G) [complex]
+- ⬜ M13 — Final `v1.1.0` release after owner verification (Part G) [simple]
+
+**Current task** — Starting M9 (Zero background & clean process exit): remove system tray icon, remove "Start with Windows" setting & registry creation, clean legacy v1.0 `Run` key on upgrade/startup, and verify zero remaining `GameHub` processes after window close.
 
 **Last completed**
+- Completed Part A anti-cheat research (`docs/research/anti-cheat.md`) with official citations across 20+ games and all 7 major PC launchers.
+- Updated `AGENTS.md`, `DECISIONS.md`, and all `docs/design/` specifications for v1.1 (zero background, passive basename-only protection, Schema v5, custom Fluent QSS preserving MIT license, borderless WGC, SemVer releases).
+- Created interactive HTML (`docs/design/mockups/index.html`) and 11 rendered 1280×800 PNG mockups across all 5 screens in Dark, Light, and Arabic RTL.
+- Passed Review Council (`docs/reviews/D-v1.1-review.md`, Judge verdict: APPROVE).
 
-- Set `__version__ = "1.0.0"`, added static zero-network, no-injection, and packaging/license audits (`tests/test_packaging.py`), hardened `packaging/installer.iss` for clean upgrades (`_internal`) and uninstall (`Run` cleanup), filtered macOS `libportaudio.dylib`, and updated `THIRD_PARTY_NOTICES.txt`.
-- Enhanced `.github/workflows/windows.yml` to verify portable startup, installed startup, in-place upgrade, silent uninstall, and user-data preservation with Python stripped from `PATH`.
-- Published English `README.md` updates and full Arabic user guide (`docs/USER-GUIDE-AR.md`), passed the Council, and published the private `m8` (v1.0.0) installer and portable bundle.
-
-**Tests** — 169 tests, Ruff, local zero-Python-`PATH` frozen startup, and tagged `m8` Windows CI (portable, install, upgrade, uninstall, and user-data preservation) all pass.
-
-**Upcoming (optional post-v1)**
-
-- ⬜ Owner manual acceptance walkthrough on Windows 10/11 (live launchers, exclusive fullscreen, 150%/200% DPI, screen reader, clean machine without Python) [simple]
-- ⬜ v2 planning — Replay clips and optional Google Drive backup (`docs/design/07-extensibility.md`) [complex]
+**Tests** — Baseline 169 tests, Ruff, and frozen PyInstaller smoke test all passing.

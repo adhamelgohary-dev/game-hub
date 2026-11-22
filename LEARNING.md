@@ -85,3 +85,17 @@ Shipping a desktop app means verifying more than the first install: in-place upg
 Read [gamehub.spec](packaging/gamehub.spec), [installer.iss](packaging/installer.iss), [windows.yml](.github/workflows/windows.yml), [test_packaging.py](tests/test_packaging.py), and [USER-GUIDE-AR.md](docs/USER-GUIDE-AR.md).
 
 Try it yourself. Run `python -m pytest tests/test_packaging.py` and trace how the test suite statically enforces zero network imports, zero game-injection Win32 calls, and full third-party license coverage.
+
+## D-v1.1 — Anti-cheat research, zero-background design, and license hygiene
+
+Kernel anti-cheat drivers (such as Vanguard, Easy Anti-Cheat, BattlEye, RICOCHET, and EA Javelin) use `ObRegisterCallbacks` to monitor every `OpenProcess` handle opened to a game, and heuristically watch for unsigned binaries combining screen capture, global hotkeys, and topmost (`WS_EX_TOPMOST`) windows. Designing Game Hub v1.1 to detect protected games purely by `CreateToolhelp32Snapshot` process basenames—without ever calling `OpenProcess` on a protected game—and defaulting them to Strict mode or auto-exit removes that risk. Checking third-party licenses early also paid off: avoiding `PySide6-Fluent-Widgets` (GPLv3/commercial) in favor of pure PySide6 + custom Fluent QSS keeps Game Hub MIT-licensed and eligible for SignPath Foundation free code signing.
+
+Read in this order:
+
+1. [Anti-cheat research](docs/research/anti-cheat.md)
+2. [v1.1 Architecture](docs/design/03-architecture.md)
+3. [v1.1 Data model (Schema v5)](docs/design/04-data-model.md)
+4. [v1.1 Tech stack & license choices](docs/design/06-tech-stack.md)
+5. [Fluent UI mockups](docs/design/mockups/index.html)
+
+Try it yourself. Open `docs/design/mockups/index.html` in a browser and toggle between Dark/Light and English/Arabic (RTL) to see how layout direction, badges, and BiDi-isolated shortcuts adapt across all five screens.

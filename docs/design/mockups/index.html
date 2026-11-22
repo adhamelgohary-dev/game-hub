@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Game Hub v1.1 — Fluent UI Mockups (Dark / Light / Arabic RTL)</title>
+<style>
+  :root {
+    --font-sans: "Segoe UI Variable", "Segoe UI", "Tahoma", system-ui, -apple-system, sans-serif;
+    --radius-lg: 14px;
+    --radius-md: 10px;
+    --radius-sm: 7px;
+    --transition: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  html[data-theme="dark"] {
+    --bg-canvas: #17191e;
+    --bg-shell: #1e2128;
+    --bg-card: #252933;
+    --bg-card-hover: #2c313d;
+    --bg-input: #1b1e25;
+    --bg-elevated: #2a2f3b;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --text-primary: #f3f5f8;
+    --text-secondary: #a4abbb;
+    --text-muted: #767d8e;
+    --accent: #4cc2ff;
+    --accent-hover: #6ad0ff;
+    --accent-fg: #0b1924;
+    --accent-soft: rgba(76, 194, 255, 0.14);
+    --strict-bg: rgba(108, 203, 95, 0.15);
+    --strict-fg: #7de071;
+    --full-bg: rgba(76, 194, 255, 0.14);
+    --full-fg: #6cd0ff;
+    --warn-bg: rgba(252, 225, 0, 0.14);
+    --warn-fg: #ffd952;
+    --danger: #ff7b7b;
+    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.62);
+    --backdrop: rgba(10, 12, 16, 0.72);
+  }
+
+  html[data-theme="light"] {
+    --bg-canvas: #f3f5f9;
+    --bg-shell: #eaeff6;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f7f9fc;
+    --bg-input: #f8fafd;
+    --bg-elevated: #ffffff;
+    --border-subtle: rgba(15, 23, 42, 0.08);
+    --border-strong: rgba(15, 23, 42, 0.15);
+    --text-primary: #14171f;
+    --text-secondary: #4e5668;
+    --text-muted: #7b8394;
+    --accent: #0067c0;
+    --accent-hover: #0058a6;
+    --accent-fg: #ffffff;
+    --accent-soft: rgba(0, 103, 192, 0.10);
+    --strict-bg: #dff6dd;
+    --strict-fg: #0f6b0f;
+    --full-bg: #e5f1fb;
+    --full-fg: #005fb8;
+    --warn-bg: #fff4ce;
+    --warn-fg: #8a5300;
+    --danger: #c42b1c;
+    --shadow-card: 0 4px 14px rgba(15, 23, 42, 0.07);
+    --shadow-modal: 0 22px 54px rgba(15, 23, 42, 0.18);
+    --backdrop: rgba(15, 23, 42, 0.36);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Preview Switcher Toolbar (hidden in ?embed=1 PNG captures) */
+  .mockup-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--bg-shell);
+    border-bottom: 1px solid var(--border-strong);
+    font-size: 13px;
+  }
+  body.embed .mockup-bar { display: none; }
+  .mockup-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .mockup-label { font-weight: 600; color: var(--text-secondary); margin-inline-end: 6px; }
+  .pill-btn {
+    border: 1px solid var(--border-strong);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .pill-btn:hover { background: var(--bg-card-hover); }
+  .pill-btn.active {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Desktop App Window Frame */
+  .stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  body.embed .stage { padding: 0; }
+
+  .window {
+    width: 1240px;
+    height: 780px;
+    background: var(--bg-canvas);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    box-shadow: var(--shadow-modal);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  body.embed .window {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* Windows 11 Title Bar */
+  .titlebar {
+    height: 40px;
+    background: var(--bg-shell);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: 14px 0;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .title-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .app-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    box-shadow: 0 2px 6px rgba(6, 182, 212, 0.35);
+  }
+  .zero-bg-pill {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--strict-bg);
+    color: var(--strict-fg);
+    font-weight: 600;
+  }
+  .win-controls {
+    display: flex;
+    height: 100%;
+    direction: ltr;
+  }
+  .win-ctrl {
+    width: 44px;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+  .win-ctrl.close:hover { background: #e81123; color: #fff; }
+
+  /* Main App Body */
+  .app-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    position: relative;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 226px;
+    background: var(--bg-shell);
+    border-inline-end: 1px solid var(--border-subtle);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: all var(--transition);
+  }
+  .nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+  .nav-item.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: var(--shadow-card);
+  }
+  .nav-item.active::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3.5px;
+    border-radius: 99px;
+    background: var(--accent);
+  }
+  .sidebar-spacer { flex: 1; }
+  .shield-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .shield-card strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--strict-fg);
+    font-size: 12.5px;
+    margin-bottom: 4px;
+  }
+
+  /* Content Pane */
+  .content {
+    flex: 1;
+    padding: 24px 28px;
+    overflow-y: auto;
+    display: none;
+    animation: fadeIn 180ms ease-out;
+  }
+  .content.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .page-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .page-sub { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    background: var(--bg-input);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    width: 230px;
+    font-family: inherit;
+  }
+  .btn {
+    border: 1px solid var(--border-strong);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: all var(--transition);
+  }
+  .btn:hover { background: var(--bg-card-hover); }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+
+  /* Filter Chips */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .chip {
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+  }
+  .chip.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Library Cover Grid */
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .game-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-card);
+    transition: transform var(--transition), border-color var(--transition);
+  }
+  .game-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+  }
+  .cover {
+    height: 148px;
+    position: relative;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #fff;
+  }
+  .cover-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .badge-source { background: rgba(0, 0, 0, 0.55); color: #fff; backdrop-filter: blur(6px); }
+  .badge-strict { background: var(--strict-bg); color: var(--strict-fg); }
+  .badge-full { background: var(--full-bg); color: var(--full-fg); }
+  .badge-cover-strict { background: rgba(16, 124, 16, 0.88); color: #fff; }
+  .badge-cover-full { background: rgba(0, 103, 192, 0.88); color: #fff; }
+
+  .cover-art-1 { background: linear-gradient(145deg, #2b1d47 0%, #7c2d12 60%, #1c1917 100%); }
+  .cover-art-2 { background: linear-gradient(145deg, #0f172a 0%, #1e3a5f 55%, #38bdf8 100%); }
+  .cover-art-3 { background: linear-gradient(145deg, #450a0a 0%, #dc2626 55%, #111827 100%); }
+  .cover-art-4 { background: linear-gradient(145deg, #1e293b 0%, #854d0e 60%, #09090b 100%); }
+  .cover-art-5 { background: linear-gradient(145deg, #3b0764 0%, #db2777 55%, #1f2937 100%); }
+  .cover-art-6 { background: linear-gradient(145deg, #064e3b 0%, #0d9488 55%, #0f172a 100%); }
+  .cover-art-7 { background: linear-gradient(145deg, #172554 0%, #4f46e5 55%, #0f172a 100%); }
+  .cover-art-8 { background: linear-gradient(145deg, #27272a 0%, #52525b 55%, #18181b 100%); }
+
+  .cover-emblem {
+    font-size: 28px;
+    font-weight: 800;
+    opacity: 0.25;
+    align-self: flex-end;
+    letter-spacing: -0.04em;
+  }
+  .card-body {
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+  .card-title { font-size: 14.5px; font-weight: 700; line-height: 1.25; }
+  .card-meta { font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between; }
+  .card-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+  .card-actions .btn { flex: 1; justify-content: center; padding: 6px 10px; font-size: 12.5px; }
+
+  /* Game Page */
+  .hero {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow-card);
+  }
+  .hero-cover {
+    width: 112px;
+    height: 144px;
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 10px;
+    color: #fff;
+    font-weight: 800;
+    font-size: 18px;
+  }
+  .hero-info { flex: 1; min-width: 0; }
+  .hero-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .hero-stats { display: flex; gap: 18px; font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; flex-wrap: wrap; }
+  .hero-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  .protection-bar {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .select-box {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 18px;
+  }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-card);
+  }
+  .panel-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .shot-frame {
+    height: 132px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #1d2b45, #2f4b6e 50%, #151c2c);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 12px;
+    color: #e2e8f0;
+    margin-bottom: 12px;
+  }
+  .timeline-item {
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .timeline-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .note-quote { font-size: 13.5px; line-height: 1.5; margin-bottom: 8px; }
+  .thumb-strip { display: flex; gap: 8px; }
+  .thumb {
+    width: 68px;
+    height: 40px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+  }
+
+  /* Modal Overlay for Last-Time Card & Note Prompt */
+  .modal-host {
+    position: absolute;
+    inset: 0;
+    background: var(--backdrop);
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 20;
+  }
+  .modal-host.active { display: flex; }
+  .modal-card {
+    width: 720px;
+    max-width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+  }
+  .modal-card.narrow { width: 560px; }
+  .modal-head {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-foot {
+    padding: 14px 22px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-shell);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .voice-player {
+    background: var(--bg-input);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .wave {
+    flex: 1;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .wave span {
+    flex: 1;
+    border-radius: 99px;
+    background: var(--accent);
+    opacity: 0.75;
+  }
+  .carousel-box {
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .carousel-img {
+    flex: 1;
+    height: 150px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(125deg, #1b263b, #415a77 50%, #778da9);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 12px;
+    color: #fff;
+    font-size: 12.5px;
+  }
+  .textarea {
+    width: 100%;
+    min-height: 92px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13.5px;
+    resize: none;
+  }
+
+  /* Settings Cards */
+  .settings-grid { display: flex; flex-direction: column; gap: 14px; max-width: 860px; }
+  .setting-group {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .setting-group-head {
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--bg-shell);
+    border-bottom: 1px solid var(--border-subtle);
+    letter-spacing: 0.02em;
+  }
+  .setting-row {
+    padding: 13px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-name { font-size: 14px; font-weight: 600; }
+  .setting-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .toggle {
+    width: 42px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--accent);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    inset-inline-end: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-fg);
+  }
+  .kbd {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 12.5px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-strong);
+  }
+  .ltr-isolate {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  .checkbox-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <div class="mockup-group">
+    <span class="mockup-label">Screen:</span>
+    <button class="pill-btn active" data-screen="library">1. Library</button>
+    <button class="pill-btn" data-screen="game">2. Game Page</button>
+    <button class="pill-btn" data-screen="last_time">3. Last-Time Card</button>
+    <button class="pill-btn" data-screen="note">4. Note Prompt</button>
+    <button class="pill-btn" data-screen="settings">5. Settings</button>
+  </div>
+  <div class="mockup-group">
+    <span class="mockup-label">Theme:</span>
+    <button class="pill-btn active" data-theme-btn="dark">Dark</button>
+    <button class="pill-btn" data-theme-btn="light">Light</button>
+    <span class="mockup-label" style="margin-inline-start:10px;">Language:</span>
+    <button class="pill-btn active" data-lang-btn="en">English (LTR)</button>
+    <button class="pill-btn" data-lang-btn="ar">العربية (RTL)</button>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="window">
+    <!-- Title Bar -->
+    <div class="titlebar">
+      <div class="title-brand">
+        <div class="app-icon">GH</div>
+        <span data-i18n="app_title">Game Hub</span>
+        <span class="zero-bg-pill" data-i18n="zero_bg">Zero Background · Exits on Close</span>
+      </div>
+      <div class="win-controls">
+        <div class="win-ctrl">─</div>
+        <div class="win-ctrl">☐</div>
+        <div class="win-ctrl close">✕</div>
+      </div>
+    </div>
+
+    <div class="app-body">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="nav-item active" id="nav-library">🎮 <span data-i18n="nav_library">Library</span></div>
+        <div class="nav-item" id="nav-settings">⚙ <span data-i18n="nav_settings">Settings</span></div>
+        <div class="sidebar-spacer"></div>
+        <div class="shield-card">
+          <strong>🛡 <span data-i18n="shield_title">Anti-Cheat Guard Ready</span></strong>
+          <div data-i18n="shield_desc">No background process. Protected games default to Strict mode or auto-exit.</div>
+        </div>
+      </aside>
+
+      <!-- 1. LIBRARY SCREEN -->
+      <main class="content active" id="screen-library">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="lib_title">Your Game Library</div>
+            <div class="page-sub" data-i18n="lib_sub">8 installed games · Pick up right where you left off</div>
+          </div>
+          <div class="toolbar">
+            <input class="search-box" type="text" data-i18n-placeholder="search_ph" placeholder="Search games..." readonly />
+            <button class="btn">↻ <span data-i18n="btn_refresh">Refresh</span></button>
+            <button class="btn btn-primary">+ <span data-i18n="btn_add">Add Game</span></button>
+          </div>
+        </div>
+
+        <div class="filter-row">
+          <span class="chip active" data-i18n="filter_all">All Games (8)</span>
+          <span class="chip" data-i18n="filter_full">Full Mode (5)</span>
+          <span class="chip" data-i18n="filter_strict">Strict / Protected (3)</span>
+        </div>
+
+        <div class="game-grid">
+          <article class="game-card">
+            <div class="cover cover-art-1">
+              <div class="cover-top">
+                <span class="badge badge-source">Steam</span>
+                <span class="badge badge-cover-full" data-i18n="mode_full">Full</span>
+              </div>
+              <div class="cover-emblem">W3</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">The Witcher 3: Wild Hunt</div>
+              <div class="card-meta"><span data-i18n="played_2w">2 weeks ago</span><span class="ltr-isolate">42h 15m</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="game-card">
+            <div class="cover cover-art-2">
+              <div class="cover-top">
+                <span class="badge badge-source">Steam</span>
+                <span class="badge badge-cover-full" data-i18n="mode_full">Full</span>
+              </div>
+              <div class="cover-emblem">HK</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Hollow Knight</div>
+              <div class="card-meta"><span data-i18n="played_5d">5 days ago</span><span class="ltr-isolate">18h 40m</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="game-card">
+            <div class="cover cover-art-3">
+              <div class="cover-top">
+                <span class="badge badge-source">Manual</span>
+                <span class="badge badge-cover-strict">🛡 <span data-i18n="mode_strict">Strict</span></span>
+              </div>
+              <div class="cover-emblem">VAL</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">VALORANT</div>
+              <div class="card-meta"><span data-i18n="vanguard_tag">Riot Vanguard</span><span class="ltr-isolate">6h 10m</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="game-card">
+            <div class="cover cover-art-4">
+              <div class="cover-top">
+                <span class="badge badge-source">Steam</span>
+                <span class="badge badge-cover-strict">🛡 <span data-i18n="mode_strict">Strict</span></span>
+              </div>
+              <div class="cover-emblem">ER</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">ELDEN RING</div>
+              <div class="card-meta"><span data-i18n="eac_tag">Easy Anti-Cheat</span><span class="ltr-isolate">64h 05m</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="game-card">
+            <div class="cover cover-art-5">
+              <div class="cover-top">
+                <span class="badge badge-source">Epic</span>
+                <span class="badge badge-cover-full" data-i18n="mode_full">Full</span>
+              </div>
+              <div class="cover-emblem">H2</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Hades II</div>
+              <div class="card-meta"><span data-i18n="played_yest">Yesterday</span><span class="ltr-isolate">11h 20m</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="game-card">
+            <div class="cover cover-art-6">
+              <div class="cover-top">
+                <span class="badge badge-source">Steam</span>
+                <span class="badge badge-cover-strict">🛡 <span data-i18n="mode_strict">Strict</span></span>
+              </div>
+              <div class="cover-emblem">CS2</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Counter-Strike 2</div>
+              <div class="card-meta"><span>VAC · Trusted</span><span class="ltr-isolate">120h</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="game-card">
+            <div class="cover cover-art-7">
+              <div class="cover-top">
+                <span class="badge badge-source">Xbox</span>
+                <span class="badge badge-cover-full" data-i18n="mode_full">Full</span>
+              </div>
+              <div class="cover-emblem">P3R</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Persona 3 Reload</div>
+              <div class="card-meta"><span data-i18n="played_3w">3 weeks ago</span><span class="ltr-isolate">29h 50m</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="game-card">
+            <div class="cover cover-art-8">
+              <div class="cover-top">
+                <span class="badge badge-source">Steam</span>
+                <span class="badge badge-cover-full" data-i18n="mode_full">Full</span>
+              </div>
+              <div class="cover-emblem">CP</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">Cyberpunk 2077</div>
+              <div class="card-meta"><span data-i18n="played_1m">1 month ago</span><span class="ltr-isolate">53h 12m</span></div>
+              <div class="card-actions">
+                <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
+                <button class="btn" data-i18n="btn_open">Open</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </main>
+
+      <!-- 2. GAME PAGE -->
+      <main class="content" id="screen-game">
+        <div style="margin-bottom:12px;">
+          <button class="btn">← <span data-i18n="back_library">Back to Library</span></button>
+        </div>
+
+        <section class="hero">
+          <div class="hero-cover cover-art-4">ER</div>
+          <div class="hero-info">
+            <div class="hero-top">
+              <h1 class="page-title">ELDEN RING</h1>
+              <span class="badge badge-strict">🛡 <span data-i18n="strict_auto">Strict Mode (Auto · Easy Anti-Cheat)</span></span>
+            </div>
+            <div class="hero-stats">
+              <span><strong data-i18n="lbl_source">Source:</strong> Steam</span>
+              <span><strong data-i18n="lbl_total">Total Playtime:</strong> <span class="ltr-isolate">64h 05m</span></span>
+              <span><strong data-i18n="lbl_last">Last Played:</strong> <span data-i18n="played_2w">2 weeks ago</span></span>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn-primary" style="padding:10px 22px; font-size:14.5px;">▶ <span data-i18n="btn_play_card">Play (Show Last-Time Card)</span></button>
+              <button class="btn" data-i18n="btn_set_exe">Change Executable</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="protection-bar">
+          <div>
+            <div class="setting-name" data-i18n="gp_mode_title">Anti-Cheat Protection Mode</div>
+            <div class="setting-desc" data-i18n="gp_mode_desc">Strict mode disables screenshots, in-game hotkeys, mic & overlays while playing.</div>
+          </div>
+          <div class="toolbar">
+            <select class="select-box" aria-label="Protection mode">
+              <option selected data-i18n="opt_auto_strict">Auto (Strict · Detected)</option>
+              <option data-i18n="opt_strict">Strict Mode</option>
+              <option data-i18n="opt_full">Full Mode</option>
+            </select>
+            <label class="checkbox-row">
+              <input type="checkbox" checked />
+              <span data-i18n="opt_exit_launch">Exit Game Hub after launching (ask note next open)</span>
+            </label>
+          </div>
+        </section>
+
+        <div class="two-col">
+          <section class="panel">
+            <div class="panel-title">
+              <span data-i18n="controls_title">Controls & Strategy Card</span>
+              <button class="btn" style="padding:5px 10px; font-size:12px;" data-i18n="btn_upload_img">+ Upload Image</button>
+            </div>
+            <div class="shot-frame">
+              <span class="badge badge-source" data-i18n="pinned_controls">Pinned Controls (1 / 2)</span>
+              <div style="font-size:12.5px; opacity:0.9;">Dodge: Space · Parry: Right Click · Ash of War: Shift+Click</div>
+            </div>
+            <textarea class="textarea" readonly data-i18n-text="controls_note_sample">Boss weak to bleed & frost. Remember to summon Mimic Tear only in Phase 2 after the dive attack.</textarea>
+            <div style="margin-top:10px; text-align:end;">
+              <button class="btn btn-primary" data-i18n="btn_save_controls">Save Controls Note</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <span data-i18n="timeline_title">Session Timeline</span>
+              <span class="badge badge-full" data-i18n="sessions_count">12 Sessions</span>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-head">
+                <strong>2026-11-08 · 21:40</strong>
+                <span class="ltr-isolate">1h 45m</span>
+              </div>
+              <div class="note-quote" data-i18n="sample_note_1">Reached Leyndell East Rampart. Need to upgrade Uchigatana to +18 at Roundtable Hold before fighting Morgott.</div>
+              <div class="voice-player" style="padding:8px 10px; margin-bottom:8px;">
+                <button class="btn btn-primary" style="padding:4px 10px; font-size:12px;">▶</button>
+                <div class="wave"><span style="height:40%"></span><span style="height:85%"></span><span style="height:60%"></span><span style="height:95%"></span><span style="height:50%"></span><span style="height:75%"></span><span style="height:35%"></span><span style="height:65%"></span></div>
+                <span class="ltr-isolate" style="font-size:12px; color:var(--text-secondary);">0:28</span>
+              </div>
+              <div class="thumb-strip">
+                <div class="thumb cover-art-4"></div>
+                <div class="thumb cover-art-1"></div>
+                <div class="thumb cover-art-2"></div>
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-head">
+                <strong>2026-11-02 · 19:15</strong>
+                <span class="ltr-isolate">2h 10m</span>
+              </div>
+              <div class="note-quote" data-i18n="sample_note_2">Cleared Volcano Manor cellar and unlocked the bridge shortcut.</div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <!-- 5. SETTINGS SCREEN -->
+      <main class="content" id="screen-settings">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="settings_title">Settings</div>
+            <div class="page-sub" data-i18n="settings_sub">Offline · Local storage only · Zero background services</div>
+          </div>
+          <button class="btn btn-primary" data-i18n="btn_save_settings">Save Changes</button>
+        </div>
+
+        <div class="settings-grid">
+          <div class="setting-group">
+            <div class="setting-group-head" data-i18n="set_grp_appear">Appearance & Language</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name" data-i18n="set_lang">Language</div>
+                <div class="setting-desc" data-i18n="set_lang_desc">Switches all text and mirrors layout automatically for Arabic (RTL).</div>
+              </div>
+              <select class="select-box"><option>English</option><option>العربية (Arabic)</option></select>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name" data-i18n="set_theme">Theme</div>
+                <div class="setting-desc" data-i18n="set_theme_desc">Windows 11 Fluent dark, light, or match Windows theme.</div>
+              </div>
+              <select class="select-box"><option data-i18n="theme_dark">Dark</option><option data-i18n="theme_light">Light</option><option data-i18n="theme_sys">System</option></select>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-group-head" data-i18n="set_grp_ac">Anti-Cheat Protection</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name" data-i18n="set_ext">When a protected game starts while Game Hub is open</div>
+                <div class="setting-desc" data-i18n="set_ext_desc">Passive process-name detection (never opens handles to protected games).</div>
+              </div>
+              <select class="select-box">
+                <option selected data-i18n="ext_exit">Exit Game Hub automatically (Recommended)</option>
+                <option data-i18n="ext_strict">Switch to Strict mode</option>
+                <option data-i18n="ext_ask">Ask me (Windows notification)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-group-head" data-i18n="set_grp_cap">Capture & Notes (Full Mode Only)</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name" data-i18n="set_cap_int">Screenshot interval & buffer</div>
+                <div class="setting-desc" data-i18n="set_cap_desc">Foreground game window only via borderless Windows Graphics Capture.</div>
+              </div>
+              <div class="toolbar">
+                <span class="kbd">30 s</span>
+                <span class="kbd">10 shots</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name" data-i18n="set_autoplay">Auto-play last voice note on Last-time card</div>
+                <div class="setting-desc" data-i18n="set_prompt_desc">Also offer the optional note prompt when a game closes.</div>
+              </div>
+              <div class="toggle"></div>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-group-head" data-i18n="set_grp_hk">Global Hotkeys (Disabled Automatically in Strict Mode)</div>
+            <div class="setting-row">
+              <div class="setting-name" data-i18n="hk_note">Record voice note · Reopen Last-time · Pin controls</div>
+              <div class="toolbar">
+                <span class="kbd">Ctrl+Alt+N</span>
+                <span class="kbd">Ctrl+Alt+L</span>
+                <span class="kbd">Ctrl+Alt+C</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-group-head" data-i18n="set_grp_store">Local Data Folder</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name ltr-isolate">C:\Users\Player\AppData\Local\GameHub</div>
+                <div class="setting-desc" data-i18n="set_store_desc">All database records, screenshots, and voice notes stay strictly on this PC.</div>
+              </div>
+              <div class="toolbar">
+                <button class="btn" data-i18n="btn_open_dir">Open Folder</button>
+                <button class="btn" data-i18n="btn_move_dir">Move…</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 3. LAST-TIME CARD MODAL -->
+      <div class="modal-host" id="modal-last-time">
+        <div class="modal-card">
+          <div class="modal-head">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div class="app-icon cover-art-1" style="width:40px; height:40px; font-size:15px;">W3</div>
+              <div>
+                <div style="font-size:17px; font-weight:700;" data-i18n="lt_title">Previously On — The Witcher 3</div>
+                <div style="font-size:12.5px; color:var(--text-secondary);" data-i18n="lt_sub">Last played 2 weeks ago · Total 42h 15m · Full Mode</div>
+              </div>
+            </div>
+            <button class="btn" style="padding:5px 10px;">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="voice-player">
+              <button class="btn btn-primary" style="padding:6px 12px;">⏹ <span data-i18n="btn_stop">Stop</span></button>
+              <button class="btn" style="padding:6px 12px;">↻ <span data-i18n="btn_replay">Replay</span></button>
+              <div class="wave">
+                <span style="height:35%"></span><span style="height:80%"></span><span style="height:55%"></span><span style="height:95%"></span>
+                <span style="height:70%"></span><span style="height:40%"></span><span style="height:88%"></span><span style="height:60%"></span>
+                <span style="height:45%"></span><span style="height:75%"></span><span style="height:30%"></span><span style="height:50%"></span>
+              </div>
+              <span class="ltr-isolate" style="font-size:12.5px; color:var(--text-secondary);">0:14 / 0:36</span>
+            </div>
+
+            <div style="background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px;">
+              <div style="font-size:11.5px; font-weight:700; color:var(--accent); margin-bottom:4px;" data-i18n="lt_note_lbl">LAST TEXT NOTE · 2026-11-08</div>
+              <div style="font-size:13.5px; line-height:1.5;" data-i18n="lt_note_body">Finished Novigrad docks quest with Triss. Next: craft Superior Swallow potion before sailing to Skellige.</div>
+            </div>
+
+            <div class="carousel-box">
+              <button class="btn" style="padding:8px 10px;">‹</button>
+              <div class="carousel-img">
+                <span class="badge badge-source" data-i18n="lt_shot_lbl">Last Moment 8 / 10</span>
+                <span class="ltr-isolate">2026-11-08 22:14</span>
+              </div>
+              <button class="btn" style="padding:8px 10px;">›</button>
+            </div>
+
+            <div style="font-size:12.5px; color:var(--text-secondary); display:flex; justify-content:space-between; align-items:center;">
+              <span><strong data-i18n="lt_ctrl_lbl">Pinned Controls:</strong> Quen = 3 · Dodge = Alt · Parry = Right Click</span>
+              <span class="badge badge-full" data-i18n="lt_min_hint">Game Hub will minimize during play</span>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <label class="checkbox-row">
+              <input type="checkbox" checked />
+              <span data-i18n="lt_exit_after">Exit Game Hub automatically after game & note finish</span>
+            </label>
+            <div class="toolbar">
+              <button class="btn" data-i18n="btn_cancel">Cancel</button>
+              <button class="btn btn-primary" style="padding:9px 20px;">▶ <span data-i18n="btn_launch">Launch Game</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. NOTE PROMPT MODAL -->
+      <div class="modal-host" id="modal-note">
+        <div class="modal-card narrow">
+          <div class="modal-head">
+            <div>
+              <div style="font-size:17px; font-weight:700;" data-i18n="np_title">Record a Quick Memory Note?</div>
+              <div style="font-size:12.5px; color:var(--text-secondary);" data-i18n="np_sub">The Witcher 3: Wild Hunt · Session ended (1h 22m)</div>
+            </div>
+            <button class="btn" style="padding:5px 10px;">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="voice-player">
+              <button class="btn btn-primary" style="padding:8px 14px;">🎙 <span data-i18n="np_rec">Record Voice (max 60s)</span></button>
+              <div class="wave">
+                <span style="height:25%"></span><span style="height:50%"></span><span style="height:85%"></span><span style="height:40%"></span>
+                <span style="height:75%"></span><span style="height:60%"></span><span style="height:30%"></span><span style="height:45%"></span>
+              </div>
+              <span class="ltr-isolate" style="font-size:13px; font-weight:600;">0:18 / 1:00</span>
+            </div>
+            <div>
+              <div style="font-size:12.5px; font-weight:600; color:var(--text-secondary); margin-bottom:6px;" data-i18n="np_text_lbl">Or type a text reminder for next time:</div>
+              <textarea class="textarea" data-i18n-text="np_text_sample">Just arrived in Skellige! Talk to Yennefer at Kaer Trolde harbor and check the blacksmith for Ursine armor diagrams.</textarea>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted);" data-i18n="np_hint">Saved locally on this PC. After saving or dismissing, Game Hub will exit cleanly.</div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn" data-i18n="btn_dismiss">Dismiss</button>
+            <button class="btn btn-primary" style="padding:9px 22px;">✓ <span data-i18n="btn_save_note">Save Note</span></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const STRINGS = {
+    en: {
+      app_title: "Game Hub",
+      zero_bg: "Zero Background · Exits on Close",
+      nav_library: "Library",
+      nav_settings: "Settings",
+      shield_title: "Anti-Cheat Guard Ready",
+      shield_desc: "No background process. Protected games default to Strict mode or auto-exit.",
+      lib_title: "Your Game Library",
+      lib_sub: "8 installed games · Pick up right where you left off",
+      search_ph: "Search games...",
+      btn_refresh: "Refresh",
+      btn_add: "Add Game",
+      filter_all: "All Games (8)",
+      filter_full: "Full Mode (5)",
+      filter_strict: "Strict / Protected (3)",
+      mode_full: "Full",
+      mode_strict: "Strict",
+      played_2w: "2 weeks ago",
+      played_5d: "5 days ago",
+      played_yest: "Yesterday",
+      played_3w: "3 weeks ago",
+      played_1m: "1 month ago",
+      vanguard_tag: "Riot Vanguard",
+      eac_tag: "Easy Anti-Cheat",
+      btn_play: "Play",
+      btn_open: "Open",
+      back_library: "Back to Library",
+      strict_auto: "Strict Mode (Auto · Easy Anti-Cheat)",
+      lbl_source: "Source:",
+      lbl_total: "Total Playtime:",
+      lbl_last: "Last Played:",
+      btn_play_card: "Play (Show Last-Time Card)",
+      btn_set_exe: "Change Executable",
+      gp_mode_title: "Anti-Cheat Protection Mode",
+      gp_mode_desc: "Strict mode disables screenshots, in-game hotkeys, mic & overlays while playing.",
+      opt_auto_strict: "Auto (Strict · Detected)",
+      opt_strict: "Strict Mode",
+      opt_full: "Full Mode",
+      opt_exit_launch: "Exit Game Hub after launching (ask note next open)",
+      controls_title: "Controls & Strategy Card",
+      btn_upload_img: "+ Upload Image",
+      pinned_controls: "Pinned Controls (1 / 2)",
+      controls_note_sample: "Boss weak to bleed & frost. Remember to summon Mimic Tear only in Phase 2 after the dive attack.",
+      btn_save_controls: "Save Controls Note",
+      timeline_title: "Session Timeline",
+      sessions_count: "12 Sessions",
+      sample_note_1: "Reached Leyndell East Rampart. Need to upgrade Uchigatana to +18 at Roundtable Hold before fighting Morgott.",
+      sample_note_2: "Cleared Volcano Manor cellar and unlocked the bridge shortcut.",
+      settings_title: "Settings",
+      settings_sub: "Offline · Local storage only · Zero background services",
+      btn_save_settings: "Save Changes",
+      set_grp_appear: "Appearance & Language",
+      set_lang: "Language",
+      set_lang_desc: "Switches all text and mirrors layout automatically for Arabic (RTL).",
+      set_theme: "Theme",
+      set_theme_desc: "Windows 11 Fluent dark, light, or match Windows theme.",
+      theme_dark: "Dark",
+      theme_light: "Light",
+      theme_sys: "System",
+      set_grp_ac: "Anti-Cheat Protection",
+      set_ext: "When a protected game starts while Game Hub is open",
+      set_ext_desc: "Passive process-name detection (never opens handles to protected games).",
+      ext_exit: "Exit Game Hub automatically (Recommended)",
+      ext_strict: "Switch to Strict mode",
+      ext_ask: "Ask me (Windows notification)",
+      set_grp_cap: "Capture & Notes (Full Mode Only)",
+      set_cap_int: "Screenshot interval & buffer",
+      set_cap_desc: "Foreground game window only via borderless Windows Graphics Capture.",
+      set_autoplay: "Auto-play last voice note on Last-time card",
+      set_prompt_desc: "Also offer the optional note prompt when a game closes.",
+      set_grp_hk: "Global Hotkeys (Disabled Automatically in Strict Mode)",
+      hk_note: "Record voice note · Reopen Last-time · Pin controls",
+      set_grp_store: "Local Data Folder",
+      set_store_desc: "All database records, screenshots, and voice notes stay strictly on this PC.",
+      btn_open_dir: "Open Folder",
+      btn_move_dir: "Move…",
+      lt_title: "Previously On — The Witcher 3",
+      lt_sub: "Last played 2 weeks ago · Total 42h 15m · Full Mode",
+      btn_stop: "Stop",
+      btn_replay: "Replay",
+      lt_note_lbl: "LAST TEXT NOTE · 2026-11-08",
+      lt_note_body: "Finished Novigrad docks quest with Triss. Next: craft Superior Swallow potion before sailing to Skellige.",
+      lt_shot_lbl: "Last Moment 8 / 10",
+      lt_ctrl_lbl: "Pinned Controls:",
+      lt_min_hint: "Game Hub will minimize during play",
+      lt_exit_after: "Exit Game Hub automatically after game & note finish",
+      btn_cancel: "Cancel",
+      btn_launch: "Launch Game",
+      np_title: "Record a Quick Memory Note?",
+      np_sub: "The Witcher 3: Wild Hunt · Session ended (1h 22m)",
+      np_rec: "Record Voice (max 60s)",
+      np_text_lbl: "Or type a text reminder for next time:",
+      np_text_sample: "Just arrived in Skellige! Talk to Yennefer at Kaer Trolde harbor and check the blacksmith for Ursine armor diagrams.",
+      np_hint: "Saved locally on this PC. After saving or dismissing, Game Hub will exit cleanly.",
+      btn_dismiss: "Dismiss",
+      btn_save_note: "Save Note"
+    },
+    ar: {
+      app_title: "Game Hub",
+      zero_bg: "بلا خلفية · يغلق تماماً عند الإغلاق",
+      nav_library: "المكتبة",
+      nav_settings: "الإعدادات",
+      shield_title: "حماية مكافحة الغش جاهزة",
+      shield_desc: "لا يعمل أي شيء في الخلفية. الألعاب المحمية تعمل بالوضع الصارم أو تغلق البرنامج تلقائياً.",
+      lib_title: "مكتبة ألعابك",
+      lib_sub: "٨ ألعاب مثبتة · أكمل من حيث توقفت تماماً",
+      search_ph: "ابحث عن لعبة...",
+      btn_refresh: "تحديث",
+      btn_add: "إضافة لعبة",
+      filter_all: "كل الألعاب (٨)",
+      filter_full: "الوضع الكامل (٥)",
+      filter_strict: "الوضع الصارم / محمية (٣)",
+      mode_full: "كامل",
+      mode_strict: "صارم",
+      played_2w: "منذ أسبوعين",
+      played_5d: "منذ ٥ أيام",
+      played_yest: "أمس",
+      played_3w: "منذ ٣ أسابيع",
+      played_1m: "منذ شهر",
+      vanguard_tag: "Riot Vanguard",
+      eac_tag: "Easy Anti-Cheat",
+      btn_play: "تشغيل",
+      btn_open: "فتح",
+      back_library: "العودة للمكتبة",
+      strict_auto: "الوضع الصارم (تلقائي · Easy Anti-Cheat)",
+      lbl_source: "المصدر:",
+      lbl_total: "إجمالي وقت اللعب:",
+      lbl_last: "آخر لعب:",
+      btn_play_card: "تشغيل (عرض بطاقة آخر مرة)",
+      btn_set_exe: "تغيير ملف التشغيل",
+      gp_mode_title: "وضع حماية مكافحة الغش",
+      gp_mode_desc: "الوضع الصارم يعطّل اللقطات والاختصارات والمايكروفون والنوافذ العلوية أثناء اللعب.",
+      opt_auto_strict: "تلقائي (صارم · مكتشف)",
+      opt_strict: "الوضع الصارم",
+      opt_full: "الوضع الكامل",
+      opt_exit_launch: "إغلاق Game Hub بعد التشغيل (اسألني عن الملاحظة في المرة القادمة)",
+      controls_title: "بطاقة التحكم والاستراتيجية",
+      btn_upload_img: "+ رفع صورة",
+      pinned_controls: "تحكم مثبّت (١ / ٢)",
+      controls_note_sample: "الزعيم ضعيف أمام النزيف والجليد. تذكّر استدعاء Mimic Tear في المرحلة الثانية فقط بعد هجوم القفز.",
+      btn_save_controls: "حفظ ملاحظة التحكم",
+      timeline_title: "الخط الزمني للجلسات",
+      sessions_count: "١٢ جلسة",
+      sample_note_1: "وصلت إلى سور لينديل الشرقي. أحتاج لترقية السيف إلى +18 في Roundtable Hold قبل مواجهة مورجوت.",
+      sample_note_2: "أنهيت قبو قصر البركان وفتحت اختصار الجسر.",
+      settings_title: "الإعدادات",
+      settings_sub: "يعمل بدون إنترنت · تخزين محلي فقط · بلا خدمات خلفية",
+      btn_save_settings: "حفظ التغييرات",
+      set_grp_appear: "المظهر واللغة",
+      set_lang: "اللغة",
+      set_lang_desc: "تغيير كل النصوص وعكس الواجهة تلقائياً للعربية (من اليمين لليسار).",
+      set_theme: "السمة",
+      set_theme_desc: "مظهر ويندوز ١١ الحديث: داكن أو فاتح أو حسب النظام.",
+      theme_dark: "داكن",
+      theme_light: "فاتح",
+      theme_sys: "حسب النظام",
+      set_grp_ac: "حماية مكافحة الغش",
+      set_ext: "عند تشغيل لعبة محمية بينما Game Hub مفتوح",
+      set_ext_desc: "اكتشاف سلبي بالاسم فقط (لا يفتح أي مقبض على عمليات الألعاب المحمية).",
+      ext_exit: "إغلاق Game Hub تلقائياً (موصى به)",
+      ext_strict: "التحول إلى الوضع الصارم",
+      ext_ask: "اسألني (إشعار ويندوز)",
+      set_grp_cap: "اللقطات والملاحظات (الوضع الكامل فقط)",
+      set_cap_int: "فاصل اللقطات وحجم الذاكرة",
+      set_cap_desc: "تصوير نافذة اللعبة النشطة فقط عبر Windows Graphics Capture بدون إطار أصفر.",
+      set_autoplay: "تشغيل آخر ملاحظة صوتية تلقائياً في بطاقة آخر مرة",
+      set_prompt_desc: "عرض نافذة الملاحظة الاختيارية أيضاً عند إغلاق اللعبة.",
+      set_grp_hk: "الاختصارات العامة (تتعطل تلقائياً في الوضع الصارم)",
+      hk_note: "تسجيل صوت · إعادة فتح آخر مرة · تثبيت التحكم",
+      set_grp_store: "مجلد البيانات المحلي",
+      set_store_desc: "تبقى قاعدة البيانات واللقطات والملاحظات الصوتية على جهازك فقط.",
+      btn_open_dir: "فتح المجلد",
+      btn_move_dir: "نقل…",
+      lt_title: "في المرة السابقة — The Witcher 3",
+      lt_sub: "آخر لعب منذ أسبوعين · الإجمالي 42h 15m · الوضع الكامل",
+      btn_stop: "إيقاف",
+      btn_replay: "إعادة",
+      lt_note_lbl: "آخر ملاحظة نصية · 2026-11-08",
+      lt_note_body: "أنهيت مهمة أرصفة نوفيجراد مع تريس. التالي: صناعة جرعة Swallow المطوّرة قبل الإبحار إلى سكيليجي.",
+      lt_shot_lbl: "آخر لحظة ٨ / ١٠",
+      lt_ctrl_lbl: "التحكم المثبّت:",
+      lt_min_hint: "سيتم تصغير Game Hub أثناء اللعب",
+      lt_exit_after: "إغلاق Game Hub تلقائياً بعد انتهاء اللعبة والملاحظة",
+      btn_cancel: "إلغاء",
+      btn_launch: "تشغيل اللعبة",
+      np_title: "هل تريد تسجيل ملاحظة سريعة؟",
+      np_sub: "The Witcher 3: Wild Hunt · انتهت الجلسة (1h 22m)",
+      np_rec: "تسجيل صوت (حد أقصى ٦٠ ثانية)",
+      np_text_lbl: "أو اكتب تذكيراً نصياً للمرة القادمة:",
+      np_text_sample: "وصلت للتو إلى سكيليجي! تحدّث مع ينيفير عند ميناء كاير ترولد وابحث عن مخططات درع Ursine عند الحداد.",
+      np_hint: "يُحفظ محلياً على جهازك. بعد الحفظ أو التجاهل سيغلق Game Hub تماماً.",
+      btn_dismiss: "تجاهل",
+      btn_save_note: "حفظ الملاحظة"
+    }
+  };
+
+  function setScreen(name) {
+    document.querySelectorAll('[data-screen]').forEach(b => b.classList.toggle('active', b.dataset.screen === name));
+    document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.modal-host').forEach(m => m.classList.remove('active'));
+    document.getElementById('nav-library').classList.toggle('active', name !== 'settings');
+    document.getElementById('nav-settings').classList.toggle('active', name === 'settings');
+
+    if (name === 'library') {
+      document.getElementById('screen-library').classList.add('active');
+    } else if (name === 'game') {
+      document.getElementById('screen-game').classList.add('active');
+    } else if (name === 'settings') {
+      document.getElementById('screen-settings').classList.add('active');
+    } else if (name === 'last_time') {
+      document.getElementById('screen-library').classList.add('active');
+      document.getElementById('modal-last-time').classList.add('active');
+    } else if (name === 'note') {
+      document.getElementById('screen-library').classList.add('active');
+      document.getElementById('modal-note').classList.add('active');
+    }
+  }
+
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === theme));
+  }
+
+  function setLang(lang) {
+    const dict = STRINGS[lang] || STRINGS.en;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.querySelectorAll('[data-lang-btn]').forEach(b => b.classList.toggle('active', b.dataset.langBtn === lang));
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      if (dict[el.dataset.i18n]) el.textContent = dict[el.dataset.i18n];
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      if (dict[el.dataset.i18nPlaceholder]) el.placeholder = dict[el.dataset.i18nPlaceholder];
+    });
+    document.querySelectorAll('[data-i18n-text]').forEach(el => {
+      if (dict[el.dataset.i18nText]) el.value = dict[el.dataset.i18nText];
+    });
+  }
+
+  document.querySelectorAll('[data-screen]').forEach(b => b.addEventListener('click', () => setScreen(b.dataset.screen)));
+  document.querySelectorAll('[data-theme-btn]').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themeBtn)));
+  document.querySelectorAll('[data-lang-btn]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.langBtn)));
+  document.getElementById('nav-library').addEventListener('click', () => setScreen('library'));
+  document.getElementById('nav-settings').addEventListener('click', () => setScreen('settings'));
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('embed') === '1') document.body.classList.add('embed');
+  setTheme(params.get('theme') || 'dark');
+  setLang(params.get('lang') || 'en');
+  setScreen(params.get('screen') || 'library');
+</script>
+</body>
+</html>

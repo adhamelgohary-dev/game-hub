@@ -1,56 +1,63 @@
-# User flows and screen layout
+# User flows and screen layout (v1.1)
 
 ```mermaid
 flowchart LR
-    Tray[System tray] <--> Library[Library]
-    Library --> Game[Game page]
-    Library --> Manual[Add executable]
+    Open[Open Game Hub] --> Pending{Pending strict note?}
+    Pending -->|Yes| Prompt[Optional Note Prompt]
+    Pending -->|No| Library[Library Grid]
+    Prompt --> Library
+    Library --> Game[Game Page]
+    Library --> Manual[Add Executable]
     Library <--> Settings[Settings]
     Game --> Controls[Controls]
     Game --> Timeline[Timeline]
-    Game -->|Play| Card[Last time card]
-    Card -->|Launch action| Launcher[Windows launcher handoff]
-    Watcher[Known game starts] --> Card
-    Hotkey[Open context hotkey] --> Card
-    End[Known game ends] --> Popup[Optional note prompt]
+    Game -->|Play| Card[Last-Time Card Preview]
+    Card -->|Launch - Full mode| FullPlay[Minimize · Full tracking]
+    Card -->|Launch - Strict mode| StrictChoice{Exit after launch?}
+    StrictChoice -->|Yes| SavePending[Save pending note & Exit app]
+    StrictChoice -->|No| StrictPlay[Minimize · Zero hooks/shots/hotkeys]
+    FullPlay -->|Game exits| EndPrompt[Optional Note Prompt]
+    StrictPlay -->|Game exits| EndPrompt
+    EndPrompt -->|Opened just for game| Exit[Full Process Exit]
+    EndPrompt -->|Already open| Library
+    External[External Protected Game Starts] --> Guard{User setting}
+    Guard -->|Exit app default| Exit
+    Guard -->|Switch to strict| StrictPlay
+    Guard -->|Ask me| Toast[Passive Windows Notification]
 ```
 
-| Surface | Layout and primary actions |
+| Surface | Layout and primary actions (v1.1 Fluent UI) |
 | --- | --- |
-| Library | Library and Settings navigation, Add game button, then game rows. Rows show local cover when available, game name, source, path, last played, and total playtime. Each row opens its game page. |
-| Game page | Game name and Play, followed by Controls and Timeline sections. Each timeline item shows date, duration, and available screenshots and notes. |
-| Last time | Game name, previous play summary, voice controls and optional text, last moments carousel, controls preview, and close. The Play entry adds the launch action. |
-| Session note | Game name, voice recorder controls and timer, text editor, Save, and Dismiss. Expose the current recording and error states as accessible text. |
-| Settings | Group language, capture, notes, hotkeys, startup, and data location. Show actionable errors adjacent to the affected setting. |
-| Tray | Open Game Hub, tracking state when applicable, and Quit. Closing the library window leaves the app available in the tray. |
+| **Navigation Shell** | Persistent left sidebar (mirrored to right in Arabic RTL) with app logo, **Library**, **Settings**, active protection status pill, and quick theme/language indicators. |
+| **Library** | Header with search/filter bar, **Refresh**, and **Add Game** button. Responsive cover-art card grid (Steam/Epic local cover or stylized placeholder), game title, source badge, protection badge (`Strict` / `Full`), last played, total playtime, and quick **Play** button. |
+| **Game page** | Hero banner with cover art, title, source, playtime summary, primary **Play** button, and **Protection Mode** selector (`Auto (Strict/Full)`, `Strict`, `Full`) + optional **"Exit Game Hub after launching"** toggle (shown for Strict mode). Below: two-column or tabbed **Controls** (pinned screenshots + upload + strategy notes) and **Session Timeline**. |
+| **Last-time card** | Clean modal/card shown before launch: game cover + title, prior play summary, latest voice note player (with autoplay toggle, play/stop/replay), latest text note, last-moments screenshot carousel, controls preview, optional **"Exit Game Hub when game closes"** checkbox, and primary **Launch Game** button. |
+| **Note prompt** | Shown after game exit (or on next open for deferred Strict-mode launches): game header, 60-second voice recorder with live waveform/timer bar, text note editor, **Save Note**, and **Dismiss**. Accessible live status for mic errors with seamless text fallback. |
+| **Settings** | Card-based grouped settings: **Appearance & Language** (English/Arabic, Dark/Light/System theme), **Anti-Cheat Protection** (External protected-game behavior: Exit automatically / Switch to strict mode / Ask via Windows notification), **Capture (Full mode only)** (interval, ring size), **Notes** (autoplay voice, post-game prompt), **Global Hotkeys (Full mode only)** (record note, reopen card, pin controls), and **Storage** (data folder open/move). No "Start with Windows" setting. |
 
-## R1 and R2 · Discover, track, and return
+## Primary v1.1 Flows
 
-1. Open Game Hub. A second launch shows the existing window. Display the saved library promptly and refresh launcher detections in the background.
-2. Select a game to open its page. If a game is missing, choose Add game, pick an `.exe`, confirm the displayed name and path, and save. The selection dialog can be cancelled. An unreadable or unsupported selection shows a recoverable error. An existing entry opens or is identified for the user.
-3. Start a known game from its original launcher or from Game Hub. Once process tracking confirms it, the tray shows the running game and the app begins its session. Alt-Tab pauses capture while playtime tracking continues. When multiple games run, foreground actions follow the tracked window the user is using.
-4. Close the game. Save end time, elapsed time, and retained captures, then refresh the timeline and totals and offer the configured note popup. After an interrupted app run, use the persisted recovery state and avoid an inflated duration. Missing detection inputs and inaccessible Xbox paths are reported as limitations, and other entries remain usable.
+### 1. Play through Game Hub (Recommended path)
+1. User opens Game Hub and clicks **Play** on a game card or Game page (or launches via `GameHub.exe --play <game_id>`).
+2. Game Hub displays the **Last-time card** with previous notes, screenshots, and controls.
+3. User clicks **Launch Game**.
+4. **If Strict mode with "Exit after launch" enabled:** Game Hub dispatches the launch, writes a `pending_notes` record, and exits completely so zero Game Hub processes run during gameplay. Next time Game Hub opens (after the game is closed), it offers the Note prompt.
+5. **If Strict mode (stay minimized):** Game Hub dispatches the launch, unregisters global hotkeys, pauses screenshot capture, suppresses in-game overlays, minimizes to the taskbar, and passively waits via basename-only Toolhelp polling (zero `OpenProcess` handles on the game) until the game exits.
+6. **If Full mode:** Game Hub dispatches the launch, minimizes to the taskbar, and tracks the session with foreground-only borderless WGC screenshots and configured global hotkeys.
+7. When the game exits, Game Hub restores (if configured for note prompt), shows the optional **Note prompt** (voice or text), and once saved or dismissed:
+   - If opened just for this game (`--play` or "Exit after game closes" checked), Game Hub exits completely.
+   - Otherwise, returns to the Library / Game page.
 
-## R3 and R6 · Capture, pin, and browse
+### 2. Forgetful case (External launch of a protected game while Game Hub is open)
+1. User leaves Game Hub open in the library and launches a protected game (e.g., *Valorant*, *Fortnite*, *Apex Legends*, *Call of Duty*, *CS2*) directly from Riot/Epic/Steam/Battle.net.
+2. Within 3 seconds, the passive basename-only scan notices the protected executable name without opening any handle to the game process.
+3. Game Hub immediately executes the configured `protection.external_behavior`:
+   - **`exit_app` (default):** Closes cleanly and exits the process immediately with zero popups over the game.
+   - **`strict_mode`:** Unregisters global hotkeys, pauses capture, suppresses any topmost card, minimizes Game Hub, and shows an in-window strict-mode banner when next viewed.
+   - **`ask_me`:** Disables hotkeys/capture immediately as a precaution and sends a standard passive Windows notification ("Protected game detected — Exit Game Hub or keep Strict mode?"). Never shows a topmost Qt window over the game.
 
-1. Keep a tracked game in the foreground. The capture interval begins after the game has an eligible window. Invalid, stale, protected, or black frames do not enter the ring. Returning from minimized or background state resumes capture on an eligible interval.
-2. Press Ctrl+Alt+C (or the configured binding) while the game is focused to pin its current window. If capture is unavailable, show how to upload a local image from the Controls section. Decode and copy uploaded images to app-managed storage. Enter controls and strategy text on the same game page.
-3. Open the Timeline and browse sessions, recent images, and each session's voice and text notes. New games show an empty state. Missing or unreadable media gets an item-level message with the rest of the timeline still accessible.
+### 3. Clean Exit (Zero Background)
+1. User clicks the window close button (`X`) or presses `Alt+F4`.
+2. Game Hub stops any active recording/playback, unregisters all hotkeys, stops capture and watcher threads, commits checkpoints, closes SQLite and the single-instance socket, and terminates the process completely. No tray icon remains and `Get-Process GameHub` returns nothing.
 
-## R4 · Record or write a note
-
-1. Press Ctrl+Alt+N (or the configured binding) with a tracked window focused. The recorder starts for that session and indicates elapsed time. Press it again to stop, or let the 60-second limit stop it. A focus switch never retargets the active recording. If the game ends during recording, finalize it for that session.
-2. After a game closes, the optional popup identifies the game and binds to the ended session. Select voice, enter text, or dismiss. Save confirms when the note reaches storage. Microphone errors allow text entry, and a failed save leaves the draft available for retry or dismissal.
-3. If a second game ends while the first popup is open, let the current note complete and then present the next prompt for its own session. An unavailable hotkey or microphone gets a specific, translated message and a path to Settings or text entry.
-
-## R5 · View Last time and launch
-
-1. Start a known game through any supported launcher. Show context for that game from prior ended sessions, including interrupted sessions with their status. Use the most recent available note of each kind independently. If there is no past play or media, display helpful empty states. Autoplay starts at most once for the automatic presentation, honors the setting, and exposes stop and replay controls.
-2. Press Ctrl+Alt+L (or the configured binding) to reopen context. Prefer the focused tracked game, then an unambiguous tracked game, then a game explicitly selected in the app. If no game can be resolved, open the library for selection. For exclusive fullscreen, switch out to view the card or use Play from the game page before entering fullscreen.
-3. On a game page, select Play. Present the card before the user chooses Launch. Dispatch the configured Steam URI, Epic URI, or executable through Windows. If the handoff fails, keep the card open and explain the failure. When Play leads to confirmed game startup, suppress a duplicate card and duplicate autoplay for the same launch.
-
-## R7 and R9 · Adjust settings and navigate
-
-1. Open Settings and edit language, capture interval, ring size, autoplay, close popup, bindings, startup, or data location. Show effective settings and recoverable errors. Keep the working binding when Windows rejects its replacement. Present and open the data folder, and guide any configured location change through a validated storage operation.
-2. Switch Arabic and confirm translated content and mirrored layout in the Library, Game page, Last time, note popup, Settings, and tray. Preserve legibility of file paths, game titles, explicit key chords, and numbers inside Arabic layouts.
-3. Use Tab, Shift+Tab, Enter, Space, and Escape where expected. Provide accessible names on controls and carousel actions, visible focus, readable contrast, and text alongside status icons. Keep automated startup cards and tray updates from unnecessarily interrupting keyboard input. Support scrolling and allow long translated labels to wrap at high DPI.
+See [UI Mockups](mockups/index.html) for interactive Dark, Light, and Arabic RTL previews of all five screens.

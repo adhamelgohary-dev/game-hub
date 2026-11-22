@@ -1,16 +1,14 @@
-# Risks and mitigations
+# Risks and mitigations (v1.1)
 
 | Risk | Mitigation and acceptance check |
 | --- | --- |
-| Capturing an unrelated window during focus changes or HWND reuse | Bind window handle to process identity. Validate at request and receipt. Reject stale and minimized windows, and use exact-window WGC. Exercise forced focus changes and duplicate titles in M3. |
-| WGC wheel, unsupported driver, or black/protected frames | Check pinned wheel and Windows builds in M3. Skip failed frames and log safe reason codes. Leave other memory features usable. |
-| Exclusive fullscreen covers the card | Offer reopen hotkey and show the card before Play. Test with exclusive fullscreen and document focus limits. |
-| Incomplete or ambiguous Xbox metadata | Use available user-readable evidence only. Offer manual add and show supported and unsupported cases in the launcher guide. |
-| Missed short sessions, PID reuse, or clock drift | Key by PID and creation time, use monotonic elapsed time, reconcile stale sessions on restart. Test denied process queries and time changes. |
-| DB and media diverge after a crash, disk full, or AV file lock | Use staged writes and startup reconciliation with bounded cleanup. Use fault injection across transaction and move boundaries. |
-| Untrusted path, image or launcher metadata | Validate targets and image dimensions, confine managed paths to the resolved data root, refuse reparse escapes, and pass structured launch values. Redact paths, text and identifiers from logs. |
-| Conflicting shortcuts, denied microphone, playback codec mismatch | Register each shortcut separately, keep visible fallback actions, and test mic denial, missing devices and installed-package playback. |
-| Resource pressure or UI stalls | Poll every 2–3 seconds, use bounded capture and audio workers, and page timeline reads and thumbnail work. Profile actual Windows idle use and long sessions. |
-| Arabic text clips or reverses paths and shortcuts | Apply Qt RTL, keep technical values directionally isolated, and verify keyboard focus, screen-reader names and multiple scale factors. |
-| Installer fails, violates a dependency license, or loses saved data | Audit pinned dependencies and included notices. Make per-user installation and uninstall independent of data storage. Smoke test on clean Windows and verify install, upgrade and uninstall. |
-| Private repository is misdirected or becomes visible | Verify intended owner/name and PRIVATE before first push and after changes. Review staged changes and keep build/user data out of history. |
+| **False-positive anti-cheat kick/block from an unsigned app** | Default all known kernel & competitive anti-cheat games (`protected_games.json`) to **Strict mode** (zero WGC, zero hotkeys, zero topmost overlays, zero `OpenProcess` handles). Default external protected-game launches to **auto-exit Game Hub**. Prepare SignPath Foundation free code signing + EXE `VERSIONINFO` + app manifest to build OS & vendor trust. |
+| **Anti-cheat list becomes outdated as new games ship** | Store the protected-games catalog in pure JSON (`protected_games.json`) with a local user override file (`protected_games_override.json`) and a per-game **Strict / Full** override on the Game page. |
+| **User forgets Game Hub is open before launching Valorant / Fortnite / CoD** | Passive basename-only `CreateToolhelp32Snapshot` scan (never opening handles to protected games) triggers `exit_app` by default (or `strict_mode` / passive Windows toast notification if user changes setting). |
+| **Residual background process or v1.0 autostart survives upgrade** | Remove tray icon and autostart creation completely; run `remove_legacy_startup_entry()` on startup and `[Registry]` `deletevalue` in Inno Setup; enforce clean process exit via automated subprocess test in M9. |
+| **WGC `draw_border=False` fails on older Windows 10 builds or restricted policies** | Gate `draw_border=False` on Windows build >= 20348 and catch OS rejection with a single cached fallback to `draw_border=None`. |
+| **GPL license conflict from UI libraries** | Avoid `PySide6-Fluent-Widgets` (GPLv3/commercial dual-license); build Fluent UI with custom QSS on dynamically linked LGPLv3 PySide6 so Game Hub remains cleanly **MIT-licensed** and eligible for SignPath Foundation. |
+| **Secrets or personal data leak when switching repository to PUBLIC** | Run full git-history secret & PII scan (across every commit and blob) and review all files, logs, fixtures, and commit metadata before executing `gh repo edit --visibility public`. |
+| **Windows SmartScreen warning before SignPath approval** | Add proper `VERSIONINFO`, UAC `asInvoker` app manifest, and SHA-256 checksums (`SHA256SUMS.txt`) immediately; prepare complete SignPath workflow & application answers so signing activates cleanly once approved. |
+| **Existing v1.0 user data lost during v1.1 schema upgrade** | Automatic `gamehub.db-v4.bak` backup before atomic Schema v5 migration; test v4→v5 migration and rollback in automated tests. |
+| **Arabic RTL breaks in redesigned Fluent UI or cover cards** | Design and verify Dark, Light, and Arabic RTL mockups first; mirror sidebar, icons, and text alignment via Qt `RightToLeft`, isolate paths/shortcuts with BiDi markers, and test catalog parity. |
