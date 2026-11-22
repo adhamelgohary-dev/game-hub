@@ -113,14 +113,14 @@ def _pin_directory(path: Path) -> Iterator[None]:
         yield
 
 
-def _read_file(path: Path, max_bytes: int) -> bytes | None:
+def _read_file(path: Path, max_bytes: int, prefix_bytes: int | None) -> bytes | None:
     if os.name != "nt":
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         with os.fdopen(fd, "rb") as source:
             info = os.fstat(source.fileno())
-            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > max_bytes:
                 return None
-            data = source.read(max_bytes + 1)
+            data = source.read(prefix_bytes if prefix_bytes is not None else max_bytes + 1)
             return data if len(data) <= max_bytes else None
 
     with _windows_handle(path, _GENERIC_READ, _FILE_SHARE_READ, _OPEN_REPARSE_POINT) as handle:
@@ -132,11 +132,12 @@ def _read_file(path: Path, max_bytes: int) -> bytes | None:
             raise ctypes.WinError(ctypes.get_last_error())
         if info.links != 1 or not 0 < info.size <= max_bytes:
             return None
-        data = ctypes.create_string_buffer(info.size)
+        requested = min(info.size, prefix_bytes) if prefix_bytes is not None else info.size
+        data = ctypes.create_string_buffer(requested)
         size = wintypes.DWORD()
-        if not _read_native_file(handle, data, info.size, ctypes.byref(size), None):
+        if not _read_native_file(handle, data, requested, ctypes.byref(size), None):
             raise ctypes.WinError(ctypes.get_last_error())
-        return data.raw if size.value == info.size else None
+        return data.raw if size.value == requested else None
 
 
 
@@ -153,10 +154,10 @@ def protect_directory(directory: Path, *, create_from: Path | None = None) -> It
         yield
 
 
-def read_file(path: Path, max_bytes: int) -> bytes | None:
+def read_file(path: Path, max_bytes: int, *, prefix_bytes: int | None = None) -> bytes | None:
     """Read a previously validated media path with its parent directories pinned."""
     with protect_directory(path.parent):
-        return _read_file(path, max_bytes)
+        return _read_file(path, max_bytes, prefix_bytes)
 
 
 def stage_file(media: Path, path: Path, data: bytes) -> None:

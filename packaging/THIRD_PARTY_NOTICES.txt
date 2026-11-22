@@ -7,13 +7,23 @@ included alongside this notice.
 CPython is distributed under the Python Software Foundation and associated
 licenses. Its source releases are available at https://www.python.org/downloads/.
 
-Qt and Qt for Python (PySide6 Essentials and Shiboken) are redistributed
-under the GNU Lesser General Public License version 3, with bundled Qt
-components retaining applicable license terms. The corresponding Qt 6.12.0
-and Qt for Python 6.12.0 sources may be obtained from these locations.
+Qt and Qt for Python (PySide6 Essentials, PySide6 Addons / Qt Multimedia,
+and Shiboken) are redistributed under the GNU Lesser General Public License
+version 3, with bundled Qt components retaining applicable license terms.
+The corresponding Qt 6.12.0 and Qt for Python 6.12.0 sources may be obtained
+from these locations.
 
 https://download.qt.io/archive/qt/6.12/6.12.0/single/
 https://code.qt.io/cgit/pyside/pyside-setup.git/tag/?h=v6.12.0
+
+Qt Multimedia bundles FFmpeg shared libraries (avcodec-63.dll, avformat-63.dll,
+avutil-61.dll, swresample-7.dll, swscale-10.dll) and ffmpegmediaplugin.dll under
+the GNU Lesser General Public License version 2.1 or later. A verbatim copy of
+LGPL-2.1 is included under third-party/FFmpeg. Corresponding FFmpeg sources are
+available from FFmpeg and Qt's upstream FFmpeg distribution.
+
+https://ffmpeg.org/download.html
+https://download.qt.io/development_releases/prebuilt/ffmpeg/
 
 The Qt subfolder includes the LGPLv3 and GPLv3 texts independently of
 the wheel metadata. Qt's component attribution is also available online.

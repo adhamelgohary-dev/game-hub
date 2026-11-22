@@ -14,6 +14,7 @@ notice_dir = 'third-party'
 notices = [(str(root / 'packaging' / 'THIRD_PARTY_NOTICES.txt'), notice_dir)]
 for name in ('GPL-3.0.txt', 'LGPL-3.0.txt'):
     notices.append((str(root / 'packaging' / 'licenses' / name), f'{notice_dir}/Qt'))
+notices.append((str(root / 'packaging' / 'licenses' / 'LGPL-2.1.txt'), f'{notice_dir}/FFmpeg'))
 notices.append((str(root / 'packaging' / 'licenses' / 'PortAudio.txt'), f'{notice_dir}/PortAudio'))
 
 python_license = python_home / 'LICENSE.txt'
@@ -24,7 +25,7 @@ if not python_license.is_file():
 notices.append((str(python_license), f'{notice_dir}/CPython'))
 
 for package in (
-    'PySide6-Essentials', 'shiboken6', 'PyInstaller', 'psutil', 'vdf',
+    'PySide6-Essentials', 'PySide6-Addons', 'shiboken6', 'PyInstaller', 'psutil', 'vdf',
     'Pillow', 'numpy', 'opencv-python', 'windows-capture',
     'sounddevice', 'soundfile', 'cffi', 'pycparser', 'typing-extensions',
 ):

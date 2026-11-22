@@ -33,9 +33,11 @@ class SessionTracker:
         self,
         store: SessionRepository,
         publish: Callable[[GameStarted | GameStopped], None],
+        claim_launch_attempt: Callable[[str], str | None] | None = None,
     ) -> None:
         self._store = store
         self._publish = publish
+        self._claim_launch_attempt = claim_launch_attempt
         self._active: dict[str, ActiveSession] = {}
         self._eligible: dict[ProcessIdentity, SessionIdentity] = {}
 
@@ -65,7 +67,8 @@ class SessionTracker:
             if processes and game_id not in self._active:
                 session_id = self._store.open(game_id, time.utc_ms)
                 self._active[game_id] = ActiveSession(game_id, session_id, processes, time)
-                self._publish(GameStarted(game_id, session_id, time.utc_ms))
+                attempt = self._claim_launch_attempt(game_id) if self._claim_launch_attempt is not None else None
+                self._publish(GameStarted(game_id, session_id, time.utc_ms, attempt))
 
         self._eligible = {
             process: SessionIdentity(active.game_id, active.session_id)

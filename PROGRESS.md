@@ -11,13 +11,12 @@
 - ⬜ M7 — Settings and Arabic/English [complex]
 - ⬜ M8 — Packaging and release [complex]
 
-**Current task** — M5 Last time context, Ogg playback, and preview-before-launch.
+**Current task** — M5 release verification on tagged Windows CI.
 
 **Last completed**
 
-- Added session-bound voice and text notes and a persistent close-prompt preference.
-- Verified native Ctrl+Alt+N on a synthetic foreground window, with an Ogg note stored under the correct session.
-- Added queue cancellation and a retry for encoded clips whose save fails.
-- Passed the Council and published the private m4 installer and portable bundle.
+- Built transactional Last time snapshot queries, bounded Qt Multimedia Ogg playback, `Ctrl+Alt+L` target resolution, and validated Play preview with 90-second launch deduplication.
+- Addressed all six Review Council Critic blockers (startup subscriber ordering, `BEGIN DEFERRED` snapshot reads, COM STA around `ShellExecuteW`, 200% DPI clamping, LGPL-2.1 FFmpeg notices, and keyboard accessibility).
+- Verified native `Ctrl+Alt+L`, Qt Multimedia Ogg playback, Steam URI handler registration, and isolated frozen build startup.
 
-**Tests** — 110 tests, Ruff, native shortcut, generated Ogg persistence, and both tagged Windows startup checks pass. M5 playback and live Steam launch are pending.
+**Tests** — 149 tests, Ruff, native `Ctrl+Alt+L` and Ogg playback checks, and frozen startup pass. Tagged `m5` CI verification is pending.

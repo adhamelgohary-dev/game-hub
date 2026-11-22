@@ -17,18 +17,21 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
 )
 
+from gamehub.core.audio.player import VoicePlayer
 from gamehub.core.audio.recorder import AudioRecorder
 from gamehub.core.capture.scheduler import CaptureScheduler
 from gamehub.core.capture.service import CaptureService
 from gamehub.core.capture.windows import WgcCapture, WindowProbe
 from gamehub.core.events import EventBus
 from gamehub.core.hotkeys.windows import (
+    LAST_TIME_ID,
     MOD_ALT,
     MOD_CONTROL,
     RECORD_NOTE_ID,
     GlobalHotkeys,
 )
 from gamehub.core.library.epic import EpicDetector
+from gamehub.core.library.launcher import LaunchCoordinator, WindowsLauncher
 from gamehub.core.library.models import LibraryChanged
 from gamehub.core.library.service import LibraryService
 from gamehub.core.library.steam import SteamDetector
@@ -39,9 +42,11 @@ from gamehub.core.sessions.tracker import SessionTracker
 from gamehub.core.sessions.watcher import SessionWatcher
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
+from gamehub.core.storage.memory import MemoryRepository
 from gamehub.core.storage.notes import NoteRepository
 from gamehub.core.storage.screenshots import ScreenshotRepository
 from gamehub.core.storage.sessions import SessionRepository
+from gamehub.modules.memory.last_time_controller import LastTimeController
 from gamehub.modules.memory.notes_controller import NotesController
 from gamehub.single_instance import SingleInstance
 from gamehub.ui.last_moments import LastMomentsDialog
@@ -134,6 +139,7 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
     watcher = None
     capture_scheduler = None
     notes_controller = None
+    last_time_controller = None
     hotkeys = None
     try:
         if not instance.claim_or_activate():
@@ -166,14 +172,38 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
             events.subscribe(GameStarted, controller.session_updated)
             events.subscribe(GameStopped, controller.session_updated)
             sessions = SessionRepository(database)
-            tracker = SessionTracker(sessions, events.publish)
+            launcher = LaunchCoordinator(WindowsLauncher(), events.publish)
+            tracker = SessionTracker(sessions, events.publish, launcher.claim)
             watcher = SessionWatcher(sessions, ProcessProbe(), tracker)
             events.subscribe(LibraryChanged, watcher.library_changed)
-            watcher.start()
             windows = _open_window_probe()
-            notes_controller, hotkeys = _start_notes(app, window, database, data_root, library, windows, tracker)
+
+            def foreground_session() -> SessionIdentity | None:
+                foreground = windows.foreground() if windows is not None else None
+                return tracker.active_for(foreground.process) if foreground is not None else None
+
+            notes_controller = _start_notes(
+                window, database, data_root, library, foreground_session
+            )
             if notes_controller is not None:
                 events.subscribe(GameStopped, notes_controller.game_stopped)
+            last_time_controller = _start_last_time(
+                window, database, data_root, screenshots, launcher, foreground_session
+            )
+            if last_time_controller is not None:
+                events.subscribe(GameStarted, last_time_controller.game_started)
+                events.subscribe(GameStopped, last_time_controller.game_stopped)
+                window.library.playRequested.connect(last_time_controller.open_play_preview)
+            else:
+                window.library.playRequested.connect(
+                    lambda _game_id: window.library.show_error(
+                        window.tr("Game Hub could not open the Last time card.")
+                    )
+                )
+            hotkeys = _start_hotkeys(
+                app, window, windows, notes_controller, last_time_controller
+            )
+            watcher.start()
             if screenshots is not None and windows is not None:
                 try:
                     capture_service = CaptureService(windows, tracker, WgcCapture(), screenshots)
@@ -186,6 +216,8 @@ def _run(app: QApplication, data_root: Path, *, smoke_test: bool) -> int:
     finally:
         if hotkeys is not None:
             hotkeys.close()
+        if last_time_controller is not None:
+            last_time_controller.close()
         if notes_controller is not None:
             notes_controller.close()
         window.tray.hide()
@@ -210,18 +242,12 @@ def _open_window_probe() -> WindowProbe | None:
 
 
 def _start_notes(
-    app: QApplication,
     window: GameHubWindow,
     database: Database,
     data_root: Path,
     library: LibraryRepository,
-    windows: WindowProbe | None,
-    tracker: SessionTracker,
-) -> tuple[NotesController | None, GlobalHotkeys | None]:
-    def foreground_session() -> SessionIdentity | None:
-        foreground = windows.foreground() if windows is not None else None
-        return tracker.active_for(foreground.process) if foreground is not None else None
-
+    foreground_session,
+) -> NotesController | None:
     try:
         repository = NoteRepository(database, data_root)
         controller = NotesController(
@@ -230,22 +256,75 @@ def _start_notes(
         )
     except (OSError, StorageError):
         logging.getLogger("gamehub").warning("note_store_unavailable")
-        return None, None
+        return None
 
     try:
         repository.recover_files()
     except (OSError, StorageError):
         logging.getLogger("gamehub").warning("note_recovery_incomplete")
-    if windows is None:
-        return controller, None
+    return controller
+
+
+def _start_last_time(
+    window: GameHubWindow,
+    database: Database,
+    data_root: Path,
+    screenshots: ScreenshotRepository | None,
+    launcher: LaunchCoordinator,
+    foreground_session,
+) -> LastTimeController | None:
+    try:
+        memory = MemoryRepository(database, data_root)
+        player = VoicePlayer(window)
+    except (OSError, RuntimeError, StorageError):
+        logging.getLogger("gamehub").warning("last_time_startup_unavailable")
+        return None
+
+    load_image = screenshots.read_image if screenshots is not None else (lambda _path: None)
+    return LastTimeController(
+        window,
+        memory,
+        load_image,
+        player,
+        launcher,
+        foreground_session,
+        window.library.selected_game,
+        window.reveal,
+        window.notify,
+    )
+
+
+def _start_hotkeys(
+    app: QApplication,
+    window: GameHubWindow,
+    windows: WindowProbe | None,
+    notes_controller: NotesController | None,
+    last_time_controller: LastTimeController | None,
+) -> GlobalHotkeys | None:
+    if notes_controller is None and last_time_controller is None:
+        return None
     try:
         hotkeys = GlobalHotkeys(app)
     except OSError:
-        logging.getLogger("gamehub").warning("note_hotkeys_unavailable")
-        return controller, None
-    if not hotkeys.bind(RECORD_NOTE_ID, MOD_CONTROL | MOD_ALT, ord("N"), controller.toggle_hotkey):
-        window.notify(window.tr("Ctrl+Alt+N is unavailable. You can record from the game-close prompt."))
-    return controller, hotkeys
+        logging.getLogger("gamehub").warning("hotkeys_unavailable")
+        return None
+
+    if (
+        notes_controller is not None
+        and windows is not None
+        and not hotkeys.bind(RECORD_NOTE_ID, MOD_CONTROL | MOD_ALT, ord("N"), notes_controller.toggle_hotkey)
+    ):
+        window.notify(
+            window.tr("Ctrl+Alt+N is unavailable. You can record from the game-close prompt.")
+        )
+    if (
+        last_time_controller is not None
+        and not hotkeys.bind(LAST_TIME_ID, MOD_CONTROL | MOD_ALT, ord("L"), last_time_controller.reopen_hotkey)
+    ):
+        window.notify(
+            window.tr("Ctrl+Alt+L is unavailable. You can open Last time from Play in Library.")
+        )
+    return hotkeys
 
 
 def _check_capture_runtime() -> None:
@@ -265,6 +344,12 @@ def _check_audio_runtime() -> None:
 
     if not get_portaudio_version() or not check_format("OGG", "VORBIS"):
         raise RuntimeError("The local audio recorder is unavailable.")
+    player = VoicePlayer()
+    try:
+        if not player.is_available():
+            raise RuntimeError("The Qt Multimedia audio backend is unavailable.")
+    finally:
+        player.stop()
 
 
 def _open_screenshot_store(database: Database, data_root: Path) -> ScreenshotRepository | None:

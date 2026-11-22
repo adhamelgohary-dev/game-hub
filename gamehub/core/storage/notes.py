@@ -1,25 +1,26 @@
 """Store session text, microphone notes, and the close-prompt preference."""
 
-import json
-import logging
 import re
 import sqlite3
 from pathlib import Path, PurePosixPath
 from time import time_ns
 from uuid import uuid4
 
-from gamehub.core.storage import media
+from gamehub.core.storage import media, settings
 from gamehub.core.storage.db import Database, StorageError
 
-LOGGER = logging.getLogger(__name__)
 MAX_TEXT_LENGTH = 8_000
-_MAX_VOICE_BYTES = 8 * 1024 * 1024
+MAX_VOICE_BYTES = 8 * 1024 * 1024
 _FILENAME = re.compile(rf"note_{media.UUID_PATTERN}\.ogg(?:\.tmp)?")
 _PROMPT_KEY = "memory.prompt_on_end"
 
 
-def _relative(game_id: str, session_id: str, note_id: str) -> PurePosixPath:
+def voice_path(game_id: str, session_id: str, note_id: str) -> PurePosixPath:
     return PurePosixPath("media", game_id, session_id, f"note_{note_id}.ogg")
+
+
+def is_bounded_ogg(data: bytes) -> bool:
+    return data.startswith(b"OggS\x00") and 27 <= len(data) <= MAX_VOICE_BYTES
 
 
 def _session_game(connection: sqlite3.Connection, session_id: str) -> str:
@@ -57,7 +58,7 @@ class NoteRepository:
     def save_voice(self, session_id: str, data: bytes, source: str) -> str:
         if source not in {"popup", "hotkey"}:
             raise ValueError("Unknown voice note source.")
-        if not data.startswith(b"OggS\x00") or not 27 <= len(data) <= _MAX_VOICE_BYTES:
+        if not is_bounded_ogg(data):
             raise ValueError("Expected a bounded Ogg voice note.")
 
         note_id = str(uuid4())
@@ -66,7 +67,7 @@ class NoteRepository:
                 game_id = _session_game(connection, session_id)
                 if not (media.UUID.fullmatch(game_id) and media.UUID.fullmatch(session_id)):
                     raise StorageError("Game Hub could not validate the note's session.")
-                relative = _relative(game_id, session_id, note_id)
+                relative = voice_path(game_id, session_id, note_id)
                 media.stage_file(self._media, self._root.joinpath(*relative.parts), data)
                 _insert_note(connection, note_id, session_id, "voice", relative.as_posix(), source)
         except OSError as error:
@@ -75,26 +76,10 @@ class NoteRepository:
 
     def prompt_enabled(self) -> bool:
         with self._database.read() as connection:
-            row = connection.execute("SELECT value FROM settings WHERE key = ?", (_PROMPT_KEY,)).fetchone()
-        if row is not None:
-            try:
-                value = json.loads(row["value"])
-            except ValueError:
-                value = None
-            if isinstance(value, bool):
-                return value
-            LOGGER.warning("invalid_setting key=%s", _PROMPT_KEY)
-        return True
+            return settings.read_boolean(connection, _PROMPT_KEY, default=True)
 
     def set_prompt_enabled(self, enabled: bool) -> None:
-        if not isinstance(enabled, bool):
-            raise TypeError("The close-prompt setting must be a boolean.")
-        with self._database.write() as connection:
-            connection.execute(
-                "INSERT INTO settings (key, value) VALUES (?, ?) "
-                "ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-                (_PROMPT_KEY, json.dumps(enabled)),
-            )
+        settings.write_boolean(self._database, _PROMPT_KEY, enabled)
 
     def recover_files(self) -> None:
         """Remove abandoned generated clips while preserving recorded notes and other media."""
@@ -106,6 +91,6 @@ class NoteRepository:
             owned = {
                 row["path_or_text"] for row in rows
                 if all(media.UUID.fullmatch(row[key]) for key in ("game_id", "session_id", "id"))
-                and row["path_or_text"] == _relative(row["game_id"], row["session_id"], row["id"]).as_posix()
+                and row["path_or_text"] == voice_path(row["game_id"], row["session_id"], row["id"]).as_posix()
             }
             media.reconcile_files(self._media, owned, _FILENAME, "voice_note_reconciliation_incomplete")

@@ -26,6 +26,7 @@ class LibraryView(QWidget):
     addRequested = Signal(str)
     assignRequested = Signal(str, str)
     lastMomentsRequested = Signal(str)
+    playRequested = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -40,6 +41,9 @@ class LibraryView(QWidget):
         self._refresh.clicked.connect(self.refreshRequested)
         self._add = QPushButton(self.tr("&Add game…"), self)
         self._add.clicked.connect(self._pick_game)
+        self._play = QPushButton(self.tr("&Play…"), self)
+        self._play.setToolTip(self.tr("Preview Last time and launch the selected game."))
+        self._play.clicked.connect(self._open_play)
         self._assign = QPushButton(self.tr("Assign &executable…"), self)
         self._assign.setToolTip(self.tr("Choose an executable to track for the selected game."))
         self._assign.clicked.connect(self._pick_tracking_target)
@@ -50,6 +54,7 @@ class LibraryView(QWidget):
         toolbar = QHBoxLayout()
         toolbar.addWidget(self._refresh)
         toolbar.addWidget(self._add)
+        toolbar.addWidget(self._play)
         toolbar.addWidget(self._assign)
         toolbar.addWidget(self._last_moments)
         toolbar.addStretch()
@@ -78,6 +83,7 @@ class LibraryView(QWidget):
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._table.itemSelectionChanged.connect(self._update_actions)
+        self._table.itemActivated.connect(lambda _item: self._open_play())
         self._table.verticalHeader().hide()
         header = self._table.horizontalHeader()
         header.setSectionsClickable(False)
@@ -96,7 +102,8 @@ class LibraryView(QWidget):
         layout.addWidget(self._error)
         layout.addWidget(self._content, stretch=1)
         QWidget.setTabOrder(self._add, self._table)
-        QWidget.setTabOrder(self._table, self._assign)
+        QWidget.setTabOrder(self._table, self._play)
+        QWidget.setTabOrder(self._play, self._assign)
         QWidget.setTabOrder(self._assign, self._last_moments)
         self._update_actions()
 
@@ -167,6 +174,9 @@ class LibraryView(QWidget):
             return self.tr("{minutes} min").format(minutes=minutes)
         return self.tr("{seconds} sec").format(seconds=seconds)
 
+    def selected_game(self) -> str | None:
+        return self._selected_game()
+
     def _selected_game(self) -> str | None:
         rows = self._table.selectionModel().selectedRows()
         if not rows:
@@ -177,10 +187,18 @@ class LibraryView(QWidget):
         self._refresh.setEnabled(not self._busy)
         self._add.setEnabled(not self._busy)
         rows = self._table.selectionModel().selectedRows()
+        self._play.setEnabled(not self._busy and bool(rows))
         self._assign.setEnabled(
             not self._busy and bool(rows and rows[0].data(Qt.ItemDataRole.UserRole + 1))
         )
         self._last_moments.setEnabled(not self._busy and bool(rows))
+
+    def _open_play(self) -> None:
+        if self._busy:
+            return
+        game_id = self._selected_game()
+        if game_id is not None:
+            self.playRequested.emit(game_id)
 
     def _open_last_moments(self) -> None:
         game_id = self._selected_game()

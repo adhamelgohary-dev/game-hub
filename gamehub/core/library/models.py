@@ -63,6 +63,20 @@ class LibraryChanged:
     game_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class LaunchRequested:
+    attempt_id: str
+    game_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class LaunchFinished:
+    attempt_id: str
+    game_id: str
+    accepted: bool
+    diagnostic: str | None = None
+
+
 class GameDetector(Protocol):
     @property
     def source(self) -> GameSource: ...

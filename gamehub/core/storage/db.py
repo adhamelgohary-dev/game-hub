@@ -178,6 +178,17 @@ class Database:
             yield connection
 
     @contextmanager
+    def read_snapshot(self) -> Iterator[sqlite3.Connection]:
+        """Run multiple read queries against a single consistent SQLite snapshot."""
+        with self._connection("ro") as connection:
+            connection.execute("BEGIN DEFERRED")
+            try:
+                yield connection
+            finally:
+                if connection.in_transaction:
+                    connection.execute("ROLLBACK")
+
+    @contextmanager
     def write(self) -> Iterator[sqlite3.Connection]:
         """Commit all writes together or roll them back on any failure."""
         with self._connection("rw") as connection, self._transaction(connection):

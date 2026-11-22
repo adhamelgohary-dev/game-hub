@@ -53,3 +53,11 @@ Windows posts a message to the app when a registered shortcut is pressed. The re
 Read [hotkeys](gamehub/core/hotkeys/windows.py), [recorder.py](gamehub/core/audio/recorder.py), [notes_controller.py](gamehub/modules/memory/notes_controller.py), and [note storage](gamehub/core/storage/notes.py).
 
 Try it yourself. Follow the code from Ctrl+Alt+N to a saved note, then run the test that switches foreground games before stopping the note.
+
+## M5 — Last time card and Play
+
+Reading related tables inside a single SQLite `BEGIN DEFERRED` snapshot keeps the Last time card consistent even while background workers write new sessions. Instead of passing file paths directly to a media decoder, Game Hub validates the managed path and ownership in SQLite, reads bounded bytes, and hands Qt Multimedia an in-memory buffer. Launching from **Play** records a short-lived launch attempt ID that the process watcher consumes on the matching start so the user never sees two cards or hears autoplay twice.
+
+Read [memory.py](gamehub/core/storage/memory.py), [launcher.py](gamehub/core/library/launcher.py), [player.py](gamehub/core/audio/player.py), [last_time_card.py](gamehub/modules/memory/last_time_card.py), and [last_time_controller.py](gamehub/modules/memory/last_time_controller.py).
+
+Try it yourself. Trace what happens when you click **Play**, then **Launch**, and the watcher observes the game start 5 seconds later versus 95 seconds later.
