@@ -57,12 +57,13 @@ class FakeNative:
         return self.control
 
 
-@pytest.mark.parametrize("build,cursor,secondary", [
-    (18362, None, None),
-    (19041, False, None),
-    (26100, False, False),
+@pytest.mark.parametrize("build,cursor,border,secondary", [
+    (18362, None, None, None),
+    (19041, False, None, None),
+    (20348, False, False, None),
+    (26100, False, False, False),
 ])
-def test_exact_hwnd_options_keep_older_builds_supported(build, cursor, secondary) -> None:
+def test_exact_hwnd_options_keep_older_builds_supported(build, cursor, border, secondary) -> None:
     fresh = _frame()
     native = FakeNative(_frame(timestamp=999), fresh, _frame(timestamp=1002))
     factory = Mock(return_value=native)
@@ -71,9 +72,50 @@ def test_exact_hwnd_options_keep_older_builds_supported(build, cursor, secondary
     fresh.frame_buffer.pixels[:] = b"\0" * 8
 
     assert captured == CaptureFrame(b"\x11\x22\x33\xff\x44\x55\x66\xff", 2, 1)
-    factory.assert_called_once_with(window_hwnd=100, cursor_capture=cursor, secondary_window=secondary)
+    factory.assert_called_once_with(
+        window_hwnd=100, cursor_capture=cursor, draw_border=border, secondary_window=secondary
+    )
     native.internal.stop.assert_called_once()
     native.control.wait.assert_called_once()
+
+
+def test_borderless_rejection_falls_back_to_default_border_and_caches() -> None:
+    native = FakeNative(_frame())
+    calls: list[dict] = []
+
+    def flaky_factory(**kwargs):
+        calls.append(dict(kwargs))
+        if kwargs.get("draw_border") is False:
+            raise RuntimeError("IsBorderRequired unsupported")
+        return native
+
+    adapter = WgcCapture(factory=flaky_factory, build=26100)
+    captured = adapter.capture_once(_lease(), lambda _lease: True)
+    assert captured == CaptureFrame(b"\x11\x22\x33\xff\x44\x55\x66\xff", 2, 1)
+    assert [c["draw_border"] for c in calls] == [False, None]
+
+    # Second capture remembers fallback and does not retry draw_border=False.
+    calls.clear()
+    captured2 = adapter.capture_once(_lease(), lambda _lease: True)
+    assert captured2 is not None
+    assert [c["draw_border"] for c in calls] == [None]
+
+
+def test_borderless_async_worker_error_on_wait_triggers_fallback() -> None:
+    calls: list[dict] = []
+
+    def async_flaky_factory(**kwargs):
+        calls.append(dict(kwargs))
+        if kwargs.get("draw_border") is False:
+            bad = FakeNative()
+            bad.control.wait.side_effect = RuntimeError("0x80070057")
+            return bad
+        return FakeNative(_frame())
+
+    adapter = WgcCapture(factory=async_flaky_factory, build=26300)
+    captured = adapter.capture_once(_lease(), lambda _lease: True)
+    assert captured == CaptureFrame(b"\x11\x22\x33\xff\x44\x55\x66\xff", 2, 1)
+    assert [c["draw_border"] for c in calls] == [False, None]
 
 
 def test_unsupported_windows_and_stale_initial_lease_do_not_start_capture() -> None:

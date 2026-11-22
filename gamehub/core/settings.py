@@ -15,12 +15,16 @@ MAX_CAPTURE_INTERVAL_SEC = 300
 MIN_BUFFER_SIZE = 1
 MAX_BUFFER_SIZE = 50
 ALLOWED_LANGUAGES = ("en", "ar")
+ALLOWED_THEMES = ("dark", "light", "system")
+ALLOWED_EXTERNAL_BEHAVIORS = ("exit_app", "strict_mode", "ask_me")
 HOTKEY_KEYS = ("hotkey.record_note", "hotkey.last_time", "hotkey.pin_controls")
 
 
 @dataclass(frozen=True, slots=True)
 class SettingsSnapshot:
     language: str = "en"
+    theme: str = "dark"
+    external_protected_behavior: str = "exit_app"
     capture_interval_sec: int = 30
     capture_buffer_size: int = 10
     autoplay_voice: bool = True
@@ -33,6 +37,8 @@ class SettingsSnapshot:
     def as_dict(self) -> dict[str, object]:
         return {
             "ui.language": self.language,
+            "ui.theme": self.theme,
+            "protection.external_behavior": self.external_protected_behavior,
             "capture.interval_sec": self.capture_interval_sec,
             "capture.buffer_size": self.capture_buffer_size,
             "memory.autoplay_voice": self.autoplay_voice,
@@ -59,6 +65,8 @@ class SettingsResult:
 
 _FIELD_MAP = {
     "ui.language": "language",
+    "ui.theme": "theme",
+    "protection.external_behavior": "external_protected_behavior",
     "capture.interval_sec": "capture_interval_sec",
     "capture.buffer_size": "capture_buffer_size",
     "memory.autoplay_voice": "autoplay_voice",
@@ -74,6 +82,14 @@ def _validate_value(key: str, raw: object) -> tuple[bool, object, str | None]:
         if isinstance(raw, str) and raw in ALLOWED_LANGUAGES:
             return True, raw, None
         return False, None, "invalid_language"
+    if key == "ui.theme":
+        if isinstance(raw, str) and raw in ALLOWED_THEMES:
+            return True, raw, None
+        return False, None, "invalid_theme"
+    if key == "protection.external_behavior":
+        if isinstance(raw, str) and raw in ALLOWED_EXTERNAL_BEHAVIORS:
+            return True, raw, None
+        return False, None, "invalid_external_behavior"
     if key == "capture.interval_sec":
         if (
             isinstance(raw, int)
@@ -155,6 +171,8 @@ class SettingsService:
 
         return SettingsSnapshot(
             language=values["ui.language"],  # type: ignore[arg-type]
+            theme=values["ui.theme"],  # type: ignore[arg-type]
+            external_protected_behavior=values["protection.external_behavior"],  # type: ignore[arg-type]
             capture_interval_sec=values["capture.interval_sec"],  # type: ignore[arg-type]
             capture_buffer_size=values["capture.buffer_size"],  # type: ignore[arg-type]
             autoplay_voice=values["memory.autoplay_voice"],  # type: ignore[arg-type]

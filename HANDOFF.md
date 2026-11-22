@@ -6,14 +6,13 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Begin **M10 (Part C — Game-aware lifecycle, protected games & borderless WGC)**:
-1. Create `gamehub/core/protection/` (`protected_games.json` + `catalog.py`) with bundled updatable Steam AppIDs, Epic AppNames, Xbox package prefixes, and exe basenames + optional `%LOCALAPPDATA%\GameHub\protected_games_override.json`.
-2. Upgrade SQLite in `gamehub/core/storage/db.py` to Schema v5 (`games.protection_mode`, `games.exit_after_launch`, `pending_notes`, legacy `app.start_with_windows` cleanup) with automatic `gamehub.db-v4.bak` backup.
-3. Update `ProcessProbe`, `SessionWatcher`, `SessionTracker`, `GlobalHotkeys`, `CaptureScheduler`, `WgcCapture` (`draw_border=False` on builds >= 20348 with fallback), `LastTimeController`, `NotesController`, `WindowsNotifier` (`ask_me` passive toast), `GamePage`, `SettingsView`, and `gamehub/app.py` to enforce Strict/Full/Forgetful/Play-through lifecycles with zero `OpenProcess` handles on protected games.
+Run Part E public-readiness audit & signing prep (full git-history secret/PII scan, MIT `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, SignPath Foundation prep, EXE version-info & app manifest, SemVer workflow), then present **Owner Gate 1**:
+1. Fluent UI mockups (`docs/design/mockups/index.html` + 11 PNGs) for approval before implementing Part D (`M11`).
+2. Proposed `m0–m8` old-releases cleanup list for owner "OK" before deleting any GitHub Releases.
 
 ## In progress
 
-Game Hub v1.1 — `M9` approved and tagged (`m9`); starting `M10`.
+Game Hub v1.1 — `M10` approved and tagged (`m10`); starting Part E public-readiness audit & signing prep.
 
 ## Fragile spots
 

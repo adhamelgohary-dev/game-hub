@@ -24,12 +24,17 @@ AR_CATALOG: dict[str, str] = {
     "&Stop": "إيقاف",
     "&Stop recording": "إيقاف التسجيل",
     "&Text note": "ملاحظة نصية",
+    "&Theme": "السمة",
     "&Upload controls image…": "رفع صورة أزرار التحكم…",
     "Add game": "إضافة لعبة",
     "Another voice note is recording or being saved.": "يتم الآن تسجيل أو حفظ ملاحظة صوتية أخرى.",
+    "Anti-cheat protection": "حماية مكافحة الغش",
     "Ask for a note when a game closes": "السؤال عن ملاحظة عند إغلاق اللعبة",
+    "Ask me (Windows notification)": "اسألني (إشعار \u2066Windows\u2069)",
     "Assign &executable…": "تحديد الملف التنفيذي…",
     "Assign executable": "تحديد الملف التنفيذي",
+    "Auto (Full)": "تلقائي (الوضع الكامل)",
+    "Auto (Strict)": "تلقائي (الوضع الصارم)",
     "Autoplay voice notes": "تشغيل الملاحظات الصوتية تلقائيًا",
     "Capture &interval (seconds)": "الفاصل الزمني للالتقاط (بالثواني)",
     "Capture is busy. Try Ctrl+Alt+C again or upload an image from the game page.": (
@@ -66,6 +71,7 @@ AR_CATALOG: dict[str, str] = {
         "الاختصار \u2066Ctrl+Alt+N\u2069 غير متاح. يمكنك التسجيل من نافذة إغلاق اللعبة."
     ),
     "Current data folder": "مجلد البيانات الحالي",
+    "Dark": "داكن",
     "Data folder": "مجلد البيانات",
     "Data folder verified and updated. Restart Game Hub to use the new location.": (
         "تم التحقق من مجلد البيانات وتحديثه. أعد تشغيل \u2066Game Hub\u2069 لاستخدام الموقع الجديد."
@@ -84,9 +90,15 @@ AR_CATALOG: dict[str, str] = {
         "أدخل اختصارًا مثل \u2066Ctrl+Alt+N\u2069 أو اتركه فارغًا للتعطيل."
     ),
     "Epic Games": "\u2066Epic Games\u2069",
+    "Exit Game Hub after launching (ask for note next open)": (
+        "إغلاق \u2066Game Hub\u2069 بعد التشغيل (السؤال عن الملاحظة عند الفتح القادم)"
+    ),
+    "Exit Game Hub after this game closes": "إغلاق \u2066Game Hub\u2069 بعد إغلاق هذه اللعبة",
+    "Exit Game Hub automatically": "إغلاق \u2066Game Hub\u2069 تلقائيًا",
     "Focus a tracked game window to pin controls, or upload an image from the game page.": (
         "اجعل نافذة لعبة متتبَّعة في المقدمة لتثبيت التحكم، أو ارفع صورة من صفحة اللعبة."
     ),
+    "Full mode": "الوضع الكامل",
     "Game Hub cannot write to the selected folder.": "لا يستطيع \u2066Game Hub\u2069 الكتابة في المجلد المحدد.",
     "Game Hub could not access your controls storage.": "تعذّر على \u2066Game Hub\u2069 الوصول إلى تخزين التحكم.",
     "Game Hub could not apply this setting.": "تعذّر على \u2066Game Hub\u2069 تطبيق هذا الإعداد.",
@@ -124,6 +136,9 @@ AR_CATALOG: dict[str, str] = {
         "تعذّر حفظ هذه الملاحظة الصوتية. يمكنك إعادة المحاولة أو تجاهلها."
     ),
     "Game Hub could not save your settings.": "تعذّر حفظ إعداداتك.",
+    "Game Hub could not update this game's protection mode.": (
+        "تعذّر تحديث وضع الحماية لهذه اللعبة."
+    ),
     "Game library": "مكتبة الألعاب",
     "Global shortcuts": "الاختصارات العامة",
     "Global shortcuts are currently unavailable.": "الاختصارات العامة غير متاحة حاليًا.",
@@ -135,6 +150,7 @@ AR_CATALOG: dict[str, str] = {
         "اختصارات الأزرار أو نصائح القتال أو تذكيرات لهذه اللعبة…"
     ),
     "Language": "اللغة",
+    "Language and appearance": "اللغة والمظهر",
     "Last &moments…": "آخر اللحظات…",
     "Last moment screenshot preview": "معاينة لقطة آخر لحظة",
     "Last moments": "آخر اللحظات",
@@ -150,6 +166,7 @@ AR_CATALOG: dict[str, str] = {
     "Last time · {game}": "آخر مرة · {game}",
     "Launching…": "جارٍ التشغيل…",
     "Library": "المكتبة",
+    "Light": "فاتح",
     "Load &more sessions": "تحميل جلسات أقدم",
     "Manual": "يدوي",
     "Microphone unavailable. Check Windows microphone access or save a text note.": (
@@ -202,6 +219,8 @@ AR_CATALOG: dict[str, str] = {
     "Preview Last time and launch the selected game.": "معاينة آخر مرة وتشغيل اللعبة المحددة.",
     "Previous controls image": "صورة التحكم السابقة",
     "Previous screenshot": "اللقطة السابقة",
+    "Protected game detected": "تم اكتشاف لعبة محمية",
+    "Protection mode": "وضع الحماية",
     "Record a note?": "هل تريد تسجيل ملاحظة؟",
     "Record voice note": "تسجيل ملاحظة صوتية",
     "Recording voice note": "جارٍ تسجيل ملاحظة صوتية",
@@ -225,9 +244,11 @@ AR_CATALOG: dict[str, str] = {
     "Screenshot {current} of {total}": "اللقطة {current} من {total}",
     "Screenshots": "لقطات الشاشة",
     "Select English or Arabic.": "اختر الإنجليزية أو العربية.",
+    "Select Dark, Light, or System.": "اختر الداكن أو الفاتح أو حسب النظام.",
     "Select a supported local image (PNG, JPEG, WebP, or BMP) up to 16 MB.": (
         "اختر صورة محلية مدعومة (\u2066PNG, JPEG, WebP, BMP\u2069) بحجم لا يتجاوز 16 ميجابايت."
     ),
+    "Select a supported protected-game action.": "اختر إجراءً مدعومًا للألعاب المحمية.",
     "Session": "جلسة",
     "Settings": "الإعدادات",
     "Settings saved.": "تم حفظ الإعدادات.",
@@ -236,6 +257,10 @@ AR_CATALOG: dict[str, str] = {
     "Stop": "إيقاف",
     "Stop voice note": "إيقاف الملاحظة الصوتية",
     "Stop voice note from {date}": "إيقاف الملاحظة الصوتية بتاريخ {date}",
+    "Strict mode": "الوضع الصارم",
+    "Strict mode active for {game}": "الوضع الصارم نشط للعبة {game}",
+    "Switch to Strict mode": "التحول إلى الوضع الصارم",
+    "System": "حسب النظام",
     "Text note": "ملاحظة نصية",
     "Text note · {date}": "ملاحظة نصية · {date}",
     "The selected path is not a folder.": "المسار المحدد ليس مجلدًا.",
@@ -268,6 +293,9 @@ AR_CATALOG: dict[str, str] = {
     "Voice note saved.": "تم حفظ الملاحظة الصوتية.",
     "Voice playback is unavailable.": "تشغيل الصوت غير متاح.",
     "Watching for games": "في انتظار تشغيل الألعاب",
+    "When a protected game starts while Game Hub is open": (
+        "عند تشغيل لعبة محمية بينما \u2066Game Hub\u2069 مفتوح"
+    ),
     "Window capture is unavailable. Upload a local controls image from the game page.": (
         "التقاط النافذة غير متاح. ارفع صورة محلية للتحكم من صفحة اللعبة."
     ),
@@ -284,6 +312,9 @@ AR_CATALOG: dict[str, str] = {
     "Working…": "جارٍ العمل…",
     "Xbox": "\u2066Xbox\u2069",
     "{date} · {duration} · {status}": "{date} · {duration} · {status}",
+    "{game} is running. Game Hub switched to Strict mode; you can close Game Hub anytime.": (
+        "اللعبة {game} قيد التشغيل. تحوّل \u2066Game Hub\u2069 إلى الوضع الصارم؛ يمكنك إغلاق \u2066Game Hub\u2069 في أي وقت."
+    ),
     "{hours} h {minutes} min": "{hours} س {minutes} د",
     "{minutes} min": "{minutes} د",
     "{seconds} sec": "{seconds} ث",

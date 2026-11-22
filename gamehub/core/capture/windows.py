@@ -18,6 +18,7 @@ from .models import CaptureFrame, CaptureLease, WindowIdentity
 LOGGER = logging.getLogger(__name__)
 _WINDOW_CAPTURE_BUILD = 18362
 _CURSOR_OPTION_BUILD = 19041
+_BORDER_OPTION_BUILD = 20348
 _SECONDARY_WINDOWS_OPTION_BUILD = 26100
 _DWMWA_CLOAKED = 14
 _GA_ROOT = 2
@@ -119,6 +120,7 @@ class WgcCapture:
     ) -> None:
         self._factory = factory
         self._build = sys.getwindowsversion().build if build is None and sys.platform == "win32" else build or 0
+        self._borderless_supported = self._build >= _BORDER_OPTION_BUILD
         self._lock = Lock()
         self._busy = False
 
@@ -160,14 +162,46 @@ class WgcCapture:
         lease: CaptureLease,
         is_current: Callable[[CaptureLease], bool],
     ) -> None:
+        try:
+            used_borderless = self._borderless_supported
+            failed_error = self._run_capture_attempt(
+                pending, lease, is_current, draw_border=False if used_borderless else None
+            )
+            if (
+                used_borderless
+                and failed_error
+                and pending.frame is None
+                and monotonic() < lease.expires_at
+                and is_current(lease)
+            ):
+                pending.expired.clear()
+                self._borderless_supported = False
+                LOGGER.info("capture_borderless_fallback")
+                self._run_capture_attempt(pending, lease, is_current, draw_border=None)
+        finally:
+            with self._lock:
+                self._busy = False
+                pending.done.set()
+
+    def _run_capture_attempt(
+        self,
+        pending: _PendingCapture,
+        lease: CaptureLease,
+        is_current: Callable[[CaptureLease], bool],
+        *,
+        draw_border: bool | None,
+    ) -> bool:
+        """Run one WGC session; return True if native capture raised an error."""
         settled = Event()
         control = None
+        errored = False
         try:
             if not self._can_capture(pending, lease, is_current):
-                return
+                return False
             capture = self._factory(
                 window_hwnd=lease.window.hwnd,
                 cursor_capture=False if self._build >= _CURSOR_OPTION_BUILD else None,
+                draw_border=draw_border,
                 secondary_window=False if self._build >= _SECONDARY_WINDOWS_OPTION_BUILD else None,
             )
 
@@ -192,13 +226,14 @@ class WgcCapture:
                 settled.set()
 
             if not self._can_capture(pending, lease, is_current):
-                return
+                return False
             control = capture.start_free_threaded()
             while self._can_capture(pending, lease, is_current):
                 remaining = lease.expires_at - monotonic()
                 if settled.wait(min(0.025, max(0.0, remaining))) or control.is_finished():
                     break
         except Exception:  # noqa: BLE001 - the native wheel raises generic Python exceptions.
+            errored = True
             pending.frame = None
             LOGGER.warning("capture_window_unavailable")
         finally:
@@ -208,13 +243,11 @@ class WgcCapture:
                         control.wait()
                     else:
                         control.stop()
-            except Exception:  # noqa: BLE001 - native stop joins and reports worker errors here.
+            except Exception:  # noqa: BLE001 - native stop/wait reports worker errors here.
+                errored = True
                 pending.frame = None
                 LOGGER.warning("capture_window_cleanup_failed")
-            finally:
-                with self._lock:
-                    self._busy = False
-                    pending.done.set()
+        return errored
 
     @staticmethod
     def _can_capture(

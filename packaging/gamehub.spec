@@ -52,7 +52,13 @@ for package in (
 analysis = Analysis(
     [str(root / 'gamehub' / 'app.py')],
     pathex=[str(root)],
-    datas=notices,
+    datas=[
+        *notices,
+        (
+            str(root / 'gamehub' / 'core' / 'protection' / 'protected_games.json'),
+            'gamehub/core/protection',
+        ),
+    ],
 )
 # The app declares a Windows x64 target and uses the Windows default input.
 def _keep_portaudio(item):

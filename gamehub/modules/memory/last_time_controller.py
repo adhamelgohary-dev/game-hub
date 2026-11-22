@@ -35,12 +35,16 @@ class LastTimeController(QObject):
         notify: Callable[[str], None],
         *,
         load_control_image: Callable[[Path], bytes | None] | None = None,
+        is_strict_game: Callable[[str], bool] | None = None,
+        on_launch_accepted: Callable[[str, bool], None] | None = None,
     ) -> None:
         super().__init__(parent)
         self._window = parent
         self._memory = memory
         self._load_image = load_image
         self._load_control_image = load_control_image or (lambda _path: None)
+        self._is_strict_game = is_strict_game or (lambda _game_id: False)
+        self._on_launch_accepted = on_launch_accepted
         self._player = player
         self._launcher = launcher
         self._foreground_session = foreground_session
@@ -70,6 +74,8 @@ class LastTimeController(QObject):
         self._active_sessions[event.game_id] = event.session_id
         if event.launch_attempt_id is not None:
             return
+        if self._is_strict_game(event.game_id):
+            return
         self._present(
             event.game_id,
             exclude_session_id=event.session_id,
@@ -82,7 +88,7 @@ class LastTimeController(QObject):
         if self._active_sessions.get(event.game_id) == event.session_id:
             del self._active_sessions[event.game_id]
 
-    def open_play_preview(self, game_id: str) -> None:
+    def open_play_preview(self, game_id: str, *, exit_after_play: bool = False) -> None:
         if self._closed:
             return
         self._present(
@@ -91,6 +97,7 @@ class LastTimeController(QObject):
             allow_launch=True,
             automatic=False,
             allow_autoplay=True,
+            default_exit_after_play=exit_after_play,
         )
 
     def reopen_hotkey(self) -> None:
@@ -143,6 +150,7 @@ class LastTimeController(QObject):
         allow_launch: bool,
         automatic: bool,
         allow_autoplay: bool,
+        default_exit_after_play: bool = False,
     ) -> bool:
         try:
             data = self._memory.last_time(game_id, exclude_session_id=exclude_session_id)
@@ -164,6 +172,7 @@ class LastTimeController(QObject):
             autoplay_enabled=autoplay,
             allow_launch=allow_launch,
             already_running=game_id in self._active_sessions,
+            default_exit_after_play=default_exit_after_play,
             load_image=self._load_image,
             load_control_image=self._load_control_image,
             parent=None,
@@ -261,10 +270,10 @@ class LastTimeController(QObject):
         card.set_launching(True)
         self._submit(
             lambda: self._launcher.launch(game_id, target),
-            lambda future: self._launch_finished(card, future),
+            lambda future: self._launch_finished(card, game_id, future),
         )
 
-    def _launch_finished(self, card: LastTimeCard, future: Future) -> None:
+    def _launch_finished(self, card: LastTimeCard, game_id: str, future: Future) -> None:
         if self._closed:
             return
         try:
@@ -275,7 +284,10 @@ class LastTimeController(QObject):
         if self._card is not card:
             return
         if result.accepted:
+            exit_after_play = card.exit_after_play()
             card.accept()
+            if self._on_launch_accepted is not None:
+                self._on_launch_accepted(game_id, exit_after_play)
         else:
             card.set_launching(False)
             card.show_error(self._launch_error_message(result.diagnostic))

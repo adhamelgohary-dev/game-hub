@@ -37,6 +37,14 @@ from gamehub.core.library.models import LibraryChanged
 from gamehub.core.library.service import LibraryService
 from gamehub.core.library.steam import SteamDetector
 from gamehub.core.library.xbox import XboxDetector
+from gamehub.core.notifications.windows import WindowsNotifier
+from gamehub.core.protection.catalog import (
+    OVERRIDE_FILENAME,
+    ProtectedGameDetected,
+    ProtectedGameExited,
+    ProtectedGamesCatalog,
+)
+from gamehub.core.protection.lifecycle import LifecycleCoordinator
 from gamehub.core.sessions.models import GameStarted, GameStopped, SessionIdentity
 from gamehub.core.sessions.processes import ProcessProbe
 from gamehub.core.sessions.tracker import SessionTracker
@@ -49,6 +57,7 @@ from gamehub.core.storage.library import LibraryRepository
 from gamehub.core.storage.location import StoreLocation, resolve_data_root
 from gamehub.core.storage.memory import MemoryChanged, MemoryRepository
 from gamehub.core.storage.notes import NoteRepository
+from gamehub.core.storage.pending_notes import PendingNoteRepository
 from gamehub.core.storage.screenshots import ScreenshotRepository
 from gamehub.core.storage.sessions import SessionRepository
 from gamehub.modules.memory.controls_controller import ControlsController
@@ -157,6 +166,7 @@ def _run(
     *,
     smoke_test: bool,
     default_root: Path | None = None,
+    play_game_id: str | None = None,
 ) -> int:
     effective_default = default_root if default_root is not None else data_root
     window = GameHubWindow(app)
@@ -208,14 +218,61 @@ def _run(
             QTimer.singleShot(0, app.quit)
         else:
             remove_legacy_startup_entry()
+            catalog = ProtectedGamesCatalog.load(override_path=data_root / OVERRIDE_FILENAME)
+            pending_notes = PendingNoteRepository(database)
+            notifier = WindowsNotifier()
+            lifecycle = LifecycleCoordinator(
+                catalog,
+                library,
+                pending_notes,
+                external_behavior=initial_settings.external_protected_behavior,
+                suspend_hotkeys=lambda: hotkeys.suspend() if hotkeys is not None else None,
+                resume_hotkeys=lambda: hotkeys.resume() if hotkeys is not None else None,
+                pause_capture=lambda: capture_scheduler.pause()
+                if capture_scheduler is not None
+                else None,
+                resume_capture=lambda: capture_scheduler.start()
+                if capture_scheduler is not None
+                else None,
+                minimize_window=window.showMinimized,
+                restore_window=window.reveal,
+                exit_app=window.close,
+                show_status=lambda name: window.statusBar().showMessage(
+                    window.tr("Strict mode active for {game}").format(game=name)
+                ),
+                notify_passive=lambda name: notifier.notify_protected_game(
+                    name,
+                    title=window.tr("Protected game detected"),
+                    body=window.tr(
+                        "{game} is running. Game Hub switched to Strict mode; you can close Game Hub anytime."
+                    ).format(game=name),
+                ),
+                prompts_enabled=lambda: notes_controller.prompts_enabled
+                if notes_controller is not None
+                else False,
+            )
             events.subscribe(GameStarted, window.game_started)
             events.subscribe(GameStopped, window.game_stopped)
+            events.subscribe(GameStarted, lifecycle.on_game_started)
+            events.subscribe(GameStopped, lifecycle.on_game_stopped)
+            events.subscribe(ProtectedGameDetected, lifecycle.on_protected_detected)
+            events.subscribe(
+                ProtectedGameExited,
+                lambda event: lifecycle.clear_external_protected(event.entry_id),
+            )
             events.subscribe(GameStarted, controller.session_updated)
             events.subscribe(GameStopped, controller.session_updated)
             sessions = SessionRepository(database)
             launcher = LaunchCoordinator(WindowsLauncher(), events.publish)
             tracker = SessionTracker(sessions, events.publish, launcher.claim)
-            watcher = SessionWatcher(sessions, ProcessProbe(), tracker)
+            watcher = SessionWatcher(
+                sessions,
+                ProcessProbe(),
+                tracker,
+                catalog=catalog,
+                library=library,
+                publish_protected=events.publish,
+            )
             events.subscribe(LibraryChanged, watcher.library_changed)
             windows = _open_window_probe()
 
@@ -239,14 +296,32 @@ def _run(
                     logging.getLogger("gamehub").warning("capture_startup_unavailable")
 
             notes_controller = _start_notes(
-                window, database, data_root, library, foreground_session, events.publish
+                window,
+                database,
+                data_root,
+                library,
+                foreground_session,
+                events.publish,
+                is_strict_active=lifecycle.is_strict_active,
+                on_prompt_finished=lifecycle.on_note_prompt_finished,
+                pending_notes=pending_notes,
             )
             if notes_controller is not None:
                 events.subscribe(GameStopped, notes_controller.game_stopped)
 
             voice_player = _open_voice_player(window)
             last_time_controller = _start_last_time(
-                window, memory, screenshots, controls, voice_player, launcher, foreground_session
+                window,
+                memory,
+                screenshots,
+                controls,
+                voice_player,
+                launcher,
+                foreground_session,
+                is_strict_game=lifecycle.is_strict_game,
+                on_launch_accepted=lambda gid, exit_after: lifecycle.on_play_launched(
+                    gid, exit_after_play=exit_after
+                ),
             )
             if last_time_controller is not None:
                 events.subscribe(GameStarted, last_time_controller.game_started)
@@ -292,7 +367,16 @@ def _run(
                 window.game_page.uploadControlImageRequested.connect(_controls_unavailable)
                 window.game_page.saveControlTextRequested.connect(_controls_unavailable)
 
-            _wire_game_page(window, library, controls, memory, voice_player, events)
+            _wire_game_page(
+                window,
+                library,
+                controls,
+                memory,
+                voice_player,
+                events,
+                catalog=catalog,
+                on_protection_changed=watcher.reload_protection,
+            )
             hotkeys = _start_hotkeys(
                 app,
                 window,
@@ -317,11 +401,21 @@ def _run(
                 last_time_controller,
                 controls_controller,
                 events,
+                lifecycle=lifecycle,
             )
             watcher.start()
             if capture_scheduler is not None:
                 capture_scheduler.start()
             QTimer.singleShot(0, controller.refresh)
+            if play_game_id and last_time_controller is not None:
+                QTimer.singleShot(
+                    0,
+                    lambda gid=play_game_id: last_time_controller.open_play_preview(
+                        gid, exit_after_play=True
+                    ),
+                )
+            elif notes_controller is not None:
+                QTimer.singleShot(0, notes_controller.offer_pending_notes)
         return app.exec()
     finally:
         if hotkeys is not None:
@@ -363,13 +457,25 @@ def _start_notes(
     library: LibraryRepository,
     foreground_session,
     publish,
+    *,
+    is_strict_active=None,
+    on_prompt_finished=None,
+    pending_notes: PendingNoteRepository | None = None,
 ) -> NotesController | None:
     try:
         repository = NoteRepository(database, data_root)
         controller = NotesController(
-            window, repository, library, AudioRecorder(),
-            foreground_session, window.set_recording, window.notify,
+            window,
+            repository,
+            library,
+            AudioRecorder(),
+            foreground_session,
+            window.set_recording,
+            window.notify,
             publish=publish,
+            is_strict_active=is_strict_active,
+            on_prompt_finished=on_prompt_finished,
+            pending_notes=pending_notes,
         )
     except (OSError, StorageError):
         logging.getLogger("gamehub").warning("note_store_unavailable")
@@ -419,6 +525,9 @@ def _start_last_time(
     player: VoicePlayer | None,
     launcher: LaunchCoordinator,
     foreground_session,
+    *,
+    is_strict_game=None,
+    on_launch_accepted=None,
 ) -> LastTimeController | None:
     if memory is None or player is None:
         return None
@@ -436,6 +545,8 @@ def _start_last_time(
         window.reveal,
         window.notify,
         load_control_image=load_control_image,
+        is_strict_game=is_strict_game,
+        on_launch_accepted=on_launch_accepted,
     )
 
 
@@ -446,7 +557,19 @@ def _wire_game_page(
     memory: MemoryRepository | None,
     player: VoicePlayer | None,
     events: EventBus,
+    *,
+    catalog: ProtectedGamesCatalog | None = None,
+    on_protection_changed=None,
 ) -> None:
+    def _is_auto_strict(game) -> bool:
+        if catalog is None:
+            return False
+        try:
+            exes = library.list_target_basenames().get(game.id, ())
+        except StorageError:
+            exes = ()
+        return catalog.effective_mode("auto", game.source, game.source_id, exes) == "strict"
+
     def open_game(game_id: str) -> None:
         if memory is None:
             window.library.show_error(window.tr("Game Hub could not load this game's history."))
@@ -462,8 +585,19 @@ def _wire_game_page(
             return
         if player is not None:
             player.stop()
-        window.game_page.show_game(game, control_items, page)
+        window.game_page.show_game(game, control_items, page, auto_strict=_is_auto_strict(game))
         window.show_game_page()
+
+    def save_protection(game_id: str, mode: str, exit_after_launch: bool) -> None:
+        try:
+            library.set_protection(game_id, mode, exit_after_launch=exit_after_launch)
+        except (StorageError, ValueError):
+            window.game_page.show_error(
+                window.tr("Game Hub could not update this game's protection mode.")
+            )
+            return
+        if on_protection_changed is not None:
+            on_protection_changed()
 
     def load_more(game_id: str, cursor) -> None:
         if memory is None or not window.is_game_page_open(game_id):
@@ -486,7 +620,7 @@ def _wire_game_page(
             page = memory.timeline(game_id)
         except (OSError, StorageError):
             return
-        window.game_page.show_game(game, control_items, page)
+        window.game_page.show_game(game, control_items, page, auto_strict=_is_auto_strict(game))
 
     def handle_memory_changed(event: MemoryChanged) -> None:
         if not window.is_game_page_open(event.game_id):
@@ -521,6 +655,7 @@ def _wire_game_page(
             window.game_page.show_error(window.tr("Game Hub could not play this voice note."))
 
     window.library.gameOpened.connect(open_game)
+    window.game_page.protectionChanged.connect(save_protection)
     window.game_page.loadMoreTimelineRequested.connect(load_more)
     window.game_page.playVoiceNoteRequested.connect(play_voice)
     if player is not None:
@@ -609,6 +744,8 @@ def _wire_settings(
     last_time_controller: LastTimeController | None,
     controls_controller: ControlsController | None,
     events: EventBus,
+    *,
+    lifecycle: LifecycleCoordinator | None = None,
 ) -> ThreadPoolExecutor:
     action_map = {
         "hotkey.record_note": (
@@ -722,6 +859,8 @@ def _wire_settings(
             notes_controller.set_prompts_enabled(snap.prompt_on_end)
         if "memory.autoplay_voice" in event.keys and last_time_controller is not None:
             last_time_controller.set_autoplay_enabled(snap.autoplay_voice)
+        if "protection.external_behavior" in event.keys and lifecycle is not None:
+            lifecycle.set_external_behavior(snap.external_protected_behavior)
 
     window.library.settingsRequested.connect(open_settings)
     window.settings_view.saveRequested.connect(save_settings)
@@ -812,6 +951,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Build the window, enter the event loop, and exit cleanly.",
     )
+    parser.add_argument(
+        "--play",
+        dest="play_game_id",
+        default=None,
+        help="Open the Last time card for a game and exit Game Hub after the game finishes.",
+    )
     args = parser.parse_args(argv)
     app = QApplication(["Game Hub"])
     app.setApplicationName("Game Hub")
@@ -833,7 +978,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
     try:
-        return _run(app, resolved_root, smoke_test=False, default_root=default_root)
+        return _run(
+            app,
+            resolved_root,
+            smoke_test=False,
+            default_root=default_root,
+            play_game_id=args.play_game_id,
+        )
     except (OSError, RuntimeError, StorageError):
         QMessageBox.critical(
             None, "Game Hub", "Game Hub could not start. Check that your local data folder is available."

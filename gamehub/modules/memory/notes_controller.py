@@ -6,6 +6,7 @@ from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from threading import Event
+from time import time_ns
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtWidgets import QWidget
@@ -16,6 +17,7 @@ from gamehub.core.storage.db import StorageError
 from gamehub.core.storage.library import LibraryRepository
 from gamehub.core.storage.memory import MemoryChanged
 from gamehub.core.storage.notes import MAX_TEXT_LENGTH, NoteRepository
+from gamehub.core.storage.pending_notes import PendingNote, PendingNoteRepository
 from gamehub.modules.memory.note_dialog import NoteDialog
 
 LOGGER = logging.getLogger(__name__)
@@ -34,6 +36,13 @@ class _VoiceNote:
     clip: bytes | None = None
 
 
+@dataclass(slots=True)
+class _PromptItem:
+    game_id: str
+    session_id: str | None
+    pending: PendingNote | None = None
+
+
 class NotesController(QObject):
     _done = Signal(object, object)
 
@@ -48,6 +57,9 @@ class NotesController(QObject):
         notify: Callable[[str], None],
         *,
         publish: Callable[[MemoryChanged], None] | None = None,
+        is_strict_active: Callable[[], bool] | None = None,
+        on_prompt_finished: Callable[[str], None] | None = None,
+        pending_notes: PendingNoteRepository | None = None,
     ) -> None:
         super().__init__(parent)
         self._window = parent
@@ -58,20 +70,43 @@ class NotesController(QObject):
         self._indicate_recording = indicate_recording
         self._notify = notify
         self._publish = publish
+        self._is_strict_active = is_strict_active or (lambda: False)
+        self._on_prompt_finished = on_prompt_finished
+        self._pending_notes = pending_notes
         self._worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="game-notes")
         self._done.connect(self._complete, Qt.ConnectionType.QueuedConnection)
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._stop_voice)
-        self._queue: deque[GameStopped] = deque()
+        self._queue: deque[_PromptItem] = deque()
         self._dialog: NoteDialog | None = None
+        self._dialog_item: _PromptItem | None = None
         self._voice: _VoiceNote | None = None
         self._prompts_enabled = notes.prompt_enabled()
+
+    @property
+    def prompts_enabled(self) -> bool:
+        return self._prompts_enabled
 
     def set_prompts_enabled(self, enabled: bool) -> None:
         self._prompts_enabled = enabled
         if not enabled:
             self._queue.clear()
+
+    def offer_pending_notes(self, running_game_ids: set[str] | frozenset[str] = frozenset()) -> None:
+        """Offer deferred notes saved when Game Hub exited after launching a Strict-mode game."""
+        if not self._prompts_enabled or self._pending_notes is None:
+            return
+        try:
+            pending = self._pending_notes.list_pending()
+        except StorageError:
+            LOGGER.warning("pending_notes_read_failed")
+            return
+        for item in pending:
+            if item.game_id in running_game_ids:
+                continue
+            self._queue.append(_PromptItem(item.game_id, None, pending=item))
+        self._show_next()
 
     def game_stopped(self, event: GameStopped) -> None:
         voice = self._voice
@@ -83,10 +118,12 @@ class NotesController(QObject):
         ):
             self._stop_voice()
         if self._prompts_enabled and event.status == "completed" and event.reason == "process_exit":
-            self._queue.append(event)
+            self._queue.append(_PromptItem(event.game_id, event.session_id))
             self._show_next()
 
     def toggle_hotkey(self) -> None:
+        if self._is_strict_active():
+            return
         if self._voice is not None:
             self._stop_voice()
             return
@@ -94,32 +131,41 @@ class NotesController(QObject):
         if session is not None:
             self._start_voice(session.game_id, session.session_id, "hotkey", expected=session)
 
+    def _ensure_session_id(self, item: _PromptItem) -> str:
+        if item.session_id is not None:
+            return item.session_id
+        assert self._pending_notes is not None and item.pending is not None
+        session_id = self._pending_notes.create_deferred_session(
+            item.game_id, item.pending.launched_at, time_ns() // 1_000_000
+        )
+        item.session_id = session_id
+        return session_id
+
     def _show_next(self) -> None:
         if self._dialog is not None:
             return
         while self._queue:
-            event = self._queue.popleft()
+            item = self._queue.popleft()
             try:
-                game = self._library.get_game(event.game_id)
+                game = self._library.get_game(item.game_id)
             except StorageError:
                 LOGGER.warning("note_prompt_library_unavailable")
                 continue
             if game is None:
+                if item.pending is not None and self._pending_notes is not None:
+                    self._pending_notes.consume(item.pending.id)
                 continue
             dialog = NoteDialog(game.name, self._window)
             self._dialog = dialog
+            self._dialog_item = item
             dialog.textRequested.connect(
-                lambda text, d=dialog, gid=event.game_id, sid=event.session_id: self._save_text(
-                    d, gid, sid, text
-                )
+                lambda text, d=dialog, it=item: self._save_text_item(d, it, text)
             )
             dialog.recordRequested.connect(
-                lambda d=dialog, gid=event.game_id, sid=event.session_id: self._toggle_from_prompt(
-                    d, gid, sid
-                )
+                lambda d=dialog, it=item: self._toggle_from_prompt_item(d, it)
             )
             dialog.promptDisabled.connect(self._disable_prompts)
-            dialog.finished.connect(lambda _, d=dialog: self._prompt_closed(d))
+            dialog.finished.connect(lambda _, d=dialog, it=item: self._prompt_closed(d, it))
             dialog.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
             dialog.show()
             return
@@ -136,10 +182,12 @@ class NotesController(QObject):
 
         self._submit(lambda: self._notes.set_prompt_enabled(False), saved)
 
-    def _prompt_closed(self, dialog: NoteDialog) -> None:
+    def _prompt_closed(self, dialog: NoteDialog, item: _PromptItem | None = None) -> None:
         if self._dialog is not dialog:
             return
+        active_item = item or self._dialog_item
         self._dialog = None
+        self._dialog_item = None
         voice = self._voice
         if voice is not None and voice.dialog is dialog:
             if voice.phase == "starting":
@@ -148,8 +196,35 @@ class NotesController(QObject):
                 self._discard_voice(voice)
             elif voice.phase == "retry":
                 self._voice = None
+        if (
+            active_item is not None
+            and active_item.pending is not None
+            and self._pending_notes is not None
+        ):
+            try:
+                self._pending_notes.consume(active_item.pending.id)
+            except StorageError:
+                LOGGER.warning("pending_note_consume_failed")
         dialog.deleteLater()
+        if active_item is not None and active_item.pending is None and self._on_prompt_finished is not None:
+            self._on_prompt_finished(active_item.game_id)
         QTimer.singleShot(0, self, self._show_next)
+
+    def _save_text_item(self, dialog: NoteDialog, item: _PromptItem, text: str) -> None:
+        try:
+            session_id = self._ensure_session_id(item)
+        except StorageError:
+            self._show_error(dialog, self.tr("Game Hub could not save this text note."))
+            return
+        self._save_text(dialog, item.game_id, session_id, text)
+
+    def _toggle_from_prompt_item(self, dialog: NoteDialog, item: _PromptItem) -> None:
+        try:
+            session_id = self._ensure_session_id(item)
+        except StorageError:
+            self._show_error(dialog, self.tr("Game Hub could not save this voice note."))
+            return
+        self._toggle_from_prompt(dialog, item.game_id, session_id)
 
     def _save_text(self, dialog: NoteDialog, game_id: str, session_id: str, text: str) -> None:
         dialog.clear_error()

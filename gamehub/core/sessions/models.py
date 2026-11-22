@@ -22,6 +22,7 @@ class ProcessSnapshot:
     games: Mapping[str, frozenset[ProcessIdentity]]
     unknown_pids: frozenset[int] = frozenset()
     complete: bool = True
+    protected_exes: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)

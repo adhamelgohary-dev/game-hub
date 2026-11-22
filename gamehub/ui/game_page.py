@@ -6,6 +6,8 @@ from pathlib import Path
 from PySide6.QtCore import QBuffer, QDateTime, QIODevice, QLocale, QSize, Qt, Signal
 from PySide6.QtGui import QImageReader, QPixmap, QResizeEvent
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -64,6 +66,7 @@ class GamePage(QWidget):
     loadMoreTimelineRequested = Signal(str, object)
     playVoiceNoteRequested = Signal(object)
     stopVoiceNoteRequested = Signal()
+    protectionChanged = Signal(str, str, bool)
 
     def __init__(
         self,
@@ -106,6 +109,24 @@ class GamePage(QWidget):
         self._summary.setTextFormat(Qt.TextFormat.PlainText)
         self._summary.setWordWrap(True)
 
+        self._protection_label = QLabel(self.tr("Protection mode"), self)
+        self._protection_combo = QComboBox(self)
+        self._protection_combo.addItem("", "auto")
+        self._protection_combo.addItem("", "strict")
+        self._protection_combo.addItem("", "full")
+        self._protection_combo.currentIndexChanged.connect(self._emit_protection)
+        self._exit_after_launch = QCheckBox(
+            self.tr("Exit Game Hub after launching (ask for note next open)"), self
+        )
+        self._exit_after_launch.toggled.connect(self._emit_protection)
+        self._updating_protection = False
+        self._auto_effective_strict = False
+        self._protection_bar = QHBoxLayout()
+        self._protection_bar.addWidget(self._protection_label)
+        self._protection_bar.addWidget(self._protection_combo)
+        self._protection_bar.addWidget(self._exit_after_launch)
+        self._protection_bar.addStretch()
+
         header_actions = QHBoxLayout()
         header_actions.addWidget(self._back)
         header_actions.addStretch()
@@ -125,8 +146,10 @@ class GamePage(QWidget):
         layout.addLayout(header_actions)
         layout.addWidget(self._title)
         layout.addWidget(self._summary)
+        layout.addLayout(self._protection_bar)
         layout.addWidget(self._error)
         layout.addWidget(self._tabs, stretch=1)
+        self._retranslate_protection_options()
 
     @property
     def game_id(self) -> str | None:
@@ -146,9 +169,12 @@ class GamePage(QWidget):
         game: GameSummary,
         controls: Sequence[ControlItem],
         timeline: TimelinePage,
+        *,
+        auto_strict: bool = False,
     ) -> None:
         switched = self._game is None or self._game.id != game.id
         self._game = game
+        self._auto_effective_strict = auto_strict
         self.clear_error()
         if switched:
             self._control_index = 0
@@ -157,8 +183,44 @@ class GamePage(QWidget):
             self.reset_voice_state()
         self._title.setText(game.name)
         self._update_summary(game)
+        self._sync_protection_controls(game)
         self.present_controls(controls)
         self.present_timeline(timeline, append=False)
+
+    def _retranslate_protection_options(self) -> None:
+        self._protection_label.setText(self.tr("Protection mode"))
+        auto_label = (
+            self.tr("Auto (Strict)") if self._auto_effective_strict else self.tr("Auto (Full)")
+        )
+        self._protection_combo.setItemText(0, auto_label)
+        self._protection_combo.setItemText(1, self.tr("Strict mode"))
+        self._protection_combo.setItemText(2, self.tr("Full mode"))
+        self._exit_after_launch.setText(
+            self.tr("Exit Game Hub after launching (ask for note next open)")
+        )
+
+    def _sync_protection_controls(self, game: GameSummary) -> None:
+        self._updating_protection = True
+        try:
+            self._retranslate_protection_options()
+            idx = self._protection_combo.findData(game.protection_mode)
+            self._protection_combo.setCurrentIndex(max(idx, 0))
+            self._exit_after_launch.setChecked(game.exit_after_launch)
+            effective_strict = (
+                game.protection_mode == "strict"
+                or (game.protection_mode == "auto" and self._auto_effective_strict)
+            )
+            self._exit_after_launch.setVisible(effective_strict)
+        finally:
+            self._updating_protection = False
+
+    def _emit_protection(self, *_args) -> None:
+        if self._updating_protection or self._game is None:
+            return
+        mode = str(self._protection_combo.currentData() or "auto")
+        effective_strict = mode == "strict" or (mode == "auto" and self._auto_effective_strict)
+        self._exit_after_launch.setVisible(effective_strict)
+        self.protectionChanged.emit(self._game.id, mode, self._exit_after_launch.isChecked())
 
     def _update_summary(self, game: GameSummary) -> None:
         sources = {
@@ -285,6 +347,7 @@ class GamePage(QWidget):
         )
         self._save_control_text.setText(self.tr("&Save controls note"))
         self._load_more.setText(self.tr("Load &more sessions"))
+        self._retranslate_protection_options()
         if self._game is not None:
             self._update_summary(self._game)
             self.present_controls(self._control_items)

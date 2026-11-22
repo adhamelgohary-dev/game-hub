@@ -61,7 +61,7 @@ class SettingsView(QWidget):
         body = QWidget(self)
         body_layout = QVBoxLayout(body)
 
-        # Language group
+        # Language & Appearance group
         self._lang_group = QGroupBox(body)
         lang_form = QFormLayout(self._lang_group)
         self._lang_label = QLabel(self._lang_group)
@@ -72,7 +72,33 @@ class SettingsView(QWidget):
         self._lang_label.setBuddy(self._language)
         lang_form.addRow(self._lang_label, self._language)
         lang_form.addRow(self._make_error("ui.language", self._lang_group))
+
+        self._theme_label = QLabel(self._lang_group)
+        self._theme_label.setWordWrap(True)
+        self._theme = QComboBox(self._lang_group)
+        self._theme.addItem("", "dark")
+        self._theme.addItem("", "light")
+        self._theme.addItem("", "system")
+        self._theme_label.setBuddy(self._theme)
+        lang_form.addRow(self._theme_label, self._theme)
+        lang_form.addRow(self._make_error("ui.theme", self._lang_group))
         body_layout.addWidget(self._lang_group)
+
+        # Anti-cheat protection group
+        self._protection_group = QGroupBox(body)
+        protection_form = QFormLayout(self._protection_group)
+        self._external_behavior_label = QLabel(self._protection_group)
+        self._external_behavior_label.setWordWrap(True)
+        self._external_behavior = QComboBox(self._protection_group)
+        self._external_behavior.addItem("", "exit_app")
+        self._external_behavior.addItem("", "strict_mode")
+        self._external_behavior.addItem("", "ask_me")
+        self._external_behavior_label.setBuddy(self._external_behavior)
+        protection_form.addRow(self._external_behavior_label, self._external_behavior)
+        protection_form.addRow(
+            self._make_error("protection.external_behavior", self._protection_group)
+        )
+        body_layout.addWidget(self._protection_group)
 
         # Capture group
         self._capture_group = QGroupBox(body)
@@ -188,6 +214,12 @@ class SettingsView(QWidget):
         idx = self._language.findData(snapshot.language)
         if idx >= 0:
             self._language.setCurrentIndex(idx)
+        theme_idx = self._theme.findData(snapshot.theme)
+        if theme_idx >= 0:
+            self._theme.setCurrentIndex(theme_idx)
+        ext_idx = self._external_behavior.findData(snapshot.external_protected_behavior)
+        if ext_idx >= 0:
+            self._external_behavior.setCurrentIndex(ext_idx)
         self._interval.setValue(snapshot.capture_interval_sec)
         self._buffer.setValue(snapshot.capture_buffer_size)
         self._autoplay.setChecked(snapshot.autoplay_voice)
@@ -249,8 +281,19 @@ class SettingsView(QWidget):
     def retranslate_ui(self) -> None:
         self._back.setText(self.tr("&Back to Library"))
         self._title.setText(self.tr("Settings"))
-        self._lang_group.setTitle(self.tr("Language"))
+        self._lang_group.setTitle(self.tr("Language and appearance"))
         self._lang_label.setText(self.tr("Display &language"))
+        self._theme_label.setText(self.tr("&Theme"))
+        self._theme.setItemText(0, self.tr("Dark"))
+        self._theme.setItemText(1, self.tr("Light"))
+        self._theme.setItemText(2, self.tr("System"))
+        self._protection_group.setTitle(self.tr("Anti-cheat protection"))
+        self._external_behavior_label.setText(
+            self.tr("When a protected game starts while Game Hub is open")
+        )
+        self._external_behavior.setItemText(0, self.tr("Exit Game Hub automatically"))
+        self._external_behavior.setItemText(1, self.tr("Switch to Strict mode"))
+        self._external_behavior.setItemText(2, self.tr("Ask me (Windows notification)"))
         self._capture_group.setTitle(self.tr("Screenshots"))
         self._interval_label.setText(self.tr("Capture &interval (seconds)"))
         self._buffer_label.setText(self.tr("Screenshot &ring size"))
@@ -290,6 +333,8 @@ class SettingsView(QWidget):
     def _submit(self) -> None:
         patch = {
             "ui.language": self._language.currentData(),
+            "ui.theme": self._theme.currentData(),
+            "protection.external_behavior": self._external_behavior.currentData(),
             "capture.interval_sec": self._interval.value(),
             "capture.buffer_size": self._buffer.value(),
             "memory.autoplay_voice": self._autoplay.isChecked(),
@@ -312,6 +357,8 @@ class SettingsView(QWidget):
                 "Data folder verified and updated. Restart Game Hub to use the new location."
             ),
             "invalid_language": self.tr("Select English or Arabic."),
+            "invalid_theme": self.tr("Select Dark, Light, or System."),
+            "invalid_external_behavior": self.tr("Select a supported protected-game action."),
             "invalid_capture_interval": self.tr("Choose an interval between 5 and 300 seconds."),
             "invalid_buffer_size": self.tr("Choose a screenshot ring size between 1 and 50."),
             "invalid_shortcut": self.tr(

@@ -96,7 +96,39 @@ class GlobalHotkeys(QAbstractNativeEventFilter):
         self._app = app
         self._handlers: dict[int, Callable[[], None]] = {}
         self._bindings: dict[int, tuple[int, int]] = {}
+        self._suspended_bindings: dict[int, tuple[int, int, Callable[[], None]]] = {}
+        self._suspended = False
         self._app.installNativeEventFilter(self)
+
+    @property
+    def is_suspended(self) -> bool:
+        return self._suspended
+
+    def suspend(self) -> None:
+        """Unregister all Win32 hotkeys during Strict mode without losing configuration."""
+        if self._suspended:
+            return
+        self._suspended = True
+        self._suspended_bindings = {
+            identifier: (self._bindings[identifier][0], self._bindings[identifier][1], handler)
+            for identifier, handler in self._handlers.items()
+            if identifier in self._bindings
+        }
+        for identifier in tuple(self._handlers):
+            if not self._unregister(None, identifier):
+                LOGGER.warning("hotkey_release_failed code=%s", ctypes.get_last_error())
+        self._handlers.clear()
+        self._bindings.clear()
+
+    def resume(self) -> None:
+        """Re-register saved hotkeys after leaving Strict mode."""
+        if not self._suspended:
+            return
+        self._suspended = False
+        saved = dict(self._suspended_bindings)
+        self._suspended_bindings.clear()
+        for identifier, (modifiers, key, handler) in saved.items():
+            self.bind(identifier, modifiers, key, handler)
 
     def bind(self, identifier: int, modifiers: int, key: int, handler: Callable[[], None]) -> bool:
         if identifier in self._handlers:
@@ -167,6 +199,14 @@ class GlobalHotkeys(QAbstractNativeEventFilter):
                     return False, identifier
                 parsed_targets[identifier] = (parsed, handler)
 
+        if self._suspended:
+            for identifier, (target, handler) in parsed_targets.items():
+                if target is None:
+                    self._suspended_bindings.pop(identifier, None)
+                else:
+                    self._suspended_bindings[identifier] = (target[0], target[1], handler)
+            return True, None
+
         owned_by_batch = {
             self._bindings[identifier]
             for identifier in changes
@@ -223,3 +263,5 @@ class GlobalHotkeys(QAbstractNativeEventFilter):
                 LOGGER.warning("hotkey_release_failed code=%s", ctypes.get_last_error())
         self._handlers.clear()
         self._bindings.clear()
+        self._suspended_bindings.clear()
+        self._suspended = False

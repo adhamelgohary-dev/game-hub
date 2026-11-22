@@ -3,7 +3,7 @@
 import ctypes
 import ntpath
 from collections import defaultdict
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from ctypes import wintypes
 from typing import Protocol
 
@@ -138,7 +138,13 @@ class ProcessProbe:
         self._metadata = metadata if metadata is not None else _WindowsProcessMetadata()
         self._creation_time = creation_time
 
-    def snapshot(self, targets: Sequence[WatchTarget]) -> ProcessSnapshot:
+    def snapshot(
+        self,
+        targets: Sequence[WatchTarget],
+        *,
+        passive_basenames: Mapping[str, frozenset[str]] | None = None,
+        protected_exes: frozenset[str] = frozenset(),
+    ) -> ProcessSnapshot:
         executables: dict[str, set[str]] = defaultdict(set)
         packages: dict[str, set[str]] = defaultdict(set)
         for target in targets:
@@ -146,16 +152,36 @@ class ProcessProbe:
                 executables[ntpath.normcase(target.match_key)].add(target.game_id)
             elif target.kind == "package_id":
                 packages[target.match_key.casefold()].add(target.game_id)
-        if not executables and not packages:
+        passive = {
+            ntpath.normcase(name): game_ids for name, game_ids in (passive_basenames or {}).items()
+        }
+        protected = frozenset(ntpath.normcase(name) for name in protected_exes)
+        if not executables and not packages and not passive and not protected:
             return ProcessSnapshot({})
 
         basenames = {ntpath.basename(path) for path in executables}
         observed: dict[str, set[ProcessIdentity]] = defaultdict(set)
+        seen_protected: set[str] = set()
         unknown = set()
         complete = True
         try:
             for pid, name in self._metadata.names():
-                check_image = ntpath.normcase(name) in basenames
+                norm_name = ntpath.normcase(name)
+                is_protected = norm_name in protected
+                if is_protected:
+                    seen_protected.add(norm_name)
+
+                # Strict-mode / protected games are observed passively by Toolhelp basename only:
+                # never call OpenProcess or psutil.Process on protected game processes.
+                passive_games = passive.get(norm_name)
+                if passive_games:
+                    for game_id in passive_games:
+                        observed[game_id].add(ProcessIdentity(pid, 0.0))
+                    continue
+                if is_protected:
+                    continue
+
+                check_image = norm_name in basenames
                 if not check_image and not packages:
                     continue
                 try:
@@ -184,6 +210,7 @@ class ProcessProbe:
             {game_id: frozenset(identities) for game_id, identities in observed.items()},
             frozenset(unknown),
             complete,
+            frozenset(seen_protected),
         )
 
     def _matches(

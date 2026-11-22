@@ -93,6 +93,7 @@ class LastTimeCard(QDialog):
         autoplay_enabled: bool,
         allow_launch: bool,
         already_running: bool = False,
+        default_exit_after_play: bool = False,
         load_image: Callable[[Path], bytes | None],
         load_control_image: Callable[[Path], bytes | None] | None = None,
         parent: QWidget | None = None,
@@ -243,7 +244,13 @@ class LastTimeCard(QDialog):
         self._controls.setWordWrap(True)
         body_layout.addWidget(self._controls)
 
+        self._exit_after_play: QCheckBox | None = None
         if allow_launch:
+            self._exit_after_play = QCheckBox(
+                self.tr("Exit Game Hub after this game closes"), body
+            )
+            self._exit_after_play.setChecked(default_exit_after_play)
+            body_layout.addWidget(self._exit_after_play)
             hint = QLabel(
                 self.tr(
                     "Review your notes before launching. For exclusive fullscreen games, "
@@ -337,6 +344,9 @@ class LastTimeCard(QDialog):
 
     def is_launching(self) -> bool:
         return self._launching
+
+    def exit_after_play(self) -> bool:
+        return bool(self._exit_after_play is not None and self._exit_after_play.isChecked())
 
     def set_autoplay_checked(self, enabled: bool) -> None:
         previous = self._autoplay.blockSignals(True)

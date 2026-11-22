@@ -1,8 +1,10 @@
 """Persist discovered games, explicit match targets, and library queries."""
 
+import ntpath
 import os
 import sqlite3
 import stat
+from collections import defaultdict
 from pathlib import Path
 from time import time_ns
 from uuid import uuid4
@@ -119,6 +121,9 @@ def _summary(row: sqlite3.Row) -> GameSummary:
         installed=installed,
         launch_target=LaunchTarget(launch, row["launch_value"]) if installed and launch else None,
         tracking=bool(row["tracking"]),
+        source_id=row["source_id"],
+        protection_mode=row["protection_mode"],
+        exit_after_launch=bool(row["exit_after_launch"]),
     )
 
 
@@ -220,3 +225,36 @@ class LibraryRepository:
                 _GAME_SUMMARIES + "AND game.id = ? GROUP BY game.id", (game_id,)
             ).fetchone()
             return _summary(row) if row is not None else None
+
+    def set_protection(
+        self,
+        game_id: str,
+        protection_mode: str,
+        *,
+        exit_after_launch: bool | None = None,
+    ) -> None:
+        if protection_mode not in {"auto", "strict", "full"}:
+            raise ValueError("Invalid protection mode.")
+        with self._database.write() as connection:
+            if exit_after_launch is None:
+                connection.execute(
+                    "UPDATE games SET protection_mode = ? WHERE id = ?",
+                    (protection_mode, game_id),
+                )
+            else:
+                connection.execute(
+                    "UPDATE games SET protection_mode = ?, exit_after_launch = ? WHERE id = ?",
+                    (protection_mode, int(exit_after_launch), game_id),
+                )
+
+    def list_target_basenames(self) -> dict[str, tuple[str, ...]]:
+        grouped: dict[str, set[str]] = defaultdict(set)
+        with self._database.read() as connection:
+            rows = connection.execute(
+                "SELECT game_id, kind, match_key FROM game_targets WHERE kind = 'exe_path'"
+            ).fetchall()
+            for row in rows:
+                base = ntpath.normcase(ntpath.basename(row["match_key"]))
+                if base:
+                    grouped[row["game_id"]].add(base)
+        return {game_id: tuple(sorted(names)) for game_id, names in grouped.items()}

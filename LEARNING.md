@@ -107,3 +107,11 @@ Desktop apps that hide in the system tray or register themselves in `HKCU\Softwa
 Read [app.py](gamehub/app.py), [startup.py](gamehub/core/startup.py), [installer.iss](packaging/installer.iss), and [test_app.py](tests/test_app.py).
 
 Try it yourself. Run `python -m pytest tests/test_app.py -k residual` and follow how the test launches a real `GameHubWindow`, closes it via a timer, and confirms with `psutil.pid_exists` that zero processes remain.
+
+## M10 — Game-aware lifecycle, passive protection, and borderless capture
+
+Separating **what** games are protected (`protected_games.json`) from **how** the app reacts (`LifecycleCoordinator`) lets users or maintainers update the anti-cheat catalog without changing Python code. Inside `ProcessProbe`, checking `CreateToolhelp32Snapshot` basenames first lets Game Hub detect Valorant, Fortnite, or any Strict-mode title and immediately skip `OpenProcess` so zero process handles ever touch protected games. For borderless Windows Graphics Capture (`draw_border=False`), native Rust/WinRT errors can surface asynchronously when `control.wait()` joins the capture thread, so catching and caching a fallback to `draw_border=None` keeps screenshots reliable across Windows 10 and Windows 11 builds.
+
+Read [protected_games.json](gamehub/core/protection/protected_games.json), [catalog.py](gamehub/core/protection/catalog.py), [lifecycle.py](gamehub/core/protection/lifecycle.py), [processes.py](gamehub/core/sessions/processes.py), and [windows.py](gamehub/core/capture/windows.py).
+
+Try it yourself. Run `python -m pytest tests/test_protection_and_lifecycle.py -k never_opens` to see how the test asserts that `VALORANT-Win64-Shipping.exe` is detected passively while `inspect()` (the `OpenProcess` wrapper) is never called for its PID.

@@ -56,6 +56,9 @@ class GameSummary:
     installed: bool
     launch_target: LaunchTarget | None
     tracking: bool
+    source_id: str = ""
+    protection_mode: str = "auto"
+    exit_after_launch: bool = False
 
 
 @dataclass(frozen=True, slots=True)
