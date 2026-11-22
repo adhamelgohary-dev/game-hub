@@ -21,3 +21,5 @@ Initial verdict **APPROVE WITH CHANGES**. Fix the unobserved-time accounting and
 Source re-review passed after the retry fix. All 61 tests, Ruff, and local frozen startup passed. The second process-wide idle run measured 1.0546% of one logical core. The performance check now measures the watcher thread for the M2 gate and reports whole-app use separately.
 
 The final 120.10-second tray sample on Windows 11 build 26300, Intel family 6 model 186 with 12 logical CPUs, measured 0.6896% of one core for the watcher and 0.0661% of host capacity for the app at a three-second polling interval. The watcher meets the 1% budget. The remaining gate is tagged Windows packaging.
+
+Final verdict **APPROVE**. The [tagged Windows run](https://github.com/adhamelgohary-dev/game-hub/actions/runs/44986782159) passed tests, lint, installed startup and portable startup. Both packages are published in the [private m2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2).

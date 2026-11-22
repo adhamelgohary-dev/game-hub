@@ -6,7 +6,7 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-M2 native, idle, frozen, and automated checks passed. Verify the tagged `m2` Windows run and both private release assets, then record final M2 approval. Begin M3 with the exact foreground HWND and process identity lease before adding the screenshot ring.
+Begin M3 with the exact foreground HWND and process identity lease in `gamehub/core/capture/`. The verified Windows Capture 2.0.1 wheel exposes `window_hwnd` and compositor frame timestamps. Add the foreground checks, SQLite screenshot ring, and last-moments view before testing native capture.
 
 ## Run the app and tests
 
@@ -38,6 +38,7 @@ From the PowerShell repository root:
 - GitHub repository [game-hub](https://github.com/adhamelgohary-dev/game-hub) is verified PRIVATE. Local Git is initialized on main with origin connected.
 - [M0 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m0) passed native tray and tagged Windows CI with both release packages smoke-tested.
 - [M1 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m1) passed tagged Windows CI with both release packages smoke-tested.
+- [M2 release](https://github.com/adhamelgohary-dev/game-hub/releases/tag/m2) passed tagged Windows CI with both release packages smoke-tested.
 - The M2 native watcher produced one completed session row and matching tray states. The final 120-second run measured 0.69% of one core for the watcher and 0.066% of total CPU capacity for the app.
 - Live Steam entries loaded and persisted. Epic manifests were unavailable and no accessible Xbox titles were found on this machine. Fixture coverage verified those adapters. [Launcher limitations](docs/launcher-detection.md)
 - Windows capture and installer behavior need real-machine verification in their assigned milestones.
