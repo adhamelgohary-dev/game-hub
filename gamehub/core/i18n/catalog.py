@@ -26,7 +26,12 @@ AR_CATALOG: dict[str, str] = {
     "&Text note": "ملاحظة نصية",
     "&Theme": "السمة",
     "&Upload controls image…": "رفع صورة أزرار التحكم…",
+    "About and privacy": "حول البرنامج والخصوصية",
+    "Add a game or refresh to scan your local launchers.": (
+        "أضف لعبة أو اضغط تحديث لفحص المشغّلات المثبّتة على جهازك."
+    ),
     "Add game": "إضافة لعبة",
+    "All ({count})": "الكل ({count})",
     "Another voice note is recording or being saved.": "يتم الآن تسجيل أو حفظ ملاحظة صوتية أخرى.",
     "Anti-cheat protection": "حماية مكافحة الغش",
     "Ask for a note when a game closes": "السؤال عن ملاحظة عند إغلاق اللعبة",
@@ -40,6 +45,7 @@ AR_CATALOG: dict[str, str] = {
     "Capture is busy. Try Ctrl+Alt+C again or upload an image from the game page.": (
         "الالتقاط مشغول الآن. جرّب \u2066Ctrl+Alt+C\u2069 مرة أخرى أو ارفع صورة من صفحة اللعبة."
     ),
+    "Change executable…": "تغيير الملف التنفيذي…",
     "Choose a folder outside the current data folder.": "اختر مجلدًا خارج مجلد البيانات الحالي.",
     "Choose a local folder on a fixed drive without symlinks.": (
         "اختر مجلدًا محليًا على قرص ثابت دون روابط رمزية."
@@ -52,6 +58,7 @@ AR_CATALOG: dict[str, str] = {
     "Choose an empty folder for the moved data store.": "اختر مجلدًا فارغًا لنقل البيانات إليه.",
     "Choose an executable to track for the selected game.": "اختر ملفًا تنفيذيًا لتتبع اللعبة المحددة.",
     "Choose an interval between 5 and 300 seconds.": "اختر فاصلًا زمنيًا بين 5 و300 ثانية.",
+    "Choose game executable": "اختر الملف التنفيذي للعبة",
     "Close": "إغلاق",
     "Completed": "مكتملة",
     "Controls": "التحكم",
@@ -76,6 +83,7 @@ AR_CATALOG: dict[str, str] = {
     "Data folder verified and updated. Restart Game Hub to use the new location.": (
         "تم التحقق من مجلد البيانات وتحديثه. أعد تشغيل \u2066Game Hub\u2069 لاستخدام الموقع الجديد."
     ),
+    "Details": "التفاصيل",
     "Display &language": "لغة العرض",
     "Don't ask after games": "لا تسأل بعد إغلاق الألعاب",
     "Each enabled shortcut must be unique.": "يجب أن يكون كل اختصار مفعّل فريدًا.",
@@ -98,8 +106,11 @@ AR_CATALOG: dict[str, str] = {
     "Focus a tracked game window to pin controls, or upload an image from the game page.": (
         "اجعل نافذة لعبة متتبَّعة في المقدمة لتثبيت التحكم، أو ارفع صورة من صفحة اللعبة."
     ),
+    "Full": "كامل",
     "Full mode": "الوضع الكامل",
+    "Full mode ({count})": "الوضع الكامل ({count})",
     "Game Hub cannot write to the selected folder.": "لا يستطيع \u2066Game Hub\u2069 الكتابة في المجلد المحدد.",
+    "Game Hub v{version} · MIT License": "\u2066Game Hub v{version}\u2069 · رخصة \u2066MIT\u2069",
     "Game Hub could not access your controls storage.": "تعذّر على \u2066Game Hub\u2069 الوصول إلى تخزين التحكم.",
     "Game Hub could not apply this setting.": "تعذّر على \u2066Game Hub\u2069 تطبيق هذا الإعداد.",
     "Game Hub could not launch this game. Check that its executable or launcher entry is still available.": (
@@ -155,6 +166,7 @@ AR_CATALOG: dict[str, str] = {
     "Last moment screenshot preview": "معاينة لقطة آخر لحظة",
     "Last moments": "آخر اللحظات",
     "Last moments · {game}": "آخر اللحظات · {game}",
+    "Last moments…": "آخر اللحظات…",
     "Last played": "آخر لعب",
     "Last played {date} ({duration}) · Total playtime {total}": (
         "آخر لعب {date} ({duration}) · إجمالي وقت اللعب {total}"
@@ -172,6 +184,7 @@ AR_CATALOG: dict[str, str] = {
     "Microphone unavailable. Check Windows microphone access or save a text note.": (
         "الميكروفون غير متاح. تحقق من إذن الميكروفون في \u2066Windows\u2069 أو احفظ ملاحظة نصية."
     ),
+    "More game options": "خيارات اللعبة الإضافية",
     "Multiple games are running. Select a game in Library to view its Last time card.": (
         "تعمل عدة ألعاب الآن. اختر لعبة من المكتبة لعرض بطاقة آخر مرة."
     ),
@@ -183,6 +196,7 @@ AR_CATALOG: dict[str, str] = {
     "No controls or strategy notes saved yet.": "لم يتم حفظ ملاحظات تحكم أو استراتيجية بعد.",
     "No controls pinned yet.": "لم يتم تثبيت عناصر تحكم بعد.",
     "No games in your library. Refresh or add a game.": "لا توجد ألعاب في مكتبتك. حدّث القائمة أو أضف لعبة.",
+    "No games match your current search or filter.": "لا توجد ألعاب تطابق البحث أو التصفية الحالية.",
     "No launch target is available for this game. Check that it is installed or add its executable.": (
         "لا يتوفر هدف تشغيل لهذه اللعبة. تأكد من تثبيتها أو أضف ملفها التنفيذي."
     ),
@@ -200,6 +214,10 @@ AR_CATALOG: dict[str, str] = {
     "No voice note saved yet.": "لم يتم حفظ ملاحظة صوتية بعد.",
     "Note ({date}): {text}": "ملاحظة ({date}): {text}",
     "Notes and Last time": "الملاحظات وبطاقة آخر مرة",
+    "Offline and anti-cheat safe: all notes and screenshots stay on your PC. Game Hub never injects, hooks, or reads game memory, and defaults protected multiplayer games to Strict mode.": (
+        "يعمل دون إنترنت وآمن مع أنظمة مكافحة الغش: تبقى جميع ملاحظاتك ولقطاتك على جهازك فقط. "
+        "لا يقوم \u2066Game Hub\u2069 أبدًا بالحقن أو الاعتراض أو قراءة ذاكرة اللعبة، ويضبط الألعاب الجماعية المحمية افتراضيًا على الوضع الصارم."
+    ),
     "Open Controls and Session Timeline for the selected game.": (
         "افتح التحكم والخط الزمني للجلسات للعبة المحددة."
     ),
@@ -243,6 +261,7 @@ AR_CATALOG: dict[str, str] = {
     "Screenshot preview": "معاينة اللقطة",
     "Screenshot {current} of {total}": "اللقطة {current} من {total}",
     "Screenshots": "لقطات الشاشة",
+    "Search games…": "ابحث عن لعبة…",
     "Select English or Arabic.": "اختر الإنجليزية أو العربية.",
     "Select Dark, Light, or System.": "اختر الداكن أو الفاتح أو حسب النظام.",
     "Select a supported local image (PNG, JPEG, WebP, or BMP) up to 16 MB.": (
@@ -257,7 +276,9 @@ AR_CATALOG: dict[str, str] = {
     "Stop": "إيقاف",
     "Stop voice note": "إيقاف الملاحظة الصوتية",
     "Stop voice note from {date}": "إيقاف الملاحظة الصوتية بتاريخ {date}",
+    "Strict": "صارم",
     "Strict mode": "الوضع الصارم",
+    "Strict mode ({count})": "الوضع الصارم ({count})",
     "Strict mode active for {game}": "الوضع الصارم نشط للعبة {game}",
     "Switch to Strict mode": "التحول إلى الوضع الصارم",
     "System": "حسب النظام",
@@ -311,6 +332,13 @@ AR_CATALOG: dict[str, str] = {
     ),
     "Working…": "جارٍ العمل…",
     "Xbox": "\u2066Xbox\u2069",
+    "Zero background: no system tray, no start with Windows, and no background services. Closing the main window exits Game Hub completely.": (
+        "دون عمل في الخلفية: لا أيقونة في شريط النظام، لا تشغيل تلقائي مع \u2066Windows\u2069، ولا خدمات خلفية. "
+        "إغلاق النافذة الرئيسية ينهي \u2066Game Hub\u2069 بالكامل."
+    ),
+    "{count} games · Click any card for Details or press Play": (
+        "{count} ألعاب · اضغط على أي بطاقة لعرض التفاصيل أو اضغط تشغيل"
+    ),
     "{date} · {duration} · {status}": "{date} · {duration} · {status}",
     "{game} is running. Game Hub switched to Strict mode; you can close Game Hub anytime.": (
         "اللعبة {game} قيد التشغيل. تحوّل \u2066Game Hub\u2069 إلى الوضع الصارم؛ يمكنك إغلاق \u2066Game Hub\u2069 في أي وقت."

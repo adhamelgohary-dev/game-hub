@@ -123,3 +123,11 @@ Before making a private repository public, scanning only the working tree is not
 Read [LICENSE](LICENSE), [SECURITY.md](SECURITY.md), [SIGNPATH-APPLICATION.md](docs/SIGNPATH-APPLICATION.md), [version_info.txt](packaging/version_info.txt), and [windows.yml](.github/workflows/windows.yml).
 
 Try it yourself. Right-click a built `dist/GameHub/GameHub.exe` → **Properties → Details** to see the embedded Product Name, File Version, Description, and MIT copyright fields populated from `packaging/version_info.txt`.
+
+## M11 — Fluent UI, real local cover art, and visual verification
+
+Styling a Qt desktop app cleanly with QSS requires watching two subtle widget defaults: `QLabel.setPixmap(...)` inflates a widget's `sizeHint` unless its horizontal size policy is `Ignored`, and `QScrollArea` content widgets inside `QTabWidget` fall back to the OS light palette unless styled explicitly (`#tabSurface`). Visually inspecting real captured Dark, Light, Game Page, and Arabic RTL screenshots caught both defects before release. Discovering game covers locally from Steam's `appcache/librarycache` (supporting both flat `<appid>_*.jpg` files and modern `<appid>/` / hashed subdirectories) gives users rich library artwork while staying 100% offline.
+
+Read [theme.py](gamehub/ui/theme.py), [covers.py](gamehub/ui/covers.py), [library_view.py](gamehub/ui/library_view.py), [game_page.py](gamehub/ui/game_page.py), and [last_time_card.py](gamehub/modules/memory/last_time_card.py).
+
+Try it yourself. Switch the theme between Dark and Light and the language between English and Arabic in **Settings** and watch `apply_theme` and `apply_language` re-polish every card, badge, and RTL sidebar live without restarting.

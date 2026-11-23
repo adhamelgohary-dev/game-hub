@@ -11,10 +11,15 @@ from PySide6.QtCore import QObject, QStandardPaths, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QImageReader
 from PySide6.QtWidgets import (
     QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMessageBox,
+    QPushButton,
     QStackedWidget,
-    QStyle,
+    QVBoxLayout,
+    QWidget,
 )
 
 from gamehub import __version__
@@ -69,6 +74,7 @@ from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
 from gamehub.ui.library_view import LibraryView
 from gamehub.ui.settings_view import SettingsView
+from gamehub.ui.theme import apply_theme, fade_in_widget, load_app_icon
 
 
 class GameHubWindow(QMainWindow):
@@ -78,22 +84,70 @@ class GameHubWindow(QMainWindow):
         super().__init__()
         self._app = app
         self.setWindowTitle("Game Hub")
-        self.resize(720, 480)
+        self.resize(1120, 740)
 
-        self.library = LibraryView(self)
-        self.game_page = GamePage(self)
-        self.settings_view = SettingsView(self)
-        self._pages = QStackedWidget(self)
+        icon = load_app_icon(self)
+        self.setWindowIcon(icon)
+        app.setWindowIcon(icon)
+
+        shell = QWidget(self)
+        shell.setObjectName("canvas")
+        shell_layout = QHBoxLayout(shell)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
+
+        # Persistent Fluent sidebar (brand + Library / Settings navigation)
+        self._sidebar = QFrame(shell)
+        self._sidebar.setObjectName("sidebar")
+        self._sidebar.setFixedWidth(208)
+        side_layout = QVBoxLayout(self._sidebar)
+        side_layout.setContentsMargins(14, 18, 14, 18)
+        side_layout.setSpacing(8)
+
+        brand_row = QHBoxLayout()
+        brand_row.setSpacing(10)
+        brand_icon = QLabel(self._sidebar)
+        brand_icon.setFixedSize(28, 28)
+        brand_icon.setPixmap(icon.pixmap(28, 28))
+        brand_title = QLabel("Game Hub", self._sidebar)
+        brand_title.setObjectName("cardTitle")
+        brand_row.addWidget(brand_icon)
+        brand_row.addWidget(brand_title)
+        brand_row.addStretch()
+        side_layout.addLayout(brand_row)
+        side_layout.addSpacing(14)
+
+        self._nav_library = QPushButton(self.tr("Library"), self._sidebar)
+        self._nav_library.setObjectName("navButton")
+        self._nav_library.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._nav_library.clicked.connect(self.show_library)
+
+        self._nav_settings = QPushButton(self.tr("Settings"), self._sidebar)
+        self._nav_settings.setObjectName("navButton")
+        self._nav_settings.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        side_layout.addWidget(self._nav_library)
+        side_layout.addWidget(self._nav_settings)
+        side_layout.addStretch()
+
+        self.library = LibraryView(shell)
+        self.game_page = GamePage(shell)
+        self.settings_view = SettingsView(shell)
+        self._nav_settings.clicked.connect(self.library.settingsRequested)
+
+        self._pages = QStackedWidget(shell)
         self._pages.addWidget(self.library)
         self._pages.addWidget(self.game_page)
         self._pages.addWidget(self.settings_view)
-        self.setCentralWidget(self._pages)
 
-        icon = self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
-        self.setWindowIcon(icon)
+        shell_layout.addWidget(self._sidebar)
+        shell_layout.addWidget(self._pages, stretch=1)
+        self.setCentralWidget(shell)
+
         self._tracked_games: set[str] = set()
         self._recording = False
         self._status_text = ""
+        self._sync_nav_state("library")
         self._show_tracking_status()
 
     def game_started(self, event: GameStarted) -> None:
@@ -128,19 +182,39 @@ class GameHubWindow(QMainWindow):
         self._status_text = text
         self.statusBar().showMessage(text)
 
+    def _sync_nav_state(self, active: str) -> None:
+        for name, button in (("library", self._nav_library), ("settings", self._nav_settings)):
+            button.setProperty("active", name == active)
+            button.style().unpolish(button)
+            button.style().polish(button)
+
     def show_library(self) -> None:
+        changed = self._pages.currentWidget() is not self.library
         self._pages.setCurrentWidget(self.library)
+        self._sync_nav_state("library")
+        if changed:
+            fade_in_widget(self.library)
 
     def show_game_page(self) -> None:
+        changed = self._pages.currentWidget() is not self.game_page
         self._pages.setCurrentWidget(self.game_page)
+        self._sync_nav_state("library")
+        if changed:
+            fade_in_widget(self.game_page)
 
     def show_settings(self) -> None:
+        changed = self._pages.currentWidget() is not self.settings_view
         self._pages.setCurrentWidget(self.settings_view)
+        self._sync_nav_state("settings")
+        if changed:
+            fade_in_widget(self.settings_view)
 
     def is_game_page_open(self, game_id: str) -> bool:
         return self._pages.currentWidget() is self.game_page and self.game_page.game_id == game_id
 
     def retranslate_ui(self) -> None:
+        self._nav_library.setText(self.tr("Library"))
+        self._nav_settings.setText(self.tr("Settings"))
         self._show_tracking_status()
         self.library.retranslate_ui()
         self.game_page.retranslate_ui()
@@ -196,6 +270,7 @@ def _run(
         memory = _open_memory_store(database, data_root)
         initial_settings = SettingsService(database).read()
         apply_language(app, initial_settings.language)
+        apply_theme(app, initial_settings.theme)
         window.retranslate_ui()
 
         service = LibraryService(library, detectors, events.publish)
@@ -204,6 +279,10 @@ def _run(
         window.library.lastMomentsRequested.connect(
             lambda game_id: _open_last_moments(window, library, screenshots, game_id)
         )
+        window.game_page.lastMomentsRequested.connect(
+            lambda game_id: _open_last_moments(window, library, screenshots, game_id)
+        )
+        window.game_page.assignExecutableRequested.connect(controller.assign_target)
         window.game_page.set_loaders(
             load_control_image=controls.read_image if controls is not None else (lambda _p: None),
             load_screenshot=screenshots.read_image if screenshots is not None else (lambda _p: None),
@@ -251,6 +330,7 @@ def _run(
                 if notes_controller is not None
                 else False,
             )
+            window.library.set_strict_resolver(lambda game: lifecycle.is_strict_game(game.id))
             events.subscribe(GameStarted, window.game_started)
             events.subscribe(GameStopped, window.game_stopped)
             events.subscribe(GameStarted, lifecycle.on_game_started)
@@ -375,7 +455,10 @@ def _run(
                 voice_player,
                 events,
                 catalog=catalog,
-                on_protection_changed=watcher.reload_protection,
+                on_protection_changed=lambda: (
+                    watcher.reload_protection(),
+                    window.library.present_games(service.current().games),
+                ),
             )
             hotkeys = _start_hotkeys(
                 app,
@@ -851,6 +934,8 @@ def _wire_settings(
         if "ui.language" in event.keys:
             apply_language(app, snap.language)
             window.retranslate_ui()
+        if "ui.theme" in event.keys:
+            apply_theme(app, snap.theme)
         if "capture.interval_sec" in event.keys and capture_scheduler is not None:
             capture_scheduler.set_interval_sec(snap.capture_interval_sec)
         if "capture.buffer_size" in event.keys and capture_service is not None:

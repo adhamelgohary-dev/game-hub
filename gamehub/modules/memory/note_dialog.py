@@ -22,21 +22,20 @@ class NoteDialog(QDialog):
     def __init__(self, game_name: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(self.tr("Record a note?"))
-        self.resize(440, 310)
+        self.resize(480, 350)
         self._recording = False
         self._voice_retry = False
         self._busy = False
         self._preference_applied = False
 
         game = QLabel(self)
+        game.setObjectName("pageTitle")
         game.setTextFormat(Qt.TextFormat.PlainText)
         game.setWordWrap(True)
         game.setText(game_name)
-        game_font = game.font()
-        game_font.setBold(True)
-        game.setFont(game_font)
 
         self._record = QPushButton(self)
+        self._record.setObjectName("primaryButton")
         self._update_record_label()
         self._record.clicked.connect(self.recordRequested)
         self._elapsed = QElapsedTimer()
@@ -44,14 +43,17 @@ class NoteDialog(QDialog):
         self._timer.setInterval(250)
         self._timer.timeout.connect(self._show_elapsed)
         self._status = QLabel(self)
+        self._status.setObjectName("mutedText")
         self._status.hide()
 
         record_row = QHBoxLayout()
+        record_row.setSpacing(10)
         record_row.addWidget(self._record)
         record_row.addWidget(self._status)
         record_row.addStretch()
 
         text_label = QLabel(self.tr("&Text note"), self)
+        text_label.setObjectName("sectionHeading")
         self._text = QPlainTextEdit(self)
         self._text.setAccessibleName(self.tr("Text note"))
         self._text.setTabChangesFocus(True)
@@ -59,6 +61,7 @@ class NoteDialog(QDialog):
         text_label.setBuddy(self._text)
 
         self._error = QLabel(self)
+        self._error.setObjectName("errorBanner")
         self._error.setTextFormat(Qt.TextFormat.PlainText)
         self._error.setWordWrap(True)
         self._error.hide()
@@ -67,6 +70,7 @@ class NoteDialog(QDialog):
         self.finished.connect(self._apply_prompt_preference)
         actions = QDialogButtonBox(self)
         self._save = actions.addButton(self.tr("&Save text"), QDialogButtonBox.ButtonRole.AcceptRole)
+        self._save.setObjectName("primaryButton")
         self._save.clicked.connect(self._submit_text)
         dismiss = actions.addButton(self.tr("&Dismiss"), QDialogButtonBox.ButtonRole.RejectRole)
         actions.rejected.connect(self.reject)
@@ -74,6 +78,8 @@ class NoteDialog(QDialog):
         dismiss.setAutoDefault(False)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 18)
+        layout.setSpacing(12)
         layout.addWidget(game)
         layout.addLayout(record_row)
         layout.addWidget(text_label)

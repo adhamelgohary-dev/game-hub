@@ -90,6 +90,7 @@ class LastTimeData:
     screenshots: tuple[Path, ...]
     controls: tuple[str, ...] = ()
     control_images: tuple[Path, ...] = ()
+    cover_path: Path | None = None
 
 
 def _screenshot_path(game_id: str, session_id: str, screenshot_id: str) -> PurePosixPath:
@@ -140,7 +141,7 @@ class MemoryRepository:
         where_clause, params = _session_filter(game_id, exclude_session_id)
         with self._database.read_snapshot() as connection:
             game = connection.execute(
-                "SELECT id, name, installed, launch_kind, launch_value "
+                "SELECT id, name, installed, launch_kind, launch_value, cover_path "
                 "FROM games WHERE id = ? AND hidden = 0",
                 (game_id,),
             ).fetchone()
@@ -212,6 +213,7 @@ class MemoryRepository:
         )
         screenshots = self._build_screenshots(game_id, last_session, shot_rows)
         control_texts, control_images = self._build_controls(game_id, control_rows)
+        cover_path = Path(game["cover_path"]) if game["cover_path"] else None
         return LastTimeData(
             game_id=game["id"],
             game_name=game["name"],
@@ -225,6 +227,7 @@ class MemoryRepository:
             screenshots=screenshots,
             controls=control_texts,
             control_images=control_images,
+            cover_path=cover_path,
         )
 
     def timeline(

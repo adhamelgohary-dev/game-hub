@@ -82,3 +82,26 @@ def test_inaccessible_index_entry_does_not_hide_other_steam_libraries(
     batch = SteamDetector(main).discover()
     assert batch.state == "partial"
     assert [game.source_id for game in batch.games] == ["910002"]
+
+
+def test_steam_discovers_local_cover_art_flat_and_subfolder(tmp_path: Path) -> None:
+    main = tmp_path / "Steam"
+    _install(main, "910001", "FlatCover", "Flat Cover")
+    _install(main, "910002", "FolderCover", "Folder Cover")
+    _install(main, "910003", "HashedCover", "Hashed Cover")
+    cache = main / "appcache" / "librarycache"
+    cache.mkdir(parents=True)
+    flat = cache / "910001_header.jpg"
+    flat.write_bytes(b"\xff\xd8\xff")
+    sub = cache / "910002" / "header.jpg"
+    sub.parent.mkdir(parents=True)
+    sub.write_bytes(b"\xff\xd8\xff")
+    hashed = cache / "910003" / "abc123" / "library_600x900.jpg"
+    hashed.parent.mkdir(parents=True)
+    hashed.write_bytes(b"\xff\xd8\xff")
+
+    batch = SteamDetector(main).discover()
+    games = {g.source_id: g for g in batch.games}
+    assert games["910001"].cover_path == flat.resolve()
+    assert games["910002"].cover_path == sub.resolve()
+    assert games["910003"].cover_path == hashed.resolve()

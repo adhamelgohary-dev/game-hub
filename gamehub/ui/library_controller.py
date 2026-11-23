@@ -47,6 +47,9 @@ class LibraryController(QObject):
     def _add(self, path: str) -> None:
         self._run(lambda: self._service.add_manual(Path(path)))
 
+    def assign_target(self, game_id: str, path: str) -> None:
+        self._assign(game_id, path)
+
     def _assign(self, game_id: str, path: str) -> None:
         self._run(lambda: self._service.assign_target(game_id, Path(path)))
 

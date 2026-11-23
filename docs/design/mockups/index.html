@@ -729,7 +729,6 @@
       <div class="title-brand">
         <div class="app-icon">GH</div>
         <span data-i18n="app_title">Game Hub</span>
-        <span class="zero-bg-pill" data-i18n="zero_bg">Zero Background · Exits on Close</span>
       </div>
       <div class="win-controls">
         <div class="win-ctrl">─</div>
@@ -744,10 +743,6 @@
         <div class="nav-item active" id="nav-library">🎮 <span data-i18n="nav_library">Library</span></div>
         <div class="nav-item" id="nav-settings">⚙ <span data-i18n="nav_settings">Settings</span></div>
         <div class="sidebar-spacer"></div>
-        <div class="shield-card">
-          <strong>🛡 <span data-i18n="shield_title">Anti-Cheat Guard Ready</span></strong>
-          <div data-i18n="shield_desc">No background process. Protected games default to Strict mode or auto-exit.</div>
-        </div>
       </aside>
 
       <!-- 1. LIBRARY SCREEN -->
@@ -784,7 +779,7 @@
               <div class="card-meta"><span data-i18n="played_2w">2 weeks ago</span><span class="ltr-isolate">42h 15m</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -802,7 +797,7 @@
               <div class="card-meta"><span data-i18n="played_5d">5 days ago</span><span class="ltr-isolate">18h 40m</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -820,7 +815,7 @@
               <div class="card-meta"><span data-i18n="vanguard_tag">Riot Vanguard</span><span class="ltr-isolate">6h 10m</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -838,7 +833,7 @@
               <div class="card-meta"><span data-i18n="eac_tag">Easy Anti-Cheat</span><span class="ltr-isolate">64h 05m</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -856,7 +851,7 @@
               <div class="card-meta"><span data-i18n="played_yest">Yesterday</span><span class="ltr-isolate">11h 20m</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -874,7 +869,7 @@
               <div class="card-meta"><span>VAC · Trusted</span><span class="ltr-isolate">120h</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -892,7 +887,7 @@
               <div class="card-meta"><span data-i18n="played_3w">3 weeks ago</span><span class="ltr-isolate">29h 50m</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -910,7 +905,7 @@
               <div class="card-meta"><span data-i18n="played_1m">1 month ago</span><span class="ltr-isolate">53h 12m</span></div>
               <div class="card-actions">
                 <button class="btn btn-primary">▶ <span data-i18n="btn_play">Play</span></button>
-                <button class="btn" data-i18n="btn_open">Open</button>
+                <button class="btn" data-i18n="btn_open">Details</button>
               </div>
             </div>
           </article>
@@ -936,8 +931,8 @@
               <span><strong data-i18n="lbl_last">Last Played:</strong> <span data-i18n="played_2w">2 weeks ago</span></span>
             </div>
             <div class="hero-actions">
-              <button class="btn btn-primary" style="padding:10px 22px; font-size:14.5px;">▶ <span data-i18n="btn_play_card">Play (Show Last-Time Card)</span></button>
-              <button class="btn" data-i18n="btn_set_exe">Change Executable</button>
+              <button class="btn btn-primary" style="padding:10px 26px; font-size:14.5px;">▶ <span data-i18n="btn_play">Play</span></button>
+              <button class="btn" style="padding:10px 14px;" title="More options (Change executable…)">⋯</button>
             </div>
           </div>
         </section>
@@ -1101,6 +1096,24 @@
               </div>
             </div>
           </div>
+
+          <div class="setting-group">
+            <div class="setting-group-head" data-i18n="set_grp_about">About & Privacy</div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name" data-i18n="about_bg">Zero background footprint</div>
+                <div class="setting-desc" data-i18n="about_bg_desc">No system tray icon, no Windows startup entry, and no background services. Closing the window exits Game Hub completely.</div>
+              </div>
+              <span class="kbd">v1.1.0</span>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-name" data-i18n="about_ac">Offline & Anti-Cheat Safe</div>
+                <div class="setting-desc" data-i18n="about_ac_desc">100% offline. Never injects, hooks, or reads game memory. Protected games default to Strict mode or auto-exit.</div>
+              </div>
+              <span class="kbd">MIT</span>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -1134,13 +1147,17 @@
               <div style="font-size:13.5px; line-height:1.5;" data-i18n="lt_note_body">Finished Novigrad docks quest with Triss. Next: craft Superior Swallow potion before sailing to Skellige.</div>
             </div>
 
+            <div style="font-size:13px; font-weight:700;" data-i18n="lt_moments_lbl">Last moments</div>
             <div class="carousel-box">
               <button class="btn" style="padding:8px 10px;">‹</button>
               <div class="carousel-img">
-                <span class="badge badge-source" data-i18n="lt_shot_lbl">Last Moment 8 / 10</span>
+                <span class="badge badge-source" data-i18n="lt_shot_lbl">Novigrad Harbor</span>
                 <span class="ltr-isolate">2026-11-08 22:14</span>
               </div>
               <button class="btn" style="padding:8px 10px;">›</button>
+            </div>
+            <div style="display:flex; justify-content:center; gap:6px; font-size:11px; color:var(--text-muted);">
+              <span>○</span><span>○</span><span>○</span><span style="color:var(--accent);">●</span><span>○</span>
             </div>
 
             <div style="font-size:12.5px; color:var(--text-secondary); display:flex; justify-content:space-between; align-items:center;">
@@ -1224,7 +1241,7 @@
       vanguard_tag: "Riot Vanguard",
       eac_tag: "Easy Anti-Cheat",
       btn_play: "Play",
-      btn_open: "Open",
+      btn_open: "Details",
       back_library: "Back to Library",
       strict_auto: "Strict Mode (Auto · Easy Anti-Cheat)",
       lbl_source: "Source:",
@@ -1321,7 +1338,7 @@
       vanguard_tag: "Riot Vanguard",
       eac_tag: "Easy Anti-Cheat",
       btn_play: "تشغيل",
-      btn_open: "فتح",
+      btn_open: "التفاصيل",
       back_library: "العودة للمكتبة",
       strict_auto: "الوضع الصارم (تلقائي · Easy Anti-Cheat)",
       lbl_source: "المصدر:",

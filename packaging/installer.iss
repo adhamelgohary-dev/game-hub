@@ -23,6 +23,10 @@ SolidCompression=yes
 CloseApplications=yes
 RestartApplications=no
 UninstallDisplayIcon={app}\GameHub.exe
+SetupIconFile=assets\GameHub.ico
+WizardStyle=modern
+WizardImageFile=assets\wizard-sidebar.bmp
+WizardSmallImageFile=assets\wizard-header.bmp
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

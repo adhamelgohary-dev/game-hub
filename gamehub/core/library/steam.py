@@ -91,7 +91,66 @@ def _single_executable(directory: Path) -> Path | None:
     return candidates[0] if candidates else None
 
 
-def _read_game(path: Path, app_id: str, steamapps: Path) -> DetectedGame | None:
+_COVER_CANDIDATES = (
+    "header.jpg",
+    "library_capsule.jpg",
+    "library_600x900.jpg",
+    "library_hero.jpg",
+    "header.png",
+    "library_600x900.png",
+)
+
+
+def _find_cover(steam_home: Path, app_id: str) -> Path | None:
+    """Locate Steam's locally cached cover art for an AppID without making network calls."""
+    cache_dir = local_path(steam_home / "appcache" / "librarycache")
+    if cache_dir is None or not cache_dir.is_dir():
+        return None
+
+    # 1. Flat layout: librarycache/<appid>_header.jpg, <appid>_library_600x900.jpg, ...
+    for name in _COVER_CANDIDATES:
+        candidate = contained_file(cache_dir, f"{app_id}_{name}")
+        if candidate is not None:
+            return candidate
+
+    # 2. Modern Steam per-AppID folder layout: librarycache/<appid>/header.jpg or hashed subdir
+    app_dir = local_path(cache_dir / app_id)
+    if app_dir is None or not app_dir.is_dir():
+        return None
+
+    for name in _COVER_CANDIDATES:
+        candidate = contained_file(app_dir, name)
+        if candidate is not None:
+            return candidate
+
+    # Check one level of hashed subdirectories used by recent Steam clients.
+    fallback: Path | None = None
+    try:
+        for index, child in enumerate(app_dir.iterdir()):
+            if index >= 64:
+                break
+            if child.is_dir():
+                for name in _COVER_CANDIDATES:
+                    candidate = contained_file(child, name)
+                    if candidate is not None:
+                        return candidate
+            elif (
+                fallback is None
+                and child.suffix.casefold() in {".jpg", ".jpeg", ".png", ".webp"}
+                and "blur" not in child.stem.casefold()
+                and child.stem.casefold() != "logo"
+            ):
+                safe = contained_file(app_dir, child.name)
+                if safe is not None:
+                    fallback = safe
+    except OSError:
+        return fallback
+    return fallback
+
+
+def _read_game(
+    path: Path, app_id: str, steamapps: Path, *, steam_home: Path | None = None
+) -> DetectedGame | None:
     manifest = _read_vdf(path).get("AppState")
     if not isinstance(manifest, dict) or manifest.get("appid") != app_id:
         raise ValueError("Steam application ID mismatch")
@@ -114,11 +173,13 @@ def _read_game(path: Path, app_id: str, steamapps: Path) -> DetectedGame | None:
         return None
     executable = _single_executable(directory)
     targets = (GameTarget("exe_path", os.path.normcase(str(executable))),) if executable else ()
+    cover_path = _find_cover(steam_home, app_id) if steam_home is not None else None
     return DetectedGame(
         GameSource.STEAM,
         app_id,
         name.strip(),
         directory,
+        cover_path=cover_path,
         launch_target=LaunchTarget("steam_uri", f"steam://rungameid/{app_id}"),
         targets=targets,
     )
@@ -166,7 +227,7 @@ class SteamDetector:
                             manifest = contained_file(directory, path.name)
                             if manifest is None:
                                 raise ValueError("Unsafe Steam manifest")
-                            game = _read_game(manifest, match[1], directory)
+                            game = _read_game(manifest, match[1], directory, steam_home=home)
                             if game is not None:
                                 games.setdefault(game.source_id, game)
                         except (OSError, ValueError, SyntaxError, OverflowError, RecursionError):

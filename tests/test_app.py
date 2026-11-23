@@ -6,7 +6,7 @@ from pathlib import Path
 import psutil
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
-from PySide6.QtWidgets import QApplication, QTableWidget
+from PySide6.QtWidgets import QApplication
 
 from gamehub import app as gamehub_app
 from gamehub.app import GameHubWindow
@@ -122,20 +122,23 @@ def test_library_manual_add_reaches_view_and_persists(app: QApplication, tmp_pat
     repository = LibraryRepository(Database(database_path))
     controller = LibraryController(window.library, LibraryService(repository, ()))
     events = QEventLoop(app)
-    table = window.library.findChild(QTableWidget)
-    table.model().rowsInserted.connect(events.quit)
+    poll = QTimer(events)
+    poll.setInterval(20)
+    poll.timeout.connect(lambda: events.quit() if window.library.cards() else None)
     deadline = QTimer(events)
     deadline.setSingleShot(True)
     deadline.timeout.connect(events.quit)
     try:
+        poll.start()
         deadline.start(3000)
         window.library.addRequested.emit(str(exe))
         events.exec()
-        assert table.rowCount() == 1
-        assert table.item(0, 0).text() == "Example Adventure"
+        assert len(window.library.cards()) == 1
+        assert window.library.cards()[0].accessibleName() == "Example Adventure"
         reopened = LibraryRepository(Database(database_path))
         assert reopened.list_games()[0].name == "Example Adventure"
     finally:
+        poll.stop()
         controller.close()
         window.close()
 

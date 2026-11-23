@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gamehub import __version__
 from gamehub.core.settings import (
     MAX_BUFFER_SIZE,
     MAX_CAPTURE_INTERVAL_SEC,
@@ -48,18 +49,19 @@ class SettingsView(QWidget):
         self._back = QPushButton(self)
         self._back.clicked.connect(self.backRequested)
         self._title = QLabel(self)
-        title_font = self._title.font()
-        title_font.setBold(True)
-        title_font.setPointSize(title_font.pointSize() + 2)
-        self._title.setFont(title_font)
+        self._title.setObjectName("pageTitle")
 
         header = QHBoxLayout()
+        header.setSpacing(12)
         header.addWidget(self._back)
         header.addWidget(self._title)
         header.addStretch()
 
         body = QWidget(self)
+        body.setObjectName("canvas")
         body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 4, 8, 12)
+        body_layout.setSpacing(14)
 
         # Language & Appearance group
         self._lang_group = QGroupBox(body)
@@ -185,6 +187,25 @@ class SettingsView(QWidget):
         data_layout.addWidget(self._make_error("data_location", self._data_group))
         body_layout.addWidget(self._data_group)
 
+        # About & Privacy group (zero-background + offline + anti-cheat guarantees)
+        self._about_group = QGroupBox(body)
+        about_layout = QVBoxLayout(self._about_group)
+        about_layout.setSpacing(8)
+        self._about_zero_bg = QLabel(self._about_group)
+        self._about_zero_bg.setTextFormat(Qt.TextFormat.PlainText)
+        self._about_zero_bg.setWordWrap(True)
+        self._about_anticheat = QLabel(self._about_group)
+        self._about_anticheat.setTextFormat(Qt.TextFormat.PlainText)
+        self._about_anticheat.setWordWrap(True)
+        self._about_version = QLabel(self._about_group)
+        self._about_version.setObjectName("mutedText")
+        self._about_version.setTextFormat(Qt.TextFormat.PlainText)
+        self._about_version.setWordWrap(True)
+        about_layout.addWidget(self._about_zero_bg)
+        about_layout.addWidget(self._about_anticheat)
+        about_layout.addWidget(self._about_version)
+        body_layout.addWidget(self._about_group)
+
         body_layout.addStretch()
 
         scroll = QScrollArea(self)
@@ -193,17 +214,21 @@ class SettingsView(QWidget):
         scroll.setWidget(body)
 
         self._status = QLabel(self)
+        self._status.setObjectName("mutedText")
         self._status.setTextFormat(Qt.TextFormat.PlainText)
         self._status.setWordWrap(True)
         self._status.hide()
 
         self._save = QPushButton(self)
+        self._save.setObjectName("primaryButton")
         self._save.clicked.connect(self._submit)
         footer = QHBoxLayout()
         footer.addWidget(self._status, stretch=1)
         footer.addWidget(self._save)
 
         root = QVBoxLayout(self)
+        root.setContentsMargins(24, 20, 24, 16)
+        root.setSpacing(12)
         root.addLayout(header)
         root.addWidget(scroll, stretch=1)
         root.addLayout(footer)
@@ -314,6 +339,23 @@ class SettingsView(QWidget):
         self._data_path_label.setAccessibleName(self.tr("Current data folder"))
         self._open_folder.setText(self.tr("&Open folder"))
         self._move_folder.setText(self.tr("&Move data folder…"))
+        self._about_group.setTitle(self.tr("About and privacy"))
+        self._about_zero_bg.setText(
+            self.tr(
+                "Zero background: no system tray, no start with Windows, and no background "
+                "services. Closing the main window exits Game Hub completely."
+            )
+        )
+        self._about_anticheat.setText(
+            self.tr(
+                "Offline and anti-cheat safe: all notes and screenshots stay on your PC. "
+                "Game Hub never injects, hooks, or reads game memory, and defaults protected "
+                "multiplayer games to Strict mode."
+            )
+        )
+        self._about_version.setText(
+            self.tr("Game Hub v{version} · MIT License").format(version=__version__)
+        )
         self._save.setText(self.tr("&Save settings"))
         if self._data_root != Path():
             self._data_path_label.setText(str(self._data_root))
@@ -324,6 +366,7 @@ class SettingsView(QWidget):
 
     def _make_error(self, key: str, parent: QWidget) -> QLabel:
         label = QLabel(parent)
+        label.setObjectName("errorBanner")
         label.setTextFormat(Qt.TextFormat.PlainText)
         label.setWordWrap(True)
         label.hide()

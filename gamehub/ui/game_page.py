@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QDateTime, QIODevice, QLocale, QSize, Qt, Signal
-from PySide6.QtGui import QImageReader, QPixmap, QResizeEvent
+from PySide6.QtGui import QAction, QImageReader, QPixmap, QResizeEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMenu,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
 from gamehub.core.library.models import GameSource, GameSummary
 from gamehub.core.storage.controls import ControlItem
 from gamehub.core.storage.memory import SessionCursor, TimelinePage, TimelineSession
+from gamehub.ui.covers import load_cover_pixmap
 from gamehub.ui.last_moments import LastMomentsDialog
 
 
@@ -61,6 +63,8 @@ def _decode_webp(encoded: bytes | None) -> QPixmap:
 class GamePage(QWidget):
     backRequested = Signal()
     playRequested = Signal(str)
+    assignExecutableRequested = Signal(str, str)
+    lastMomentsRequested = Signal(str)
     uploadControlImageRequested = Signal(str, str)
     saveControlTextRequested = Signal(str, str)
     loadMoreTimelineRequested = Signal(str, object)
@@ -91,48 +95,101 @@ class GamePage(QWidget):
         self._saving_control_text = False
         self._voice_buttons: dict[str, tuple[QPushButton, QPushButton]] = {}
 
-        # Header
+        # Top navigation bar
         self._back = QPushButton(self.tr("&Back to Library"), self)
         self._back.clicked.connect(self._go_back)
-        self._play = QPushButton(self.tr("&Play…"), self)
-        self._play.clicked.connect(self._request_play)
 
-        self._title = QLabel(self)
+        nav_row = QHBoxLayout()
+        nav_row.addWidget(self._back)
+        nav_row.addStretch()
+
+        # Hero card: real cover art, title, badge, summary, Play primary CTA, and overflow menu
+        self._hero_card = QFrame(self)
+        self._hero_card.setObjectName("heroCard")
+        hero_layout = QHBoxLayout(self._hero_card)
+        hero_layout.setContentsMargins(18, 16, 18, 16)
+        hero_layout.setSpacing(16)
+
+        self._cover = QLabel(self._hero_card)
+        self._cover.setFixedSize(148, 86)
+        self._cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hero_layout.addWidget(self._cover)
+
+        hero_text = QVBoxLayout()
+        hero_text.setSpacing(6)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(10)
+        self._title = QLabel(self._hero_card)
+        self._title.setObjectName("pageTitle")
         self._title.setTextFormat(Qt.TextFormat.PlainText)
         self._title.setWordWrap(True)
-        title_font = self._title.font()
-        title_font.setBold(True)
-        title_font.setPointSize(title_font.pointSize() + 2)
-        self._title.setFont(title_font)
+        self._mode_badge = QLabel(self._hero_card)
+        self._mode_badge.setObjectName("badgeFull")
+        self._mode_badge.setTextFormat(Qt.TextFormat.PlainText)
+        title_row.addWidget(self._title)
+        title_row.addWidget(self._mode_badge)
+        title_row.addStretch()
 
-        self._summary = QLabel(self)
+        self._summary = QLabel(self._hero_card)
+        self._summary.setObjectName("mutedText")
         self._summary.setTextFormat(Qt.TextFormat.PlainText)
         self._summary.setWordWrap(True)
+        hero_text.addLayout(title_row)
+        hero_text.addWidget(self._summary)
+        hero_text.addStretch()
+        hero_layout.addLayout(hero_text, stretch=1)
 
-        self._protection_label = QLabel(self.tr("Protection mode"), self)
-        self._protection_combo = QComboBox(self)
+        hero_actions = QHBoxLayout()
+        hero_actions.setSpacing(8)
+        self._play = QPushButton(self.tr("&Play…"), self._hero_card)
+        self._play.setObjectName("primaryButton")
+        self._play.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._play.clicked.connect(self._request_play)
+
+        self._overflow = QPushButton("⋯", self._hero_card)
+        self._overflow.setObjectName("overflowButton")
+        self._overflow.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._overflow.setAccessibleName(self.tr("More game options"))
+        self._overflow_menu = QMenu(self._overflow)
+        self._action_change_exe = QAction(self.tr("Change executable…"), self._overflow_menu)
+        self._action_change_exe.triggered.connect(self._pick_executable)
+        self._action_last_moments = QAction(self.tr("Last moments…"), self._overflow_menu)
+        self._action_last_moments.triggered.connect(self._request_last_moments)
+        self._overflow_menu.addAction(self._action_change_exe)
+        self._overflow_menu.addAction(self._action_last_moments)
+        self._overflow.setMenu(self._overflow_menu)
+
+        hero_actions.addWidget(self._play)
+        hero_actions.addWidget(self._overflow)
+        hero_layout.addLayout(hero_actions)
+
+        # Protection settings card
+        self._protection_card = QFrame(self)
+        self._protection_card.setObjectName("panelCard")
+        self._protection_bar = QHBoxLayout(self._protection_card)
+        self._protection_bar.setContentsMargins(16, 10, 16, 10)
+        self._protection_bar.setSpacing(12)
+        self._protection_label = QLabel(self.tr("Protection mode"), self._protection_card)
+        self._protection_label.setObjectName("sectionHeading")
+        self._protection_combo = QComboBox(self._protection_card)
         self._protection_combo.addItem("", "auto")
         self._protection_combo.addItem("", "strict")
         self._protection_combo.addItem("", "full")
         self._protection_combo.currentIndexChanged.connect(self._emit_protection)
         self._exit_after_launch = QCheckBox(
-            self.tr("Exit Game Hub after launching (ask for note next open)"), self
+            self.tr("Exit Game Hub after launching (ask for note next open)"),
+            self._protection_card,
         )
         self._exit_after_launch.toggled.connect(self._emit_protection)
         self._updating_protection = False
         self._auto_effective_strict = False
-        self._protection_bar = QHBoxLayout()
         self._protection_bar.addWidget(self._protection_label)
         self._protection_bar.addWidget(self._protection_combo)
         self._protection_bar.addWidget(self._exit_after_launch)
         self._protection_bar.addStretch()
 
-        header_actions = QHBoxLayout()
-        header_actions.addWidget(self._back)
-        header_actions.addStretch()
-        header_actions.addWidget(self._play)
-
         self._error = QLabel(self)
+        self._error.setObjectName("errorBanner")
         self._error.setTextFormat(Qt.TextFormat.PlainText)
         self._error.setWordWrap(True)
         self._error.hide()
@@ -143,10 +200,11 @@ class GamePage(QWidget):
         self._tabs.currentChanged.connect(lambda _index: self._fit_control_pixmap())
 
         layout = QVBoxLayout(self)
-        layout.addLayout(header_actions)
-        layout.addWidget(self._title)
-        layout.addWidget(self._summary)
-        layout.addLayout(self._protection_bar)
+        layout.setContentsMargins(24, 18, 24, 16)
+        layout.setSpacing(12)
+        layout.addLayout(nav_row)
+        layout.addWidget(self._hero_card)
+        layout.addWidget(self._protection_card)
         layout.addWidget(self._error)
         layout.addWidget(self._tabs, stretch=1)
         self._retranslate_protection_options()
@@ -182,10 +240,19 @@ class GamePage(QWidget):
             self.set_saving_control_text(False)
             self.reset_voice_state()
         self._title.setText(game.name)
+        self._cover.setPixmap(load_cover_pixmap(game.cover_path, game.name, 148, 86, radius=9))
+        self._action_change_exe.setVisible(game.source != GameSource.MANUAL)
+        self._action_change_exe.setEnabled(game.source != GameSource.MANUAL)
         self._update_summary(game)
         self._sync_protection_controls(game)
         self.present_controls(controls)
         self.present_timeline(timeline, append=False)
+
+    def _update_mode_badge(self, effective_strict: bool) -> None:
+        self._mode_badge.setObjectName("badgeStrict" if effective_strict else "badgeFull")
+        self._mode_badge.setText(self.tr("Strict") if effective_strict else self.tr("Full"))
+        self._mode_badge.style().unpolish(self._mode_badge)
+        self._mode_badge.style().polish(self._mode_badge)
 
     def _retranslate_protection_options(self) -> None:
         self._protection_label.setText(self.tr("Protection mode"))
@@ -211,6 +278,7 @@ class GamePage(QWidget):
                 or (game.protection_mode == "auto" and self._auto_effective_strict)
             )
             self._exit_after_launch.setVisible(effective_strict)
+            self._update_mode_badge(effective_strict)
         finally:
             self._updating_protection = False
 
@@ -220,6 +288,7 @@ class GamePage(QWidget):
         mode = str(self._protection_combo.currentData() or "auto")
         effective_strict = mode == "strict" or (mode == "auto" and self._auto_effective_strict)
         self._exit_after_launch.setVisible(effective_strict)
+        self._update_mode_badge(effective_strict)
         self.protectionChanged.emit(self._game.id, mode, self._exit_after_launch.isChecked())
 
     def _update_summary(self, game: GameSummary) -> None:
@@ -326,6 +395,9 @@ class GamePage(QWidget):
     def retranslate_ui(self) -> None:
         self._back.setText(self.tr("&Back to Library"))
         self._play.setText(self.tr("&Play…"))
+        self._overflow.setAccessibleName(self.tr("More game options"))
+        self._action_change_exe.setText(self.tr("Change executable…"))
+        self._action_last_moments.setText(self.tr("Last moments…"))
         self._tabs.setTabText(0, self.tr("Controls"))
         self._tabs.setTabText(1, self.tr("Timeline"))
         self._hint_label.setText(
@@ -349,6 +421,9 @@ class GamePage(QWidget):
         self._load_more.setText(self.tr("Load &more sessions"))
         self._retranslate_protection_options()
         if self._game is not None:
+            mode = str(self._protection_combo.currentData() or self._game.protection_mode)
+            effective_strict = mode == "strict" or (mode == "auto" and self._auto_effective_strict)
+            self._update_mode_badge(effective_strict)
             self._update_summary(self._game)
             self.present_controls(self._control_items)
             self._rebuild_timeline_widgets()
@@ -362,7 +437,10 @@ class GamePage(QWidget):
 
     def _build_controls_tab(self) -> QWidget:
         content = QWidget(self)
+        content.setObjectName("tabSurface")
         layout = QVBoxLayout(content)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
 
         self._hint_label = QLabel(
             self.tr(
@@ -420,6 +498,7 @@ class GamePage(QWidget):
         self._note_label.setBuddy(self._control_input)
 
         self._save_control_text = QPushButton(self.tr("&Save controls note"), content)
+        self._save_control_text.setObjectName("primaryButton")
         self._save_control_text.clicked.connect(self._submit_control_text)
         save_row = QHBoxLayout()
         save_row.addWidget(self._save_control_text)
@@ -440,7 +519,10 @@ class GamePage(QWidget):
 
     def _build_timeline_tab(self) -> QWidget:
         content = QWidget(self)
+        content.setObjectName("tabSurface")
         outer = QVBoxLayout(content)
+        outer.setContentsMargins(12, 12, 12, 12)
+        outer.setSpacing(10)
         self._timeline_list = QVBoxLayout()
         outer.addLayout(self._timeline_list)
 
@@ -473,8 +555,10 @@ class GamePage(QWidget):
 
     def _build_session_card(self, session: TimelineSession) -> QFrame:
         card = QFrame(self)
-        card.setFrameShape(QFrame.Shape.StyledPanel)
+        card.setObjectName("innerCard")
         layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(8)
 
         status_labels = {
             "completed": self.tr("Completed"),
@@ -648,6 +732,23 @@ class GamePage(QWidget):
         self.clear_error()
         self.set_saving_control_text(True)
         self.saveControlTextRequested.emit(self._game.id, text)
+
+    def _pick_executable(self) -> None:
+        if self._game is None or self._game.source == GameSource.MANUAL:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Choose game executable"),
+            "",
+            self.tr("Windows executables (*.exe)"),
+        )
+        if path:
+            self.clear_error()
+            self.assignExecutableRequested.emit(self._game.id, path)
+
+    def _request_last_moments(self) -> None:
+        if self._game is not None:
+            self.lastMomentsRequested.emit(self._game.id)
 
     def _request_play(self) -> None:
         if self._game is not None:

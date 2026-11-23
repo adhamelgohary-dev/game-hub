@@ -1,8 +1,8 @@
 import os
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QFileDialog
@@ -22,36 +22,71 @@ def library(monkeypatch: pytest.MonkeyPatch):
     app.processEvents()
 
 
-def test_library_displays_read_only_rows_and_empty_state(library: LibraryView, tmp_path: Path) -> None:
-    game = GameSummary(
+def test_library_displays_cover_cards_empty_state_and_filters(
+    library: LibraryView, tmp_path: Path
+) -> None:
+    cover = tmp_path / "cover.jpg"
+    Image.new("RGB", (460, 215), (30, 120, 200)).save(cover, format="JPEG")
+    full_game = GameSummary(
         id="steam-example",
         name="A <Game>",
         source=GameSource.STEAM,
         install_dir=tmp_path,
-        cover_path=None,
+        cover_path=cover,
         last_played=None,
         total_playtime=3661,
         installed=True,
         launch_target=None,
-        tracking=False,
+        tracking=True,
+        protection_mode="full",
+    )
+    strict_game = GameSummary(
+        id="strict-example",
+        name="Tactical Arena",
+        source=GameSource.EPIC,
+        install_dir=tmp_path,
+        cover_path=None,
+        last_played=1_000_000,
+        total_playtime=120,
+        installed=True,
+        launch_target=None,
+        tracking=True,
+        protection_mode="strict",
     )
     assert library._empty.isVisible()
-    library.present_games([game])
-    table = library._table
-    assert table.isVisible()
-    assert table.rowCount() == 1
-    assert [table.item(0, column).text() for column in range(table.columnCount())] == [
-        "A <Game>", "Steam · Assign executable", str(tmp_path), "Never", "1 h 1 min",
-    ]
-    assert not table.item(0, 0).flags() & Qt.ItemFlag.ItemIsEditable
-    assert "&lt;Game&gt;" in table.item(0, 0).toolTip()
-    library.present_games([replace(game, tracking=True)])
-    assert table.item(0, 1).text() == "Steam"
+    library.present_games([full_game, strict_game])
+    assert library._scroll.isVisible()
+    assert len(library.cards()) == 2
+    assert "&lt;Game&gt;" in library.cards()[0].toolTip()
+    assert not library.cards()[0]._cover.pixmap().isNull()
+    assert not library.cards()[1]._cover.pixmap().isNull()
+    assert library.cards()[0]._details_btn.text() == "Details"
+    assert library.cards()[0]._play_btn.text() == "Play"
+
+    # Filter chips filter between All, Full, and Strict
+    library._chip_strict.click()
+    assert [card.game_id for card in library.cards()] == ["strict-example"]
+    library._chip_full.click()
+    assert [card.game_id for card in library.cards()] == ["steam-example"]
+    library._chip_all.click()
+    assert len(library.cards()) == 2
+
+    # Search filters by name case-insensitively
+    library._search.setText("tactical")
+    assert [card.game_id for card in library.cards()] == ["strict-example"]
+    library._search.setText("nonexistent")
+    assert library.cards() == ()
+    assert library._empty.isVisible()
+    library._search.clear()
+    assert len(library.cards()) == 2
+
     library.present_games([])
     assert library._empty.isVisible()
 
 
-def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_library_card_signals_click_and_keyboard(
+    library: LibraryView, monkeypatch: pytest.MonkeyPatch
+) -> None:
     path = "C:/Games/Example.exe"
     game = GameSummary(
         id="epic-example",
@@ -66,12 +101,10 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
         tracking=False,
     )
     events = []
-    picked = iter(["", path, path])
+    picked = iter(["", path])
     monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *_args: (next(picked), ""))
     library.refreshRequested.connect(lambda: events.append("refresh"))
     library.addRequested.connect(lambda selection: events.append(("add", selection)))
-    library.assignRequested.connect(lambda game_id, selection: events.append((game_id, selection)))
-    library.lastMomentsRequested.connect(lambda game_id: events.append(("moments", game_id)))
     library.playRequested.connect(lambda game_id: events.append(("play", game_id)))
     library.gameOpened.connect(lambda game_id: events.append(("open", game_id)))
 
@@ -80,29 +113,24 @@ def test_library_signals_and_selection(library: LibraryView, monkeypatch: pytest
     assert events == ["refresh"]
     library._add.click()
     library.present_games([game])
-    assert not library._play.isEnabled()
-    assert not library._open_game.isEnabled()
-    assert not library._assign.isEnabled()
-    assert not library._last_moments.isEnabled()
     assert library.selected_game() is None
-    assert library._table.item(0, 3).text() != "Never"
-    library._table.selectRow(0)
+    assert len(library.cards()) == 1
+    card = library.cards()[0]
+
+    # Clicking Play and Details buttons emits signals and selects the card
+    card._play_btn.click()
     assert library.selected_game() == game.id
-    library.present_games([game])
-    library._play.click()
-    library._table.setFocus()
-    QTest.keyClick(library._table, Qt.Key.Key_Return)
-    library._open_game.click()
-    library._assign.click()
-    QTest.keyClick(library._last_moments, Qt.Key.Key_Space)
+    card._details_btn.click()
+    # Whole card is clickable and keyboard-activatable
+    QTest.mouseClick(card, Qt.MouseButton.LeftButton)
+    QTest.keyClick(card, Qt.Key.Key_Return)
     assert events == [
         "refresh",
         ("add", path),
         ("play", game.id),
-        ("play", game.id),
         ("open", game.id),
-        (game.id, path),
-        ("moments", game.id),
+        ("open", game.id),
+        ("open", game.id),
     ]
 
 

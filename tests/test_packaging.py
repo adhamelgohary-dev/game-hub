@@ -93,6 +93,12 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert (root / "docs" / "SIGNPATH-APPLICATION.md").is_file()
     assert (root / "packaging" / "version_info.txt").is_file()
     assert (root / "packaging" / "GameHub.manifest").is_file()
+    for asset in ("GameHub.ico", "GameHub.png", "wizard-sidebar.bmp", "wizard-header.bmp"):
+        assert (root / "packaging" / "assets" / asset).is_file(), f"Missing asset {asset}"
+    assert "GameHub.ico" in spec_text and "GameHub.png" in spec_text
+    assert "SetupIconFile=assets\\GameHub.ico" in installer_text
+    assert "WizardImageFile=assets\\wizard-sidebar.bmp" in installer_text
+    assert "WizardSmallImageFile=assets\\wizard-header.bmp" in installer_text
     assert (root / "docs" / "USER-GUIDE-AR.md").is_file()
     workflow_text = (root / ".github" / "workflows" / "windows.yml").read_text(encoding="utf-8")
     assert "SIGNPATH_ENABLED" in workflow_text

@@ -63,6 +63,24 @@ def _identifier(value: object) -> str | None:
     return value if isinstance(value, str) and _IDENTIFIER.fullmatch(value) else None
 
 
+_EPIC_COVER_FILES = (
+    "header.jpg",
+    "cover.jpg",
+    "cover.png",
+    "banner.jpg",
+    "boxart.jpg",
+    "boxart.png",
+)
+
+
+def _find_epic_cover(install_dir: Path) -> Path | None:
+    for name in _EPIC_COVER_FILES:
+        candidate = contained_file(install_dir, name)
+        if candidate is not None:
+            return candidate
+    return None
+
+
 def _read_manifest(manifest: Path) -> DetectedGame | None:
     with manifest.open("rb") as infile:
         content = infile.read(_MAX_MANIFEST_BYTES + 1)
@@ -109,4 +127,7 @@ def _read_manifest(manifest: Path) -> DetectedGame | None:
     else:
         raise ValueError("Invalid Epic catalog identity")
     launch = LaunchTarget("epic_uri", f"com.epicgames.launcher://apps/{artifact}?action=launch&silent=true")
-    return DetectedGame(GameSource.EPIC, app_name, display_name.strip(), install_dir, None, launch, targets)
+    cover_path = _find_epic_cover(install_dir)
+    return DetectedGame(
+        GameSource.EPIC, app_name, display_name.strip(), install_dir, cover_path, launch, targets
+    )

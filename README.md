@@ -2,7 +2,11 @@
 
 Pick up any Windows PC game after a break with the voice/text notes, recent screenshots, playtime, and pinned controls you saved last time — **100% offline, zero background processes, and anti-cheat safe**.
 
-![Game Hub Library (Dark)](docs/design/mockups/library-dark-en.png)
+![Game Hub Library (Dark)](docs/screenshots/library-dark-en.png)
+
+| Game page | Light theme | Arabic RTL |
+| --- | --- | --- |
+| ![Game Page](docs/screenshots/game-page-dark-en.png) | ![Library Light](docs/screenshots/library-light-en.png) | ![Library Arabic RTL](docs/screenshots/library-dark-ar-rtl.png) |
 
 ## Features
 

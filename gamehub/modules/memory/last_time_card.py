@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 )
 
 from gamehub.core.storage.memory import LastTimeData
+from gamehub.ui.covers import load_cover_pixmap
 
 
 def _format_timestamp(utc_ms: int) -> str:
@@ -73,11 +74,18 @@ def _decode_preview(encoded: bytes | None) -> QPixmap:
 
 def _section_heading(text: str, parent: QWidget) -> QLabel:
     label = QLabel(text, parent)
+    label.setObjectName("sectionHeading")
     label.setTextFormat(Qt.TextFormat.PlainText)
-    font = label.font()
-    font.setBold(True)
-    label.setFont(font)
     return label
+
+
+def _card_frame(parent: QWidget) -> tuple[QFrame, QVBoxLayout]:
+    frame = QFrame(parent)
+    frame.setObjectName("panelCard")
+    layout = QVBoxLayout(frame)
+    layout.setContentsMargins(14, 12, 14, 12)
+    layout.setSpacing(8)
+    return frame, layout
 
 
 class LastTimeCard(QDialog):
@@ -122,57 +130,79 @@ class LastTimeCard(QDialog):
         )
 
         body = QWidget(self)
+        body.setObjectName("canvas")
         body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(6, 6, 10, 8)
+        body_layout.setSpacing(12)
 
-        title = QLabel(body)
+        # Header card with real game cover art
+        header_card = QFrame(body)
+        header_card.setObjectName("heroCard")
+        header_row = QHBoxLayout(header_card)
+        header_row.setContentsMargins(14, 12, 14, 12)
+        header_row.setSpacing(14)
+
+        cover = QLabel(header_card)
+        cover.setFixedSize(112, 64)
+        cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cover.setPixmap(load_cover_pixmap(data.cover_path, data.game_name, 112, 64, radius=8))
+        header_row.addWidget(cover)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(4)
+        title = QLabel(header_card)
+        title.setObjectName("pageTitle")
         title.setTextFormat(Qt.TextFormat.PlainText)
         title.setWordWrap(True)
         title.setText(data.game_name)
-        title_font = title.font()
-        title_font.setBold(True)
-        title_font.setPointSize(title_font.pointSize() + 2)
-        title.setFont(title_font)
 
-        self._summary = QLabel(self._build_summary(data), body)
+        self._summary = QLabel(self._build_summary(data), header_card)
+        self._summary.setObjectName("mutedText")
         self._summary.setTextFormat(Qt.TextFormat.PlainText)
         self._summary.setWordWrap(True)
-
-        body_layout.addWidget(title)
-        body_layout.addWidget(self._summary)
+        title_col.addWidget(title)
+        title_col.addWidget(self._summary)
+        header_row.addLayout(title_col, stretch=1)
+        body_layout.addWidget(header_card)
 
         # Voice note section
-        body_layout.addWidget(_section_heading(self.tr("Voice note"), body))
-        self._voice_status = QLabel(self._default_voice_status(), body)
+        voice_card, voice_layout = _card_frame(body)
+        voice_layout.addWidget(_section_heading(self.tr("Voice note"), voice_card))
+        self._voice_status = QLabel(self._default_voice_status(), voice_card)
+        self._voice_status.setObjectName("mutedText")
         self._voice_status.setTextFormat(Qt.TextFormat.PlainText)
         self._voice_status.setWordWrap(True)
-        body_layout.addWidget(self._voice_status)
+        voice_layout.addWidget(self._voice_status)
 
-        self._play_voice = QPushButton(self.tr("&Play voice note"), body)
+        self._play_voice = QPushButton(self.tr("&Play voice note"), voice_card)
         self._play_voice.setAccessibleName(self.tr("Play voice note"))
         self._play_voice.clicked.connect(self.playVoiceRequested)
-        self._stop_voice = QPushButton(self.tr("&Stop"), body)
+        self._stop_voice = QPushButton(self.tr("&Stop"), voice_card)
         self._stop_voice.setAccessibleName(self.tr("Stop voice note"))
         self._stop_voice.clicked.connect(self.stopVoiceRequested)
-        self._autoplay = QCheckBox(self.tr("Autoplay voice notes"), body)
+        self._autoplay = QCheckBox(self.tr("Autoplay voice notes"), voice_card)
         self._autoplay.setChecked(autoplay_enabled)
         self._autoplay.toggled.connect(self.autoplayToggled)
 
         voice_controls = QHBoxLayout()
+        voice_controls.setSpacing(8)
         voice_controls.addWidget(self._play_voice)
         voice_controls.addWidget(self._stop_voice)
         voice_controls.addWidget(self._autoplay)
         voice_controls.addStretch()
-        body_layout.addLayout(voice_controls)
+        voice_layout.addLayout(voice_controls)
+        body_layout.addWidget(voice_card)
 
         # Text note section
+        text_card, text_layout = _card_frame(body)
         text_heading = self.tr("Text note")
         if data.text_note is not None:
             text_heading = self.tr("Text note · {date}").format(
                 date=_format_timestamp(data.text_note.created_at)
             )
-        body_layout.addWidget(_section_heading(text_heading, body))
+        text_layout.addWidget(_section_heading(text_heading, text_card))
         if data.text_note is not None:
-            self._text_note: QWidget = QPlainTextEdit(body)
+            self._text_note: QWidget = QPlainTextEdit(text_card)
             self._text_note.setReadOnly(True)
             self._text_note.setTextInteractionFlags(
                 Qt.TextInteractionFlag.TextSelectableByMouse
@@ -184,44 +214,69 @@ class LastTimeCard(QDialog):
             self._text_note.setMinimumHeight(64)
             self._text_note.setMaximumHeight(120)
         else:
-            self._text_note = QLabel(self.tr("No text note saved yet."), body)
+            self._text_note = QLabel(self.tr("No text note saved yet."), text_card)
+            self._text_note.setObjectName("mutedText")
             self._text_note.setTextFormat(Qt.TextFormat.PlainText)
             self._text_note.setWordWrap(True)
-        body_layout.addWidget(self._text_note)
+        text_layout.addWidget(self._text_note)
+        body_layout.addWidget(text_card)
 
-        # Last moments carousel
-        body_layout.addWidget(_section_heading(self.tr("Last moments"), body))
-        self._preview = QLabel(body)
+        # Last moments carousel (arrows flanking preview + pagination dots, zero technical labels)
+        moments_card, moments_layout = _card_frame(body)
+        moments_header = QHBoxLayout()
+        moments_header.addWidget(_section_heading(self.tr("Last moments"), moments_card))
+        moments_header.addStretch()
+        self._position = QLabel(moments_card)
+        self._position.setObjectName("mutedText")
+        self._position.setTextFormat(Qt.TextFormat.PlainText)
+        moments_header.addWidget(self._position)
+        moments_layout.addLayout(moments_header)
+
+        self._previous = QPushButton("‹", moments_card)
+        self._previous.setAccessibleName(self.tr("Previous screenshot"))
+        self._previous.setFixedWidth(36)
+        self._previous.clicked.connect(self._go_previous)
+
+        self._preview = QLabel(moments_card)
         self._preview.setAccessibleName(self.tr("Last moment screenshot preview"))
         self._preview.setTextFormat(Qt.TextFormat.PlainText)
         self._preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._preview.setWordWrap(True)
         self._preview.setFrameShape(QFrame.Shape.StyledPanel)
-        self._preview.setMinimumSize(320, 180)
+        self._preview.setMinimumSize(280, 185)
         self._preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
-        body_layout.addWidget(self._preview)
 
-        self._previous = QPushButton(self.tr("&Previous"), body)
-        self._previous.setAccessibleName(self.tr("Previous screenshot"))
-        self._previous.clicked.connect(self._go_previous)
-        self._next = QPushButton(self.tr("&Next"), body)
+        self._next = QPushButton("›", moments_card)
         self._next.setAccessibleName(self.tr("Next screenshot"))
+        self._next.setFixedWidth(36)
         self._next.clicked.connect(self._go_next)
-        self._position = QLabel(body)
-        self._position.setTextFormat(Qt.TextFormat.PlainText)
-        self._position.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        carousel = QHBoxLayout()
-        carousel.addWidget(self._previous)
-        carousel.addWidget(self._position, stretch=1)
-        carousel.addWidget(self._next)
-        body_layout.addLayout(carousel)
+        carousel_stage = QHBoxLayout()
+        carousel_stage.setSpacing(8)
+        carousel_stage.addWidget(self._previous)
+        carousel_stage.addWidget(self._preview, stretch=1)
+        carousel_stage.addWidget(self._next)
+        moments_layout.addLayout(carousel_stage)
+
+        self._dots_row = QHBoxLayout()
+        self._dots_row.setSpacing(6)
+        self._dots_row.addStretch()
+        self._dots: list[QLabel] = []
+        for _ in self._paths:
+            dot = QLabel("●", moments_card)
+            dot.setObjectName("carouselDot")
+            self._dots.append(dot)
+            self._dots_row.addWidget(dot)
+        self._dots_row.addStretch()
+        moments_layout.addLayout(self._dots_row)
+        body_layout.addWidget(moments_card)
 
         # Controls preview
-        body_layout.addWidget(_section_heading(self.tr("Controls"), body))
+        controls_card, controls_layout = _card_frame(body)
+        controls_layout.addWidget(_section_heading(self.tr("Controls"), controls_card))
         self._control_preview: QLabel | None = None
         if self._control_images:
-            self._control_preview = QLabel(body)
+            self._control_preview = QLabel(controls_card)
             self._control_preview.setAccessibleName(self.tr("Pinned controls preview"))
             self._control_preview.setTextFormat(Qt.TextFormat.PlainText)
             self._control_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -229,7 +284,7 @@ class LastTimeCard(QDialog):
             self._control_preview.setFrameShape(QFrame.Shape.StyledPanel)
             self._control_preview.setMinimumSize(280, 140)
             self._control_preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
-            body_layout.addWidget(self._control_preview)
+            controls_layout.addWidget(self._control_preview)
         controls_text = (
             "\n".join(data.controls)
             if data.controls
@@ -239,10 +294,11 @@ class LastTimeCard(QDialog):
                 else self.tr("No controls pinned yet.")
             )
         )
-        self._controls = QLabel(controls_text, body)
+        self._controls = QLabel(controls_text, controls_card)
         self._controls.setTextFormat(Qt.TextFormat.PlainText)
         self._controls.setWordWrap(True)
-        body_layout.addWidget(self._controls)
+        controls_layout.addWidget(self._controls)
+        body_layout.addWidget(controls_card)
 
         self._exit_after_play: QCheckBox | None = None
         if allow_launch:
@@ -258,6 +314,7 @@ class LastTimeCard(QDialog):
                 ),
                 body,
             )
+            hint.setObjectName("mutedText")
             hint.setTextFormat(Qt.TextFormat.PlainText)
             hint.setWordWrap(True)
             body_layout.addWidget(hint)
@@ -274,6 +331,7 @@ class LastTimeCard(QDialog):
         self._scroll = scroll
 
         self._error = QLabel(self)
+        self._error.setObjectName("errorBanner")
         self._error.setTextFormat(Qt.TextFormat.PlainText)
         self._error.setWordWrap(True)
         self._error.hide()
@@ -284,6 +342,7 @@ class LastTimeCard(QDialog):
             self._launch = actions.addButton(
                 self.tr("&Launch"), QDialogButtonBox.ButtonRole.AcceptRole
             )
+            self._launch.setObjectName("primaryButton")
             self._launch.setAutoDefault(False)
             self._launch.clicked.connect(self.launchRequested)
         self._close = actions.addButton(self.tr("&Close"), QDialogButtonBox.ButtonRole.RejectRole)
@@ -291,6 +350,8 @@ class LastTimeCard(QDialog):
         actions.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 14)
+        layout.setSpacing(10)
         layout.addWidget(scroll, stretch=1)
         layout.addWidget(self._error)
         layout.addWidget(actions)
@@ -396,7 +457,7 @@ class LastTimeCard(QDialog):
         self._fit_picture()
 
     def _apply_initial_size(self) -> None:
-        width, height = 540, 620
+        width, height = 620, 700
         screen = self.screen() or QGuiApplication.primaryScreen()
         if screen is not None:
             available = screen.availableGeometry()
@@ -462,6 +523,12 @@ class LastTimeCard(QDialog):
         total = len(self._paths)
         self._previous.setEnabled(self._index > 0)
         self._next.setEnabled(self._index < total - 1)
+        for idx, dot in enumerate(self._dots):
+            active = idx == self._index
+            dot.setText("●" if active else "○")
+            dot.setProperty("active", active)
+            dot.style().unpolish(dot)
+            dot.style().polish(dot)
         if not total:
             self._position.setText("")
             self._preview.setPixmap(QPixmap())

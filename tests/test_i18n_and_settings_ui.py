@@ -15,6 +15,7 @@ from gamehub.core.library.models import GameSource, GameSummary
 from gamehub.core.settings import SettingsSnapshot
 from gamehub.core.storage.memory import TimelinePage
 from gamehub.ui.settings_view import SettingsView
+from gamehub.ui.theme import apply_theme
 
 
 def _placeholders(template: str) -> set[str]:
@@ -93,12 +94,20 @@ def test_language_switch_updates_layout_direction_and_surfaces(
         assert window.settings_view._title.text() == "الإعدادات"
         assert window.statusBar().currentMessage() == "في انتظار تشغيل الألعاب"
         assert "إجمالي وقت اللعب" in window.game_page._summary.text()
-        assert window.library._table.item(0, 2).text() == str(tmp_path)
+        assert window.library.cards()[0]._details_btn.text() == "التفاصيل"
+        assert window.game_page._action_change_exe.text() == "تغيير الملف التنفيذي…"
+        assert window.settings_view._about_group.title() == "حول البرنامج والخصوصية"
         assert window.settings_view._data_path_label.text() == str(tmp_path)
         assert (
             window.settings_view._data_path_label.layoutDirection()
             == Qt.LayoutDirection.LeftToRight
         )
+
+        # Theme switching updates live stylesheet and app property.
+        assert apply_theme(app, "light") == "light"
+        assert app.property("gamehub_theme") == "light"
+        assert apply_theme(app, "dark") == "dark"
+        assert app.property("gamehub_theme") == "dark"
 
         # Switching back to English restores LTR, English locale, and English labels.
         apply_language(app, "en")

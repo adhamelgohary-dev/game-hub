@@ -58,6 +58,8 @@ analysis = Analysis(
             str(root / 'gamehub' / 'core' / 'protection' / 'protected_games.json'),
             'gamehub/core/protection',
         ),
+        (str(root / 'packaging' / 'assets' / 'GameHub.png'), 'assets'),
+        (str(root / 'packaging' / 'assets' / 'GameHub.ico'), 'assets'),
     ],
 )
 # The app declares a Windows x64 target and uses the Windows default input.
@@ -77,6 +79,7 @@ exe = EXE(
     name='GameHub',
     console=False,
     upx=False,
+    icon=str(root / 'packaging' / 'assets' / 'GameHub.ico'),
     version=str(root / 'packaging' / 'version_info.txt'),
     manifest=str(root / 'packaging' / 'GameHub.manifest'),
 )
