@@ -6,15 +6,17 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Execute **M12b (Parts F & G — Release cleanup + `v1.1.0-rc.1`)** `[complex]`:
-1. Create GitHub Release `v1.0.0` at `m8`'s commit with `GameHub-Setup-v1.0.0.exe`, `GameHub-Portable-v1.0.0.zip`, and `SHA256SUMS.txt`, then delete GitHub Release entries `m0–m8` (preserving all git tags `m0–m8`).
-2. Bump `gamehub/__init__.py` to `__version__ = "1.1.0-rc.1"`, update `CHANGELOG.md` (`## v1.1.0-rc.1` with Added/Changed/Fixed/Security) and `tests/test_packaging.py`, run tests + Review Council (`docs/reviews/M12b-review.md`), commit, push `main`, and push tag `v1.1.0-rc.1`.
-3. Wait for Windows CI to publish `Game Hub v1.1.0-rc.1`, download and verify `GameHub-Setup-v1.1.0-rc.1.exe` against `SHA256SUMS.txt`, copy it to `%USERPROFILE%\Desktop\`, and deliver the 10-item Egyptian Arabic test checklist to the owner.
-4. **M13 (Part G — Final `v1.1.0`)** `[simple]`: After owner replies `"verified"`, bump `__version__ = "1.1.0"`, update `CHANGELOG.md`, tag and publish `v1.1.0`.
+Wait for owner verification at **Owner Gate 2** (after testing `GameHub-Setup-v1.1.0-rc.1.exe` on Desktop):
+- If the owner reports any bug or polish request on `v1.1.0-rc.1`: fix it with small commits, add regression tests, bump to `v1.1.0-rc.2`, publish, and repeat.
+- Once the owner replies `"verified"`, execute **M13 (Part G — Final `v1.1.0`)** `[simple]`:
+  1. Update `gamehub/__init__.py` → `__version__ = "1.1.0"`, `tests/test_packaging.py` version assertion, and `CHANGELOG.md` (`## v1.1.0` with `Added`, `Changed`, `Fixed`, `Security`).
+  2. Run full `pytest -q`, `ruff check .`, `gitleaks`, and record `docs/reviews/M13-review.md`.
+  3. Update `PROGRESS.md`, `HANDOFF.md`, `LEARNING.md`, commit and push `main`.
+  4. Tag `v1.1.0` and push tag `v1.1.0` so Windows CI builds and publishes the final `Game Hub v1.1.0` release (non-prerelease).
 
 ## In progress
 
-`M11` (Fluent UI redesign, real local cover art, icon & installer branding, real screenshots) is complete, reviewed (`docs/reviews/M11-review.md`), and ready to commit and tag `m11`. Continuing immediately into `M12b`.
+Paused cleanly on green `main` at **Owner Gate 2** awaiting owner's `"verified"` reply after testing `GameHub-Setup-v1.1.0-rc.1.exe`. All v1.1 implementation milestones (`D-v1.1`, `M9`, `M10`, `M11`, `M12a`, `M12b`) are complete, reviewed, committed, and pushed. Repository is **PUBLIC** and GitHub Releases contain only `v1.0.0` and pre-release `v1.1.0-rc.1`.
 
 ## Fragile spots
 

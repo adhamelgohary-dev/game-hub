@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.1.0-rc.1
+
+### Added
+- **Zero-background lifecycle:** Closing the main window exits Game Hub completely (no system tray, no Windows startup entry, no background services or helper processes). Upgrading over v1.0 automatically removes the legacy `HKCU\...\Run\GameHub` startup value (both in Inno Setup and on portable startup).
+- **Anti-cheat safe Strict mode & protected-games catalog:** Ships an updatable catalog (`protected_games.json`) covering 34+ protected games (Valorant, League of Legends, Fortnite, Apex Legends, Call of Duty, Rainbow Six Siege, PUBG, Rust, EA SPORTS FC, CS2, Deadlock, Elden Ring, and more) plus cited anti-cheat research (`docs/research/anti-cheat.md`).
+- **Game-aware Play-through flow & forgetful-case safeguard:** Launching via **Play** shows the Last-time card, minimizes Game Hub during play, offers the optional note prompt on exit (or next open when "Exit Game Hub after launching" is checked), and passively detects externally launched protected games via Toolhelp basenames (auto-exiting Game Hub by default, configurable to Strict mode or a passive Windows notification).
+- **Windows 11 Fluent UI redesign:** Dark, Light, and System themes with live switching, persistent sidebar navigation, responsive cover-art Library card grid with search and All/Full/Strict filter chips, real local Steam/Epic cover art discovery with stylized fallbacks, clickable cards + **Details**, Game page `⋯` overflow menu, Last-time **"Last moments"** image carousel with arrows and pagination dots, **Settings → About and privacy**, full Arabic RTL parity, custom app icon (`GameHub.ico`), and Inno Setup wizard branding.
+- **Public open-source release readiness:** MIT `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, embedded Windows EXE version metadata & manifest (`asInvoker`, `PerMonitorV2`), SemVer GitHub Releases with `SHA256SUMS.txt`, and SignPath Foundation application & CI signing scaffolding (`docs/SIGNPATH-APPLICATION.md`).
+
+### Changed
+- Upgraded local SQLite database to Schema v5 (`games.protection_mode`, `games.exit_after_launch`, `pending_notes`) with automatic pre-upgrade backup (`gamehub.db-v4.bak`).
+- Switched Windows Graphics Capture to borderless mode (`draw_border=False`) on supported Windows 11 builds (20348+) with automatic cached fallback.
+- Consolidated pre-SemVer milestone GitHub Releases (`m0–m8`) into `v1.0.0` while preserving all historical git tags.
+
+### Fixed
+- Eliminated horizontal card clipping on narrow/standard Library widths and fixed dark-mode `QTabWidget` scroll container contrast on the Game page.
+- Prevented native WinRT `draw_border=False` async thread errors from failing screenshots on unsupported Windows builds.
+
+### Security
+- Verified zero secrets or personal data across full git history (`gitleaks 8.30.1` + blob audit) prior to publishing the repository.
+- Guaranteed zero `OpenProcess` calls on protected or Strict-mode games (Toolhelp basename-only passive detection), zero game injection/hooks/memory reads, and 100% offline operation enforced by static AST tests.
+
 ## m8
 
 - Release Game Hub v1.0.0 for Windows 10/11 x64 as a per-user installer (`GameHub-Setup.exe`) and portable bundle (`GameHub-Windows-x64.zip`).

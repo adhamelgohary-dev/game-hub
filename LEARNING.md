@@ -131,3 +131,11 @@ Styling a Qt desktop app cleanly with QSS requires watching two subtle widget de
 Read [theme.py](gamehub/ui/theme.py), [covers.py](gamehub/ui/covers.py), [library_view.py](gamehub/ui/library_view.py), [game_page.py](gamehub/ui/game_page.py), and [last_time_card.py](gamehub/modules/memory/last_time_card.py).
 
 Try it yourself. Switch the theme between Dark and Light and the language between English and Arabic in **Settings** and watch `apply_theme` and `apply_language` re-polish every card, badge, and RTL sidebar live without restarting.
+
+## M12b — SemVer releases, checksums, and release-candidate gates
+
+Shipping a public desktop release safely separates internal milestone git tags (`m0–m11`) from public SemVer GitHub Releases (`v1.0.0`, `v1.1.0-rc.1`, `v1.1.0`). Publishing a pre-release (`-rc.1`) first triggers the exact Windows CI packaging, upgrade, uninstall, and checksum pipeline (`SHA256SUMS.txt`) so real-machine verification happens on the identical installer binary users will download before promoting to a final release.
+
+Read [CHANGELOG.md](CHANGELOG.md), [windows.yml](.github/workflows/windows.yml), [installer.iss](packaging/installer.iss), and [M12b-review.md](docs/reviews/M12b-review.md).
+
+Try it yourself. Run `Get-FileHash GameHub-Setup-v1.1.0-rc.1.exe -Algorithm SHA256` in PowerShell and compare the output against the corresponding line in `SHA256SUMS.txt` from the GitHub Release.
