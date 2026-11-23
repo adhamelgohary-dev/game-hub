@@ -50,6 +50,27 @@ def test_bundled_protected_games_catalog_and_override(tmp_path: Path) -> None:
     assert catalog.effective_mode("auto", GameSource.STEAM, "999999") == "full"
     assert catalog.effective_mode("strict", GameSource.STEAM, "999999") == "strict"
 
+    # EAC FromSoftware / co-op titles default to Strict; Dark Souls III (no EAC) stays Full.
+    assert catalog.effective_mode("auto", GameSource.STEAM, "1245620") == "strict"
+    assert catalog.effective_mode("auto", GameSource.MANUAL, "m-er", ("eldenring.exe",)) == "strict"
+    assert (
+        catalog.effective_mode("auto", GameSource.MANUAL, "m-eac", ("start_protected_game.exe",))
+        == "strict"
+    )
+    assert catalog.effective_mode("auto", GameSource.STEAM, "2622380") == "strict"
+    assert catalog.effective_mode("auto", GameSource.MANUAL, "m-nr", ("nightreign.exe",)) == "strict"
+    assert catalog.effective_mode("auto", GameSource.STEAM, "1888160") == "strict"
+    assert (
+        catalog.effective_mode("auto", GameSource.MANUAL, "m-ac6", ("armoredcore6.exe",))
+        == "strict"
+    )
+    assert catalog.effective_mode("auto", GameSource.STEAM, "1501750") == "strict"
+    assert catalog.effective_mode("auto", GameSource.STEAM, "2183900") == "strict"
+    assert (
+        catalog.effective_mode("auto", GameSource.STEAM, "374320", ("darksoulsiii.exe",))
+        == "full"
+    )
+
     override = tmp_path / "protected_games_override.json"
     override.write_text(
         json.dumps(
@@ -350,3 +371,63 @@ def test_watcher_emits_protected_detected_and_exited_events() -> None:
     assert published[0].entry_id == "valorant"
     assert isinstance(published[1], ProtectedGameExited)
     assert published[1].entry_id == "valorant"
+
+
+def test_library_and_game_page_show_strict_for_elden_ring_and_full_for_dark_souls_3(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from PySide6.QtWidgets import QApplication, QLabel
+
+    from gamehub.app import GameHubWindow
+    from gamehub.core.storage.memory import TimelinePage
+
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    app = QApplication.instance() or QApplication(["strict badge test"])
+    db = Database(tmp_path / "gamehub.db")
+    lib = LibraryRepository(db)
+    pending = PendingNoteRepository(db)
+    lib.reconcile(
+        GameSource.STEAM,
+        DiscoveryBatch(
+            games=(
+                DetectedGame(GameSource.STEAM, "1245620", "Elden Ring"),
+                DetectedGame(GameSource.STEAM, "1888160", "ARMORED CORE VI FIRES OF RUBICON"),
+                DetectedGame(GameSource.STEAM, "374320", "DARK SOULS III"),
+            )
+        ),
+    )
+    catalog = ProtectedGamesCatalog.load()
+    lifecycle = LifecycleCoordinator(catalog, lib, pending)
+    window = GameHubWindow(app)
+    try:
+        window.library.set_strict_resolver(lambda g: lifecycle.is_strict_game(g.id))
+        games = lib.list_games()
+        window.library.present_games(games)
+        by_name = {g.name: g for g in games}
+        card_badges = {}
+        for card in window.library.cards():
+            badge = card.findChild(QLabel, "badgeStrict") or card.findChild(QLabel, "badgeFull")
+            assert badge is not None
+            card_badges[card.game_id] = (badge.objectName(), badge.text())
+
+        assert card_badges[by_name["Elden Ring"].id] == ("badgeStrict", "Strict")
+        assert card_badges[by_name["ARMORED CORE VI FIRES OF RUBICON"].id] == (
+            "badgeStrict",
+            "Strict",
+        )
+        assert card_badges[by_name["DARK SOULS III"].id] == ("badgeFull", "Full")
+
+        er = by_name["Elden Ring"]
+        window.game_page.show_game(
+            er,
+            (),
+            TimelinePage(()),
+            auto_strict=catalog.effective_mode("auto", er.source, er.source_id) == "strict",
+        )
+        assert window.game_page._mode_badge.objectName() == "badgeStrict"
+        assert window.game_page._mode_badge.text() == "Strict"
+        assert window.game_page._protection_combo.currentText() == "Auto (Strict)"
+    finally:
+        window.close()
+        window.deleteLater()
+        app.processEvents()

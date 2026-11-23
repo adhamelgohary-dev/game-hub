@@ -147,6 +147,57 @@
       "exe_names": ["eldenring.exe", "start_protected_game.exe"]
     },
     {
+      "id": "elden_ring_nightreign",
+      "name": "ELDEN RING NIGHTREIGN",
+      "anti_cheat": "Easy Anti-Cheat",
+      "privilege": "kernel",
+      "starts_at": "launch",
+      "default_mode": "strict",
+      "steam_app_ids": ["2622380"],
+      "epic_app_names": [],
+      "xbox_package_prefixes": [],
+      "exe_names": ["nightreign.exe"]
+    },
+    {
+      "id": "armored_core_6",
+      "name": "ARMORED CORE VI FIRES OF RUBICON",
+      "anti_cheat": "Easy Anti-Cheat",
+      "privilege": "kernel",
+      "starts_at": "launch",
+      "default_mode": "strict",
+      "steam_app_ids": ["1888160"],
+      "epic_app_names": [],
+      "xbox_package_prefixes": [],
+      "exe_names": ["armoredcore6.exe"]
+    },
+    {
+      "id": "lords_of_the_fallen",
+      "name": "Lords of the Fallen",
+      "anti_cheat": "Easy Anti-Cheat",
+      "privilege": "kernel",
+      "starts_at": "launch",
+      "default_mode": "strict",
+      "steam_app_ids": ["1501750"],
+      "epic_app_names": [],
+      "xbox_package_prefixes": [],
+      "exe_names": ["lotf2-win64-shipping.exe"]
+    },
+    {
+      "id": "space_marine_2",
+      "name": "Warhammer 40,000: Space Marine 2",
+      "anti_cheat": "Easy Anti-Cheat",
+      "privilege": "kernel",
+      "starts_at": "launch",
+      "default_mode": "strict",
+      "steam_app_ids": ["2183900"],
+      "epic_app_names": [],
+      "xbox_package_prefixes": [],
+      "exe_names": [
+        "warhammer 40000 space marine 2.exe",
+        "warhammer 40000 space marine 2 - retail.exe"
+      ]
+    },
+    {
       "id": "halo_mcc",
       "name": "Halo: The Master Chief Collection",
       "anti_cheat": "Easy Anti-Cheat",

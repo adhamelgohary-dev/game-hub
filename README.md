@@ -11,7 +11,7 @@ Pick up any Windows PC game after a break with the voice/text notes, recent scre
 ## Features
 
 - **Zero background footprint:** No system tray icon, no "start with Windows" registry entry, and no background services. Closing the main window exits Game Hub completely.
-- **Anti-cheat safe by design:** Ships an updatable catalog (`gamehub/core/protection/protected_games.json`) of 34+ protected games (Valorant, League of Legends, Fortnite, Apex Legends, Call of Duty, Rainbow Six Siege, PUBG, Rust, EA SPORTS FC, CS2, Deadlock, Elden Ring, and more).
+- **Anti-cheat safe by design:** Ships an updatable catalog (`gamehub/core/protection/protected_games.json`) of 38+ protected games (Valorant, League of Legends, Fortnite, Apex Legends, Call of Duty, Rainbow Six Siege, PUBG, Rust, EA SPORTS FC, CS2, Deadlock, Elden Ring, Armored Core VI, and more).
   - **Strict mode** (default for protected games): zero periodic screenshots, zero in-game hotkeys, zero topmost overlays, zero in-game mic access, and zero `OpenProcess` handles on protected games — just the Last-time card before launch and optional note after exit (or on next open).
   - **Forgetful-case safeguard:** If Game Hub is left open and you launch a protected game directly, passive basename-only detection exits Game Hub automatically by default (configurable to Strict mode or a passive Windows notification).
 - **Local game library:** Auto-detects Steam, Epic Games Store, and supported Xbox/Game Pass installations, plus manual `.exe` add. [Launcher detection & limits](docs/launcher-detection.md)

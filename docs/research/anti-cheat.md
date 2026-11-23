@@ -21,7 +21,7 @@
   - Riot Games Support — *Vanguard Restrictions / Troubleshooting VAN Errors* (`https://support-valorant.riotgames.com/hc/en-us/sections/360008365133-Vanguard`, retrieved 2026-11-23)
   - Riot Games Support — *League of Legends Vanguard FAQ* (`https://support-leagueoflegends.riotgames.com/`, retrieved 2026-11-23)
 
-### 1.2 Easy Anti-Cheat / EAC (*Fortnite*, *Apex Legends*, *Rust*, *Elden Ring*, *Halo MCC/Infinite*, *Sea of Thieves*, *Dead by Daylight*, *The Finals*, *Fall Guys*, *Lost Ark*, *For Honor*, *War Thunder*, *Smite 2*)
+### 1.2 Easy Anti-Cheat / EAC (*Fortnite*, *Apex Legends*, *Rust*, *Elden Ring*, *Elden Ring Nightreign*, *Armored Core VI: Fires of Rubicon*, *Lords of the Fallen (2023)*, *Warhammer 40,000: Space Marine 2*, *Halo MCC/Infinite*, *Sea of Thieves*, *Dead by Daylight*, *The Finals*, *Fall Guys*, *Lost Ark*, *For Honor*, *War Thunder*, *Smite 2*)
 - **Scope & privilege:** Kernel-mode driver (`EasyAntiCheat_EOS.sys` / `EasyAntiCheat.sys`, Ring 0) managed by Epic Online Services.
 - **Start timing:** **At game launch** (unloads when the protected game closes).
 - **Official stance & behavior:**
@@ -172,7 +172,10 @@ Game Hub **never** injects DLLs, hooks DirectX/Vulkan, reads or writes game proc
 | **EA SPORTS FC (24/25/26)** | Steam, EA app, Epic, Xbox | EA Javelin Anticheat | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
 | **Battlefield (2042/V/1/6)** | Steam, EA app, Epic, Xbox | EA Javelin Anticheat | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
 | **Helldivers 2** | Steam | nProtect GameGuard | Kernel · Launch | High | Medium / Low | Medium | Minimal | High | **Strict** (Auto-exit on external launch) |
-| **Elden Ring** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (user may switch to Full if playing offline without EAC) |
+| **Elden Ring / Elden Ring Nightreign** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (user may switch to Full if playing offline without EAC) |
+| **Armored Core VI: Fires of Rubicon** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (user may switch to Full if playing offline without EAC) |
+| **Lords of the Fallen (2023) / Space Marine 2** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (Auto-exit on external launch) |
+| **Dark Souls III / Dark Souls: Remastered / Sekiro** | Steam | None (server/save softban checks only; no EAC or kernel driver) | None | None | Minimal | None | None | None | **Full** (safe default; no kernel anti-cheat) |
 | **Halo MCC / Infinite** | Steam, Xbox | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (Auto-exit on external launch) |
 | **Sea of Thieves** | Steam, Xbox | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (Auto-exit on external launch) |
 | **Destiny 2 / DayZ / Tarkov / Arma 3** | Steam, Epic, Standalone | BattlEye | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |

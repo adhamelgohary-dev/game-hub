@@ -3,6 +3,7 @@
 import json
 import logging
 import ntpath
+import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,16 @@ from gamehub.core.library.models import GameSource
 LOGGER = logging.getLogger(__name__)
 BUNDLED_CATALOG_PATH = Path(__file__).resolve().with_name("protected_games.json")
 OVERRIDE_FILENAME = "protected_games_override.json"
+
+
+def _default_bundled_catalog_path() -> Path:
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            frozen = Path(meipass) / "gamehub" / "core" / "protection" / "protected_games.json"
+            if frozen.is_file():
+                return frozen
+    return BUNDLED_CATALOG_PATH
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +124,7 @@ class ProtectedGamesCatalog:
         bundled_path: Path | None = None,
         override_path: Path | None = None,
     ) -> "ProtectedGamesCatalog":
-        base_path = bundled_path if bundled_path is not None else BUNDLED_CATALOG_PATH
+        base_path = bundled_path if bundled_path is not None else _default_bundled_catalog_path()
         by_id: dict[str, ProtectedGameEntry] = {}
         try:
             for entry in _parse_entries(base_path):
