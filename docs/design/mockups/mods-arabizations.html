@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Game Hub — Mods &amp; Arabizations Mockup (Part 6 Design)</title>
+<style>
+  :root {
+    --bg: #111318;
+    --sidebar: #161922;
+    --surface: #1d212c;
+    --surface-2: #242938;
+    --border: #2f364a;
+    --text: #f3f5fa;
+    --muted: #9aa3b8;
+    --accent: #4c8dff;
+    --accent-soft: rgba(76,141,255,0.16);
+    --green: #34d399;
+    --green-soft: rgba(52,211,153,0.14);
+    --amber: #fbbf24;
+    --amber-soft: rgba(251,191,36,0.14);
+    --red: #f87171;
+    --red-soft: rgba(248,113,113,0.14);
+  }
+  * { box-sizing: border-box; font-family: "Segoe UI", system-ui, sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--text); padding: 24px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+  .toolbar button { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .toolbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .app { display: grid; grid-template-columns: 210px 1fr; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--bg); min-height: 680px; box-shadow: 0 20px 50px rgba(0,0,0,0.45); }
+  .sidebar { background: var(--sidebar); border-inline-end: 1px solid var(--border); padding: 18px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .brand { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 12px; height: 12px; border-radius: 4px; background: var(--accent); display: inline-block; }
+  .nav { padding: 10px 12px; border-radius: 8px; color: var(--muted); font-size: 14px; }
+  .nav.active { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+  .main { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
+  .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .title { font-size: 22px; font-weight: 700; margin: 0; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { background: var(--red-soft); border-color: rgba(248,113,113,0.4); color: var(--red); }
+  .profiles { display: flex; gap: 8px; align-items: center; background: var(--surface); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); }
+  .pill { padding: 6px 12px; border-radius: 20px; font-size: 13px; border: 1px solid var(--border); color: var(--muted); }
+  .pill.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .banner { border-radius: 10px; padding: 14px 16px; border: 1px solid; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+  .banner.warn { background: var(--amber-soft); border-color: rgba(251,191,36,0.45); color: #fde68a; }
+  .banner.lock { background: var(--red-soft); border-color: rgba(248,113,113,0.45); color: #fecaca; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .row { display: grid; grid-template-columns: 40px 1fr 130px 110px 120px; align-items: center; gap: 12px; padding: 12px 10px; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: none; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge.ar { background: var(--green-soft); color: var(--green); }
+  .badge.mod { background: var(--accent-soft); color: #93c5fd; }
+  .badge.conflict { background: var(--amber-soft); color: var(--amber); }
+  .muted { color: var(--muted); font-size: 12px; }
+  .code { font-family: Consolas, monospace; font-size: 12px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 4px; direction: ltr; display: inline-block; }
+  .footer-note { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--green); background: var(--green-soft); border: 1px solid rgba(52,211,153,0.35); border-radius: 10px; padding: 10px 14px; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button id="btn-en" class="active" onclick="setLang('en')">English (LTR)</button>
+  <button id="btn-ar" onclick="setLang('ar')">العربية (RTL)</button>
+</div>
+
+<div id="app" class="app" dir="ltr">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span><span data-en="Game Hub" data-ar="Game Hub">Game Hub</span></div>
+    <div class="nav" data-en="Library" data-ar="المكتبة">Library</div>
+    <div class="nav active" data-en="Mods &amp; Translations" data-ar="المودات والتعريبات">Mods &amp; Translations</div>
+    <div class="nav" data-en="Settings" data-ar="الإعدادات">Settings</div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <div>
+        <h1 class="title" data-en="Mafia II: Definitive Edition — Mods &amp; Translations" data-ar="Mafia II: Definitive Edition — المودات والتعريبات">Mafia II: Definitive Edition — Mods &amp; Translations</h1>
+        <div class="subtitle" data-en="Single-player game · Automatic backups enabled · Protected/online games are locked" data-ar="لعبة فردية · النسخ الاحتياطي التلقائي مفعل · الألعاب المحمية والأونلاين مقفولة تلقائياً">Single-player game · Automatic backups enabled · Protected/online games are locked</div>
+      </div>
+      <div class="actions">
+        <span class="btn primary" data-en="+ Import Package (.zip)" data-ar="+ استيراد حزمة (.zip)">+ Import Package (.zip)</span>
+        <span class="btn danger" data-en="Restore to Vanilla" data-ar="استعادة النسخة الأصلية">Restore to Vanilla</span>
+      </div>
+    </div>
+
+    <div class="profiles">
+      <strong style="font-size:13px;" data-en="Profile:" data-ar="البروفايل:">Profile:</strong>
+      <span class="pill" data-en="Vanilla" data-ar="أصلي (Vanilla)">Vanilla</span>
+      <span class="pill" data-en="Arabized" data-ar="معرّب">Arabized</span>
+      <span class="pill" data-en="Modded" data-ar="مودات">Modded</span>
+      <span class="pill active" data-en="Modded + Arabized" data-ar="مودات + تعريب">Modded + Arabized</span>
+    </div>
+
+    <div class="banner warn">
+      <div>
+        <strong data-en="File conflict detected (1 file)" data-ar="تم اكتشاف تعارض في ملف واحد">File conflict detected (1 file)</strong>
+        <div style="font-size:13px;margin-top:4px;" data-en="Both &quot;Mafia II Arabic Translation v1.2&quot; and &quot;Classic HUD Mod v2.0&quot; edit pc/sds_en/gui/fonts.sds. Priority #1 (Arabic Translation) currently wins." data-ar="كل من &quot;تعريب مافيا 2 (v1.2)&quot; و &quot;Classic HUD Mod v2.0&quot; يعدلان ملف pc/sds_en/gui/fonts.sds. الأولوية رقم 1 (التعريب) هي المطبقة حالياً.">Both "Mafia II Arabic Translation v1.2" and "Classic HUD Mod v2.0" edit <span class="code">pc/sds_en/gui/fonts.sds</span>. Priority #1 (Arabic Translation) currently wins.</div>
+      </div>
+      <span class="btn" data-en="Resolve conflict…" data-ar="حل التعارض…">Resolve conflict…</span>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <strong>#1</strong>
+        <div>
+          <strong data-en="Mafia II — Arabic Translation (v1.2.0)" data-ar="تعريب مافيا 2 (v1.2.0)">Mafia II — Arabic Translation (v1.2.0)</strong>
+          <div class="muted" data-en="Changed files only (2 files) · Target exe hash matched" data-ar="ملفات معدلة فقط (ملفين) · متوافق مع نسخة اللعبة">Changed files only (2 files) · Target exe hash matched</div>
+        </div>
+        <div><span class="badge ar" data-en="Arabization" data-ar="تعريب">Arabization</span></div>
+        <div><span class="badge conflict" data-en="Wins 1 file" data-ar="يفوز في ملف">Wins 1 file</span></div>
+        <div class="actions"><span class="btn">↑ ↓</span><span class="btn" data-en="ON" data-ar="مفعل">ON</span></div>
+      </div>
+
+      <div class="row">
+        <strong>#2</strong>
+        <div>
+          <strong data-en="Classic HUD &amp; Remaster Mod (v2.0.1)" data-ar="مود الواجهة الكلاسيكية Classic HUD (v2.0.1)">Classic HUD &amp; Remaster Mod (v2.0.1)</strong>
+          <div class="muted" data-en="Changed files only (6 files) · 1 file overridden by #1" data-ar="ملفات معدلة فقط (6 ملفات) · ملف واحد مستبدل بالأولوية #1">Changed files only (6 files) · 1 file overridden by #1</div>
+        </div>
+        <div><span class="badge mod" data-en="Mod" data-ar="مود">Mod</span></div>
+        <div><span class="badge conflict" data-en="1 conflict" data-ar="تعارض 1">1 conflict</span></div>
+        <div class="actions"><span class="btn">↑ ↓</span><span class="btn" data-en="ON" data-ar="مفعل">ON</span></div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <span data-en="Backup verified: 7 original game files safely backed up locally (SHA-256 verified). Never redistributes original game files." data-ar="النسخة الاحتياطية سليمة: 7 ملفات أصلية محفوظة محلياً بأمان. لا يتم مشاركة أي ملفات أصلية للعبة أبداً.">Backup verified: 7 original game files safely backed up locally (SHA-256 verified). Never redistributes original game files.</span>
+      <span data-en="manifest.json v1" data-ar="manifest.json v1">manifest.json v1</span>
+    </div>
+
+    <div class="banner lock">
+      <div>
+        <strong data-en="Example on Protected Games (Fortnite / Valorant / EA FC):" data-ar="مثال على الألعاب المحمية (Fortnite / Valorant / EA FC):">Example on Protected Games (Fortnite / Valorant / EA FC):</strong>
+        <span style="font-size:13px;" data-en=" Mods &amp; Translations are permanently disabled for anti-cheat games to guarantee zero ban risk." data-ar=" المودات والتعريبات معطلة تلقائياً في الألعاب المحمية بـ Anti-Cheat لمنع أي خطر بان."> Mods &amp; Translations are permanently disabled for anti-cheat games to guarantee zero ban risk.</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+function setLang(lang) {
+  const app = document.getElementById('app');
+  app.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
+  document.querySelectorAll('[data-en]').forEach(el => {
+    el.textContent = el.getAttribute('data-' + lang);
+  });
+}
+if (location.search.includes('lang=ar')) setLang('ar');
+</script>
+</body>
+</html>

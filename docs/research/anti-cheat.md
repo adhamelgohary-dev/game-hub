@@ -1,203 +1,156 @@
-# Anti-Cheat Landscape & Third-Party Feature Risk Research (Game Hub v1.1)
+# Anti-Cheat Landscape & Zero-Presence Protocol Research (Game Hub v1.2 — v2)
 
-**Research date:** 2026-11-23  
-**Purpose:** Establish evidence-based defaults and a bundled, updatable protected-games catalog for Game Hub v1.1 so players who also play competitive multiplayer games are protected from blocks, kicks, crashes, or false-positive anti-cheat flags.
+**Research date:** 2026-11-24 (expanded from v1.1 report dated 2026-11-23)  
+**Purpose:** Establish an evidence-based **Zero-Presence Anti-Cheat Protocol** for Game Hub v1.2 so the practical ban risk—especially for *Fortnite* and *Valorant*—is effectively **zero**: equal to not having Game Hub installed at all while any protected game, its anti-cheat, or its launch sequence is active.
 
-> **Honesty & uncertainty note:** No commercial anti-cheat vendor publishes its complete detection heuristics or internal allowlists. Policies and enforcement behavior also change silently with game or driver updates. Where official documentation is silent or ambiguous (especially around unsigned third-party binaries combining multiple Win32 APIs), this report states the uncertainty explicitly and defaults to conservative protection (**Strict mode** or **automatic exit**).
-
----
-
-## 1. Anti-Cheat Systems & Games Surveyed
-
-### 1.1 Riot Vanguard (*Valorant*, *League of Legends*)
-- **Scope & privilege:** Kernel-mode driver (`vgk.sys`, Ring 0) plus user-mode client (`vgc.exe`) and tray monitor (`VGTray`).
-- **Start timing:** **At Windows boot** (driver loads at OS startup; disabling or exiting Vanguard requires a system reboot before launching protected Riot titles). Enforces Secure Boot, TPM 2.0, and HVCI/VBS on Windows 11.
-- **Official stance & behavior:**
-  - Riot Support explains that Vanguard monitors system integrity from boot and blocks vulnerable or incompatible third-party drivers and unsigned/tampered components (`VAN` error codes such as `VAN: INCOMPATIBLE SOFTWARE`, `VAN 7007`, `VAN 7018`, `VAN 7020`).
-  - Riot allows mainstream streaming/communication tools (OBS Studio, Discord, NVIDIA App), though OBS Game Capture hooks have periodically been blocked after updates until OBS updated its signed graphics-hook binaries, pushing users to OBS Window Capture (WGC) or Display Capture.
-  - Because `vgk.sys` runs at boot, even when a Riot game is not open, Vanguard can inspect handles and drivers; when *Valorant* or *League of Legends* runs, `ObRegisterCallbacks` strips invasive process handles and Vanguard aggressively scrutinizes unsigned external topmost windows, pixel-capture loops, and global hotkeys.
-- **Sources:**
-  - Riot Games Support — *What is Vanguard?* (`https://support-valorant.riotgames.com/hc/en-us/articles/360046160933-What-is-Vanguard`, retrieved 2026-11-23)
-  - Riot Games Support — *Vanguard Restrictions / Troubleshooting VAN Errors* (`https://support-valorant.riotgames.com/hc/en-us/sections/360008365133-Vanguard`, retrieved 2026-11-23)
-  - Riot Games Support — *League of Legends Vanguard FAQ* (`https://support-leagueoflegends.riotgames.com/`, retrieved 2026-11-23)
-
-### 1.2 Easy Anti-Cheat / EAC (*Fortnite*, *Apex Legends*, *Rust*, *Elden Ring*, *Elden Ring Nightreign*, *Armored Core VI: Fires of Rubicon*, *Lords of the Fallen (2023)*, *Warhammer 40,000: Space Marine 2*, *Halo MCC/Infinite*, *Sea of Thieves*, *Dead by Daylight*, *The Finals*, *Fall Guys*, *Lost Ark*, *For Honor*, *War Thunder*, *Smite 2*)
-- **Scope & privilege:** Kernel-mode driver (`EasyAntiCheat_EOS.sys` / `EasyAntiCheat.sys`, Ring 0) managed by Epic Online Services.
-- **Start timing:** **At game launch** (unloads when the protected game closes).
-- **Official stance & behavior:**
-  - EAC states it collects limited technical runtime data only while a protected game is running, and protects game processes via kernel handle filtering (`ObRegisterCallbacks`) and driver/code-integrity verification.
-  - Mainstream capture/overlay tools (OBS Studio with "anti-cheat compatibility hook", Discord, Steam Overlay, NVIDIA App, Xbox Game Bar) are accommodated through signed-hook compatibility or OS-level capture.
-  - Unrecognized or unsigned programs that hook graphics pipelines, use suspicious topmost overlay flags, or trigger integrity rules can cause `"Game Security Violation Detected"` kicks/crashes; Epic's official support instructs players to close background overlay/capture utilities when violations occur.
-- **Sources:**
-  - Easy Anti-Cheat — *Official Site & Privacy / Operations* (`https://www.easy.ac/`, retrieved 2026-11-23)
-  - Epic Games Support — *Troubleshooting Easy Anti-Cheat / Game Security Violation* (`https://www.epicgames.com/help/en-US/c-Category_Fortnite`, retrieved 2026-11-23)
-  - OBS Project Wiki — *Game Capture Troubleshooting (Anti-Cheat Compatibility Hook)* (`https://obsproject.com/kb/game-capture-troubleshooting`, retrieved 2026-11-23)
-
-### 1.3 BattlEye (*Fortnite* [dual with EAC], *Rainbow Six Siege* [with QB], *PUBG: BATTLEGROUNDS* [with Zakynthos], *Destiny 2*, *DayZ*, *Escape from Tarkov*, *Arma 3*)
-- **Scope & privilege:** Kernel-mode driver (`BEDaisy.sys`, Ring 0) plus `BEService.exe`.
-- **Start timing:** **At game launch** (driver loads when the game starts and unloads on exit).
-- **Official stance & behavior:**
-  - BattlEye's official FAQ explicitly states: *"No one is banned for using non-hack programs"* (citing Fraps and standard overlays), and distinguishes between **blocks/kicks** (e.g., for certain macro tools or developer-restricted tools like ReShade in *PUBG*/*Fortnite*) versus **global bans** (reserved for cheats and bypasses).
-  - However, BattlEye uses kernel `ObRegisterCallbacks` to strip unauthorized process handles, blocks unsigned DLL injections and certain third-party overlay/hook mechanisms, and game publishers (*Ubisoft* with *Rainbow Six Siege* + QB anti-cheat; *KRAFTON* with *PUBG* + *Zakynthos* kernel layer) add proprietary enforcement layers on top of BattlEye.
-- **Sources:**
-  - BattlEye — *Official FAQ* (`https://www.battleye.com/support/faq/`, retrieved 2026-11-23)
-  - Ubisoft — *Rainbow Six Siege Anti-Cheat / BattlEye* (`https://www.ubisoft.com/en-us/game/rainbow-six/siege/news-updates`, retrieved 2026-11-23)
-  - KRAFTON / PUBG — *PUBG Anti-Cheat Dev Letters (BattlEye + Zakynthos)* (`https://pubg.com/en/news`, retrieved 2026-11-23)
-
-### 1.4 Valve Anti-Cheat / VAC & Trusted Mode (*Counter-Strike 2*, *Deadlock*)
-- **Scope & privilege:** **User-mode (Ring 3)** plus server-side behavioral analysis (*VAC Live* in CS2; server-authoritative / live anti-cheat in *Deadlock*). Valve has not deployed a Windows kernel driver for VAC.
-- **Start timing:** **At game launch / connection to VAC-secured servers**.
-- **Official stance & behavior:**
-  - *Counter-Strike 2* enables **Trusted Mode** by default, blocking third-party software from injecting into the game process. Valve's support documentation warns that disabling Trusted Mode via `-allow_third_party_software` can negatively affect Trust Factor.
-  - Because Trusted Mode blocks DLL injection (which breaks OBS Game Capture hooks), OBS and Valve communities specifically recommend **Window Capture using Windows Graphics Capture (WGC)** in Borderless Windowed mode, which operates at the OS compositor level without injecting into the game process.
-  - *Deadlock* (Steam AppID `1422450`) uses Valve's evolving user-mode + server-side anti-cheat (not kernel-mode) and also blocks unauthorized process injection.
-  - While VAC is user-mode and does not ban for non-injecting WGC or passive process enumeration, competitive players still prefer zero uninvited overlays over CS2/Deadlock matches.
-- **Sources:**
-  - Steam Support — *Valve Anti-Cheat (VAC) System* (`https://help.steampowered.com/en/faqs/view/571A-97DA-70E9-FF74`, legacy ref `7849-Radz-6869`, retrieved 2026-11-23)
-  - Steam Support — *Counter-Strike 2 Trusted Mode* (`https://help.steampowered.com/en/faqs/view/09A0-4879-4353-EF95`, retrieved 2026-11-23)
-  - OBS Project — *Capturing CS2 with Window Capture (Windows Graphics Capture)* (`https://obsproject.com/kb/game-capture-troubleshooting`, retrieved 2026-11-23)
-
-### 1.5 Activision RICOCHET (*Call of Duty: Warzone*, *MW2*, *MW3*, *Black Ops 6* / CoD HQ)
-- **Scope & privilege:** **Kernel-mode driver** (`randgrid.sys`, Ring 0) paired with server-side ML analytics and active in-game mitigations.
-- **Start timing:** **At game launch** (driver runs while *Call of Duty* is active).
-- **Official stance & behavior:**
-  - Activision's RICOCHET FAQ confirms the PC kernel-level driver monitors background processes and applications that attempt to interact with *Call of Duty*.
-  - Activision's Security and Enforcement Policy warns that unauthorized third-party software manipulating game data, overlays, or input can lead to temporary suspensions or permanent account bans across linked accounts, and support troubleshooting recommends closing background overlay/monitoring/capture tools on conflicts.
-- **Sources:**
-  - Activision Support — *RICOCHET Anti-Cheat FAQ* (`https://support.activision.com/articles/ricochet-anti-cheat-faq`, retrieved 2026-11-23)
-  - Activision Support — *Call of Duty Security and Enforcement Policy* (`https://support.activision.com/articles/call-of-duty-security-and-enforcement-policy`, retrieved 2026-11-23)
-
-### 1.6 EA Javelin Anticheat (formerly EA Anticheat) (*EA SPORTS FC 24/25/26*, *Battlefield 2042/V/1/6*, *Madden NFL*, *F1*)
-- **Scope & privilege:** **Kernel-mode driver** (`EAAntiCheat.GameService`, Ring 0). Requires Secure Boot and TPM 2.0 on modern Windows titles.
-- **Start timing:** **At game launch** (runs while the protected EA title is active).
-- **Official stance & behavior:**
-  - EA Help states EA Javelin Anticheat protects against kernel exploits, tampering, and unauthorized overlays/mod managers. Mainstream signed overlays (Steam, Discord, NVIDIA, AMD) are explicitly maintained for compatibility, while unknown overlays, macro utilities, or conflicting background apps routinely trigger launch blocks or error dialogs requiring background tools to be closed.
-- **Sources:**
-  - EA Help — *EA Javelin Anticheat on PC* (`https://help.ea.com/en/help/pc/ea-anticheat/`, retrieved 2026-11-23)
-
-### 1.7 Other Notable Kernel & User-Mode Anti-Cheats Across Launchers
-- **nProtect GameGuard** (*Helldivers 2* on Steam): **Kernel-mode**, starts at **game launch**. Historically aggressive toward unknown background processes, hotkeys, and unsigned overlays.
-- **HoYoKProtect / mhyprot** (*Genshin Impact*, *Honkai: Star Rail*, *Zenless Zone Zero* on Epic / standalone): **Kernel-mode**, starts at **game launch**.
-- **Anti-Cheat Expert (ACE)** (*Delta Force*, *Arena Breakout: Infinite*, *Naraka: Bladepoint*, *PUBG* secondary regions on Steam/Epic/standalone): **Kernel-mode**, starts at **game launch** (or service install).
-- **Blizzard Warden / Defense Matrix** (*World of Warcraft*, *Overwatch 2*, *Diablo IV* on Battle.net / Steam): **User-mode (Ring 3)** inside the game process + server-side analytics; starts at **game launch**. Much more permissive of non-injecting utilities and mainstream overlays than Ring-0 drivers, though automation/memory reads are banned.
-- **Cross-launcher coverage:** Kernel anti-cheat titles appear across **Steam** (*Apex Legends*, *Rust*, *PUBG*, *Rainbow Six Siege*, *Elden Ring*, *Call of Duty*, *EA FC*, *Helldivers 2*, *Destiny 2*, *DayZ*, *Dead by Daylight*, *Halo MCC*, *Sea of Thieves*, *The Finals*, *Battlefield 2042*, *Lost Ark*, *For Honor*, *War Thunder*, *Delta Force*, *Naraka: Bladepoint*), **Epic Games Store** (*Fortnite*, *Fall Guys*, *Genshin Impact*, *Dead by Daylight*, *Rainbow Six Siege*, *EA FC*), **Xbox / Game Pass** (*Call of Duty*, *Halo MCC/Infinite*, *Sea of Thieves*, *Rainbow Six Siege*, *Dead by Daylight*, *EA Play/EA FC/Battlefield*), **Battle.net** (*Call of Duty*), **Riot Client** (*Valorant*, *League of Legends*), **EA app** (*EA FC*, *Battlefield*, *Apex Legends*), and **Ubisoft Connect** (*Rainbow Six Siege*, *For Honor*).
-- **Sources:**
-  - AreWeAntiCheatYet Community Database (`https://areweanticheatyet.com/`, retrieved 2026-11-23)
-  - SteamDB App Catalog (`https://steamdb.info/`, retrieved 2026-11-23)
-  - Blizzard Entertainment — *Defense Matrix Updates* (`https://overwatch.blizzard.com/en-us/news/`, retrieved 2026-11-23)
+> **Honesty & uncertainty note:** Commercial anti-cheat vendors (Riot Vanguard, Epic/EAC, BattlEye, Activision RICOCHET, EA Javelin, Valve VAC) do not publish their full heuristic tables or internal allowlists, and detection rules evolve without public notice. Where vendor guidance is silent or ambiguous, this document states the uncertainty clearly and mandates the strictest safe behavior (**fail-closed + zero presence**).
 
 ---
 
-## 2. Feature-by-Feature Risk Analysis for Game Hub
+## 1. Core Principle: Why Zero Presence = Zero Risk
 
-Game Hub **never** injects DLLs, hooks DirectX/Vulkan, reads or writes game process memory, requests `PROCESS_VM_READ`/`PROCESS_VM_WRITE`/`PROCESS_CREATE_THREAD`, or loads a kernel driver. Still, anti-cheat engines inspect **behavioral combinations** of user-mode APIs — especially from **unsigned or low-reputation executables** (such as a newly released PyInstaller binary).
+Anti-cheat bans and kicks originate from software that **interacts with a protected game or system integrity boundary**:
+- Process memory reads/writes (`OpenProcess` with VM rights, `ReadProcessMemory`, `WriteProcessMemory`)
+- DLL injection or graphics/input hooks (`CreateRemoteThread`, `SetWindowsHookEx`, DirectX/Vulkan present hooks)
+- Synthetic input / macros (`SendInput`, `keybd_event`, `mouse_event`)
+- Vulnerable, unsigned, or blocklisted kernel drivers
+- Topmost overlays rendered on top of the game window
+- Modified or unsigned game/system files
 
-### (a) Periodic Screenshots via Windows Graphics Capture (`Windows.Graphics.Capture`)
-- **Mechanism:** Game Hub binds `IGraphicsCaptureItemInterop::CreateForWindow` to the verified foreground HWND via the official OS compositor API (the same API OBS Window Capture uses on Windows 10 1903+/11).
-- **Risk profile:**
-  - **Single-player / no anti-cheat:** **None / Minimal.**
-  - **User-mode anti-cheat (VAC, Warden):** **Low.** WGC is explicitly the recommended non-injecting capture path for CS2 Trusted Mode.
-  - **Kernel anti-cheat (Vanguard, EAC, BattlEye, Ricochet, EA Javelin, GameGuard, ACE):** **Medium–High for an unsigned app.** While WGC itself is a legitimate Windows API used by OBS and Xbox Game Bar, external **pixel-bot / color-aimbot / AI-vision cheats** also use WGC/DXGI to capture frames periodically without touching game memory. Some protected games block WGC (`SetWindowDisplayAffinity` / black frames), and an unsigned binary repeatedly opening WGC sessions against a competitive game window creates unnecessary heuristic risk.
-- **Conclusion:** Disable periodic WGC screenshots completely in **Strict mode** (default for all kernel anti-cheat games).
-
-### (b) Process Enumeration (`psutil` / `CreateToolhelp32Snapshot` / `OpenProcess`)
-- **Mechanism:** Game Hub currently snapshots process basenames with `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)` every 3 seconds, then calls `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, ...)` and `psutil.Process(pid).create_time()` **only** for shortlisted matching executables.
-- **Risk profile:**
-  - **Enumerating basenames via `CreateToolhelp32Snapshot` (zero handles opened to the game):** **Minimal / Safe.** Task Manager, Explorer, Discord, Steam, and hundreds of Windows utilities enumerate running process names passively without ever opening a handle to the game process.
-  - **Opening a handle via `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` on a protected game:** **Low–Medium (sensitive under Ring-0 `ObRegisterCallbacks`).** Kernel anti-cheats intercept every `OpenProcess` call via `ObRegisterCallbacks`. While `PROCESS_QUERY_LIMITED_INFORMATION` grants no memory read/write rights and is often allowed or silently stripped (resulting in `ERROR_ACCESS_DENIED`), repeatedly opening handles to a protected game from an unsigned process is avoidable telemetry.
-- **Conclusion:**
-  - Never request write, memory-read, or debug rights on any process (hard rule).
-  - For **passive protected-game detection ("forgetful case")**, match strictly by **process basename from `CreateToolhelp32Snapshot`** (or passive WMI/ETW-free basename polling at a slow interval, e.g., every 3–5 seconds) **without opening any handle to the protected game process at all**.
-  - When a protected game is detected while Game Hub is open, default to **exiting Game Hub automatically** (zero residual process polling while playing).
-
-### (c) Global Hotkeys (`RegisterHotKey`)
-- **Mechanism:** Win32 `RegisterHotKey` (not `SetWindowsHookEx(WH_KEYBOARD_LL)`).
-- **Risk profile:**
-  - **Single-player / user-mode anti-cheat:** **Low.** `RegisterHotKey` does not install a low-level keyboard hook or inject into other processes.
-  - **Kernel anti-cheat:** **Low–Medium in combination.** Alone, `RegisterHotKey` is benign (used by screenshot tools, Discord, volume controllers). Combined with an unsigned binary, topmost windows, and screen capture, global hotkeys resemble external cheat menu toggles.
-- **Conclusion:** Unregister all in-game global hotkeys while in **Strict mode** (or exit Game Hub entirely).
-
-### (d) Microphone Recording (WASAPI / PortAudio via `sounddevice`)
-- **Mechanism:** Opens the default Windows audio input device only when explicitly triggered by the user.
-- **Risk profile:** **Minimal / None** across all anti-cheats (identical to Discord, OBS, Windows Voice Recorder).
-- **Conclusion:** Still disable in-game hotkey microphone recording in **Strict mode** (because in-game hotkeys are disabled, and notes are taken **after** the game exits), keeping the runtime footprint during protected gameplay strictly zero.
-
-### (e) Showing Windows Over the Game (`WS_EX_TOPMOST` / Always-on-Top Cards & Popups)
-- **Mechanism:** Qt `WindowStaysOnTopHint` (`WS_EX_TOPMOST`) for the Last-time card (separate top-level OS window, not an injected DX/Vulkan overlay).
-- **Risk profile:**
-  - **Single-player / no anti-cheat:** **None** (only fullscreen-exclusive Z-order hiding).
-  - **User-mode anti-cheat (VAC, Warden):** **Low** (can steal focus or disrupt fullscreen play).
-  - **Kernel anti-cheat (Vanguard, EAC, BattlEye, Ricochet, EA Javelin, GameGuard):** **Medium–High.** External ESP/radar cheats rely heavily on `WS_EX_TOPMOST` windows floating over borderless-windowed games. Anti-cheats actively scan topmost windows overlapping the game rect and may block, minimize, kick, or flag unknown unsigned topmost windows.
-- **Conclusion:** Never show `WS_EX_TOPMOST` cards or dialogs over a running protected game. Show the Last-time card **before** launching the game, show the note prompt **after** the game exits, and for the "Ask me" forgetful-case prompt use a standard passive **Windows toast/system notification** (never a topmost Qt window over the game).
+Even mainstream, vendor-partnered apps (Discord overlay, OBS Game Capture, Overwolf, GeForce Experience) have occasionally caused false-positive kicks or bans when running alongside or hooking a protected game. Therefore, Game Hub v1.2 enforces **two independent guarantees simultaneously**:
+1. **Never interact (Layer 1):** Zero memory reads, zero hooks, zero DLL injection, zero synthetic input, zero drivers, zero overlays on other windows, zero admin elevation, zero packers (no UPX), and zero `OpenProcess` handles on protected games.
+2. **Never even be running (Layers 2–5):** Game Hub refuses to start if a protected game, its launch-stage process, its anti-cheat process/service, or the Riot Client is already active, and exits completely within ~0.5–1.0 seconds if one starts while Game Hub is open—before the anti-cheat bootstrap initializes.
 
 ---
 
-## 3. Comparison with Known Allowed Applications
+## 2. How Reference Applications Stay Safe (and What We Copy)
 
-| Application | Capture / Overlay Method | Why Anti-Cheats Allow It | Key Difference vs. Game Hub v1.0 |
-| --- | --- | --- | --- |
-| **OBS Studio** | Signed DirectX/Vulkan hook (with EAC/BattlEye compatibility) or WGC Window Capture | EV/OV code-signed, widely whitelisted by EAC, BattlEye, Riot, EA; updates hooks promptly when anti-cheats change | Game Hub v1.0 was unsigned and used periodic automated WGC + `WS_EX_TOPMOST` |
-| **Discord** | Signed overlay + process name scanning for Rich Presence | Digitally signed, vendor-whitelisted by publishers | Whitelisted publisher identity; Game Hub avoids injecting any overlay |
-| **Xbox Game Bar** | Built-in signed Microsoft OS component (WGC + Game DVR) | First-party Microsoft Windows component | First-party OS trust |
-| **NVIDIA App / GeForce Experience** | Signed GPU driver-level capture (NVFBC/NVENC) & overlay | Signed NVIDIA driver & vendor-whitelisted | First-party GPU vendor trust |
-| **Steam Overlay** | Signed Valve `GameOverlayRenderer64.dll` | First-party launcher explicitly whitelisted by game publishers | First-party launcher trust |
+### 2.1 Playnite (Open Source, MIT — `https://github.com/JosefNemec/Playnite`, retrieved 2026-11-24)
+- **Game launching:** Playnite launches storefront titles through official launcher URIs (`steam://rungameid/<id>`, `com.epicgames.launcher://apps/<artifact>?action=launch&silent=true`, Riot Client command-line arguments, EA/Ubisoft/GOG/Battle.net protocols), handing off execution to the official storefront so Playnite is **not** the parent process of DRM/anti-cheat games.
+- **Process tracking & window lifecycle:** Playnite watches running game processes passively and offers configurable actions on game start (minimize or close Playnite).
+- **Elevation warning:** Playnite's official documentation and GitHub issue tracker explicitly warn **never to run Playnite as Administrator**, because elevated child processes inherit admin tokens that anti-cheats flag or block.
+- **Anti-cheat reports:** Playnite itself has **no confirmed ban cases** caused by its core launcher; reported EAC/Vanguard errors trace back to third-party overlays/RGB utilities injecting into Playnite or custom user automation scripts.
+- **Library discovery plugins (`PlayniteExtensions`):** Read-only local manifest, SQLite, and registry readers:
+  - **Steam:** `libraryfolders.vdf` + `appmanifest_*.acf` + `appcache/librarycache/`
+  - **Epic:** Legacy `%PROGRAMDATA%\Epic\EpicGamesLauncher\Data\Manifests\*.item` **and** modern per-user Epic Games Launcher registry entries under `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\EpicGames-*` (`EpicAppId`, `InstallLocation`, `DisplayName`)
+  - **Riot Client:** `%PROGRAMDATA%\Riot Games\RiotClientInstalls.json`, `%PROGRAMDATA%\Riot Games\Metadata\<product>\*.product_settings.yaml`, and `HKCU\...\Uninstall\Riot Game *`
+  - **GOG Galaxy:** `%PROGRAMDATA%\GOG.com\Galaxy\storage\galaxy-2.0.db` (read-only SQLite `InstalledBaseProducts` / `LimitedDetails` / `PlayTasks`) + `HKLM\SOFTWARE\WOW6432Node\GOG.com\Games\*`
+  - **EA app:** `%PROGRAMDATA%\EA Desktop\InstallData\*`, `HKLM\SOFTWARE\EA Games\*`, `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*` (Electronic Arts publisher)
+  - **Ubisoft Connect:** `HKLM\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs\*` (`InstallDir`) + `Uninstall\Uplay Install <id>`
+  - **Battle.net:** `%PROGRAMDATA%\Battle.net\Agent\product.db` + `HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*` (Blizzard Entertainment) + `.build.info`
+  - **itch.io:** `%APPDATA%\itch\db\butler.db` (read-only SQLite `caves` + `games`)
+  - **Xbox / Game Pass:** Windows `AppX` packages (`Get-AppxPackage` / package registry) + `MicrosoftGame.config` under `XboxGames` roots.
+- **What Game Hub copies (and makes stricter):** Official URI-only launching, never running as admin (`asInvoker`), read-only plugin detectors, and going **stricter than Playnite** by unconditionally refusing to run or auto-exiting (fail-closed) whenever a protected game, its anti-cheat, or the Riot Client is active.
 
-**Takeaway:** Even though Game Hub is *less invasive* than OBS Game Capture or Discord Overlay (zero injection, zero hooks, zero memory reads), an **unsigned open-source app** does not enjoy vendor allowlisting. Combining **(1) zero background process when closed**, **(2) Strict mode / auto-exit for protected games**, and **(3) free open-source code signing via SignPath Foundation (Part E)** eliminates both the technical risk and the trust gap.
+### 2.2 Overwolf (`https://www.overwolf.com/`, incident coverage `charlieintel.com` / Activision Support, retrieved 2026-11-24)
+- **Why Overwolf apps generally avoid bans:** Formal agreements with game publishers, exclusive use of approved game-event APIs (no direct memory reading, no gameplay-advantage features), and code-signed binaries.
+- **Known false-positive incident (October 2021 — Call of Duty on Windows 11):** Early Windows 11 users running Overwolf overlays (notably Outplayed) alongside *Call of Duty: Warzone / Black Ops Cold War / Vanguard* experienced repeated overlay crash loops. Activision's RICOCHET anti-cheat flagged the hooks/crashes as unauthorized memory manipulation and issued **permanent, largely unreversed bans**.
+- **Lesson for Game Hub:** Even publisher-partnered overlay frameworks are not immune to false positives if they run next to or hook a game. Game Hub refuses to inject overlays AND exits completely before protected games start.
 
----
+### 2.3 Discord, Steam Overlay, NVIDIA App, and OBS Studio
+- **Mechanism:** These tools inject EV/OV-signed graphics-hook DLLs (`GameOverlayRenderer64.dll`, `graphics-hook64.dll`, etc.) explicitly allowlisted by EAC, BattlEye, Riot, and EA.
+- **Why this path is irrelevant to Game Hub:** Game Hub will **never** inject DLLs or hook DirectX/Vulkan/OpenGL. For single-player / non-protected games, Game Hub uses only OS compositor Windows Graphics Capture (`Windows.Graphics.Capture`); for protected games, Game Hub is not even running.
 
-## 4. Documented Bans, Kicks, and Warnings for Similar Tools
+### 2.4 Riot Games Official Policy & 2026 Vanguard Memory-Access Change
+- **Sources:**
+  - Riot Games — *Third-Party Applications Policy & Vanguard FAQ* (`https://support-valorant.riotgames.com/hc/en-us/articles/360046160933-What-is-Vanguard`, retrieved 2026-11-24)
+  - Riot Games — *2026 Vanguard Game-Memory Access Restrictions* (`https://www.riotgames.com/`, retrieved 2026-11-24)
+- **Key facts:**
+  - Riot prohibits third-party tools that read/write game memory or provide unfair gameplay information.
+  - In **2026**, Riot rolled out a major Vanguard policy change **proactively blocking game-memory access by default for all unknown third-party apps** (with an extended migration grace period until April 2027 only for established, approved tools moving to official Riot APIs, and **no manual allow-list**).
+  - **Game Hub compliance:** Game Hub never opens a handle to, reads memory from, or injects into any Riot process (enforced by automated AST/static code-scan tests), AND enforces **Zero-Presence** whenever the Riot Client (`RiotClientServices.exe` / `RiotClientUx.exe`), `vgc` service, *Valorant*, or *League of Legends* is active.
 
-- **Confirmed non-ban policy statements:** BattlEye's official FAQ explicitly states non-cheat overlays and capture tools do not result in bans, though individual tools may be blocked or kicked. Valve VAC bans target known cheat signatures and memory/code tampering, not WGC Window Capture.
-- **Documented blocks / kicks / crashes:**
-  - *Valorant* / Riot Vanguard (`VAN` errors) routinely blocks unsigned/incompatible background drivers and utilities, and periodically breaks OBS Game Capture until updated.
-  - *Easy Anti-Cheat* (`Game Security Violation Detected`) and *EA Javelin Anticheat* frequently refuse to launch or kick players when unrecognized overlay, RGB, macro, or screen-hook tools run concurrently.
-  - *CS2* Trusted Mode silently blocks unsigned DLL hooks (preventing OBS Game Capture) and lowers Trust Factor if `-allow_third_party_software` is used.
-- **Community reports of false-positive flags / uncertainty:** Across Reddit and publisher forums, players occasionally report temporary kicks, shadow-bans (*Call of Duty* Ricochet), or automated bans when running unsigned Python/AutoHotkey/screen-capture/overlay scripts alongside *Valorant*, *Call of Duty*, *Rust*, or *PUBG*—even when those scripts were intended for accessibility or personal stats. Because publishers do not disclose exact ban reasons, **causation cannot be proven with 100% certainty**, so Game Hub treats **zero activity during protected games** (Strict mode or full exit) as the only truly safe default.
-
----
-
-## 5. Summary Risk Matrix & Recommended Defaults
-
-| Game | Launcher(s) | Anti-Cheat | Level & Start | (a) WGC Shots | (b) Process Enum | (c) Global Hotkeys | (d) Mic Record | (e) Topmost Window | Default Mode |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Valorant** | Riot Client | Riot Vanguard | Kernel · **Boot** | High | Medium (handle) / Low (basename) | Medium | Minimal | High | **Strict** (Auto-exit on external launch) |
-| **League of Legends** | Riot Client | Riot Vanguard | Kernel · **Boot** | High | Medium / Low | Medium | Minimal | High | **Strict** (Auto-exit on external launch) |
-| **Fortnite** | Epic | EAC + BattlEye | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **Apex Legends** | Steam, EA app | Easy Anti-Cheat | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **Call of Duty (Warzone / MW / BO6)** | Steam, Battle.net, Xbox | RICOCHET | Kernel · Launch | High | Medium / Low | Medium | Minimal | High | **Strict** (Auto-exit on external launch) |
-| **Rainbow Six Siege** | Steam, Ubisoft, Epic, Xbox | BattlEye + QB | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **PUBG: BATTLEGROUNDS** | Steam, Epic | BattlEye + Zakynthos | Kernel · Launch | High | Medium / Low | Medium | Minimal | High | **Strict** (Auto-exit on external launch) |
-| **Rust** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **EA SPORTS FC (24/25/26)** | Steam, EA app, Epic, Xbox | EA Javelin Anticheat | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **Battlefield (2042/V/1/6)** | Steam, EA app, Epic, Xbox | EA Javelin Anticheat | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **Helldivers 2** | Steam | nProtect GameGuard | Kernel · Launch | High | Medium / Low | Medium | Minimal | High | **Strict** (Auto-exit on external launch) |
-| **Elden Ring / Elden Ring Nightreign** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (user may switch to Full if playing offline without EAC) |
-| **Armored Core VI: Fires of Rubicon** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (user may switch to Full if playing offline without EAC) |
-| **Lords of the Fallen (2023) / Space Marine 2** | Steam | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (Auto-exit on external launch) |
-| **Dark Souls III / Dark Souls: Remastered / Sekiro** | Steam | None (server/save softban checks only; no EAC or kernel driver) | None | None | Minimal | None | None | None | **Full** (safe default; no kernel anti-cheat) |
-| **Halo MCC / Infinite** | Steam, Xbox | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (Auto-exit on external launch) |
-| **Sea of Thieves** | Steam, Xbox | Easy Anti-Cheat | Kernel · Launch | Medium | Low–Medium | Low–Medium | Minimal | Medium | **Strict** (Auto-exit on external launch) |
-| **Destiny 2 / DayZ / Tarkov / Arma 3** | Steam, Epic, Standalone | BattlEye | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **Dead by Daylight / The Finals / Lost Ark / For Honor / Fall Guys / War Thunder** | Steam, Epic, Xbox, Ubisoft | Easy Anti-Cheat | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **Genshin Impact / Honkai: Star Rail / ZZZ** | Epic, Standalone | HoYoKProtect | Kernel · Launch | Medium–High | Low–Medium | Low–Medium | Minimal | Medium–High | **Strict** (Auto-exit on external launch) |
-| **Delta Force / Naraka / Arena Breakout** | Steam, Epic, Standalone | ACE (Anti-Cheat Expert) | Kernel · Launch | High | Medium / Low | Medium | Minimal | High | **Strict** (Auto-exit on external launch) |
-| **Counter-Strike 2** | Steam | VAC + VAC Live + Trusted Mode | **User-mode** · Launch | Low (WGC safe) | Low | Low | Minimal | Low–Medium (focus/UX) | **Strict** (recommended default for competitive multiplayer; user can switch to Full) |
-| **Deadlock** | Steam | Valve Anti-Cheat | **User-mode** · Launch | Low | Low | Low | Minimal | Low–Medium | **Strict** (recommended default; user can switch to Full) |
-| **Overwatch 2 / World of Warcraft** | Battle.net, Steam | Blizzard Warden | **User-mode** · Launch | Low | Low | Low | Minimal | Low–Medium | **Strict** (recommended default; user can switch to Full) |
-| **Single-player / Offline games (no anti-cheat)** | Steam, Epic, Xbox, Manual | None | None | None | Minimal | None | None | None | **Full** (v1 features) |
+### 2.5 Epic Games / Easy Anti-Cheat (EAC) Official Guidance
+- **Sources:**
+  - Epic Games Support — *Troubleshooting Easy Anti-Cheat ("Game Security Violation" & "Untrusted System File")* (`https://www.epicgames.com/help/en-US/c-Category_Fortnite`, retrieved 2026-11-24)
+  - Easy Anti-Cheat — *Official Site* (`https://www.easy.ac/`, retrieved 2026-11-24)
+- **Key facts:**
+  - `"Untrusted system file"` triggers when EAC encounters an unsigned, tampered, or unrecognized DLL loaded into the game process or a corrupted Windows system component.
+  - `"Game Security Violation"` triggers when EAC detects unauthorized hooks, unsupported background overlays/RGB/macro utilities, or driver/process tampering while a protected game runs.
+  - **Key launcher fact (verified locally on Windows 11):** The **Epic Games Launcher itself (`EpicGamesLauncher.exe`) runs NO anti-cheat**. EAC (`EasyAntiCheat_EOS`) and BattlEye (`BEService`) remain **Stopped** while browsing the Epic store or playing single-player Epic games (e.g., *Death Stranding*, *Hue*). They start **only** when a protected game's own launch sequence begins (`FortniteBootstrapper.exe` / `FortniteLauncher.exe`).
 
 ---
 
-## 6. Bundled, Updatable Protected-Games Data File
+## 3. Question: Is Running Game Hub *Before* Valorant Opens a Risk Given `vgk.sys` Runs From Boot?
 
-Game Hub stores its protected-games list in a versioned JSON data file (never hardcoded in Python logic):
-- **Bundled location:** `gamehub/core/protection/protected_games.json` (included in PyInstaller bundle under `_internal/gamehub/core/protection/protected_games.json`).
-- **User override / update location:** `%LOCALAPPDATA%\GameHub\protected_games_override.json` (optional local JSON file in the user's data root so the list can be updated without waiting for an app release, while keeping v1.1 strictly offline).
-- **Schema:**
-  - `schema_version`: `1`
-  - `updated_at`: ISO date string
-  - `games`: array of entries with `id`, `name`, `anti_cheat`, `privilege` (`kernel` | `user`), `starts_at` (`boot` | `launch`), `default_mode` (`strict`), `steam_app_ids` (list of strings), `epic_app_names` (list of strings), `xbox_package_prefixes` (list of strings), and `exe_names` (lowercase executable basenames, e.g. `valorant-win64-shipping.exe`, `fortniteclient-win64-shipping.exe`, `r5apex.exe`, `cs2.exe`, `cod.exe`, `rainbowsix.exe`, `tslgame.exe`, `rustclient.exe`, `fc25.exe`, `fc26.exe`, `league of legends.exe`, `helldivers2.exe`, `eldenring.exe`, etc.).
-- **Matching rule:**
-  1. For library entries: match by Steam AppID, Epic AppName, Xbox package prefix, or target executable basename.
-  2. For the passive "forgetful case" detector: match **only** by process basename from `CreateToolhelp32Snapshot` — **never** call `OpenProcess` on a protected game just to detect it!
+- **How Vanguard splits boot vs. game runtime (verified on this PC):**
+  - `vgk` (`vgk.sys`, Ring-0 kernel driver): `StartMode = System`, `State = Running` from Windows boot.
+  - `vgc` (`C:\Program Files\Riot Vanguard\vgc.exe`, user-mode service): `StartMode = Manual`, **`State = Stopped`** when Riot Client / Valorant is not running.
+- **Evidence-based risk assessment:**
+  - According to Riot's official Vanguard documentation, `vgk.sys` at boot enforces driver-signing / vulnerable-driver blocks (`VAN` errors) and protects kernel integrity so cheats cannot load before the OS finishes booting.
+  - Vanguard is **not known to ban users** for running ordinary, non-driver, non-injecting desktop applications while no Riot client or game is running (millions of PCs run Python, browsers, IDEs, Playnite, Discord, etc. with `vgk.sys` active from boot).
+  - **Uncertainty:** Because Vanguard's internal heuristics are closed-source, we still apply the strictest practical protection:
+    1. Game Hub loads **zero drivers**, requests **no admin elevation** (`asInvoker`), and never calls `OpenProcess`, `ReadProcessMemory`, `WriteProcessMemory`, `CreateRemoteThread`, `SetWindowsHookEx`, or `SendInput` on any protected process.
+    2. Game Hub **refuses to start** whenever `RiotClientServices.exe`, `RiotClientUx.exe`, `vgc` service, `VALORANT.exe`, `VALORANT-Win64-Shipping.exe`, or `League of Legends.exe` is running—and **exits immediately** (< 1 s) if any of them starts while Game Hub is open.
+    3. Closing Game Hub exits the process completely (**zero background footprint**).
+
+---
+
+## 4. Exact Process & Service Launch Timelines
+
+Every protected game in `gamehub/core/protection/protected_games.json` (schema v2) categorizes executables into three distinct stages plus on-demand anti-cheat services:
+- `launcher_stage_exes`: Earliest process spawned when the user clicks Play — Game Hub exits here **before** the anti-cheat initializes.
+- `anti_cheat_exes`: Anti-cheat bootstrapper / user-mode service processes.
+- `game_exes`: Main game client executables.
+- `anti_cheat_services` (catalog-level on-demand SCM services): `EasyAntiCheat_EOS`, `EasyAntiCheat`, `BEService`, `vgc`.
+
+> **Critical real-PC finding (`EAAntiCheatService`):** Local inspection on Windows 11 with *EA SPORTS FC 27* installed confirmed that `EAAntiCheatService` (`eaanticheat.gameservice.exe`) can remain `Running` in the background even when no EA game is open (unlike `EasyAntiCheat_EOS`, `BEService`, and `vgc`, which are `Stopped` until launch). Treating `EAAntiCheatService` as an "active game" would permanently block Game Hub on PCs with EA Javelin installed. Therefore, EA Javelin titles are detected by their launch-stage bootstrapper **`EAAntiCheat.GameServiceLauncher.exe`** (which runs only when an EA protected game actually launches) plus all `fc24.exe`–`fc27.exe` / `bf*.exe` game executables.
+
+### 4.1 Fortnite (Epic Games Store — verified against local `E:\epic games\Fortnite\FortniteGame\Binaries\Win64`)
+1. User clicks **Fortnite** in Epic Games Launcher (or Game Hub opens `com.epicgames.launcher://apps/fn%3A4fe75bbc5a674f4f9b356b5c90567da5%3AFortnite?action=launch&silent=true` and exits immediately).
+2. **Stage 1 (`launcher_stage_exes`, ~T+0.1 s):** `FortniteBootstrapper.exe` → `FortniteLauncher.exe` **(Game Hub exits here within ~0.3–0.6 s)**.
+3. **Stage 2 (`anti_cheat_exes` / `anti_cheat_services`, ~T+2–6 s):** `FortniteClient-Win64-Shipping_EAC_EOS.exe` or `FortniteClient-Win64-Shipping_BE.exe`; `EasyAntiCheat_EOS` (`EasyAntiCheat_EOS.exe`) or `BEService` (`BEService.exe`) starts.
+4. **Stage 3 (`game_exes`, ~T+8–20 s):** `FortniteClient-Win64-Shipping.exe` window opens.
+
+### 4.2 Valorant (Riot Client — verified against local `E:\Valorant1\Riot Games\`)
+1. **Stage 0 (Strict Launcher — Always Blocked):** `RiotClientServices.exe` / `RiotClientUx.exe` (`Riot Client`) starts **(Game Hub refuses to start or exits immediately here — before the user even clicks Play on Valorant)**.
+2. **Stage 1 (`anti_cheat_services` / `anti_cheat_exes`):** `vgc` service (`vgc.exe`) starts (`vgk.sys` already loaded at boot).
+3. **Stage 2 (`launcher_stage_exes`):** `VALORANT.exe` bootstrapper starts.
+4. **Stage 3 (`game_exes`):** `VALORANT-Win64-Shipping.exe` window opens.
+
+### 4.3 League of Legends (Riot Client)
+1. **Stage 0 (Strict Launcher):** `RiotClientServices.exe` / `RiotClientUx.exe` → `LeagueClient.exe` / `LeagueClientUx.exe` **(Game Hub exits immediately)**.
+2. **Stage 1 (`anti_cheat_services`):** `vgc` service (`vgc.exe`) runs.
+3. **Stage 2 (`game_exes`):** `League of Legends.exe`.
+
+### 4.4 EA SPORTS FC 24/25/26/27 & Battlefield (EA app / Steam / Epic)
+1. User clicks Play in EA app / Steam (EA app itself is allowed by default for non-protected EA single-player titles like *Dead Space* or *It Takes Two*).
+2. **Stage 1 (`launcher_stage_exes`):** `EAAntiCheat.GameServiceLauncher.exe` **(Game Hub exits here before game window opens)**.
+3. **Stage 2 (`game_exes`):** `fc24.exe`, `fc25.exe`, `fc26.exe`, `fc27.exe`, `fc27_showcase.exe`, `fc27_trial.exe`, `bf2042.exe`, `bfv.exe`, `bf1.exe`.
+
+### 4.5 Counter-Strike 2 & Deadlock (Steam — VAC / Trusted Mode)
+1. User clicks Play in Steam (Steam itself is allowed by default for single-player games).
+2. **Stage 1/2 (`game_exes`):** `cs2.exe` (CS2), `project8.exe` / `deadlock.exe` (Deadlock). VAC runs in user-mode inside the game/Steam context; Game Hub still exits immediately by default.
+
+### 4.6 Other Catalog Games (EAC / BattlEye / RICOCHET / GameGuard / HoYoKProtect / ACE / Warden)
+- **EAC games** (*Apex Legends*, *Rust*, *Elden Ring*, *Elden Ring Nightreign*, *Armored Core VI*, *Lords of the Fallen*, *Space Marine 2*, *Halo MCC/Infinite*, *Sea of Thieves*, *Dead by Daylight*, *THE FINALS*, *Lost Ark*, *For Honor*, *Fall Guys*, *War Thunder*): `launcher_stage_exes` includes `start_protected_game.exe`, `eac_launcher.exe`, `easyanticheat_launcher.exe`; `anti_cheat_exes` includes `easyanticheat.exe`, `easyanticheat_eos.exe`; SCM watches `EasyAntiCheat` and `EasyAntiCheat_EOS`.
+- **BattlEye games** (*Rainbow Six Siege*, *PUBG*, *Destiny 2*, *DayZ*, *Escape from Tarkov*, *Arma 3*): `launcher_stage_exes` includes `*_be.exe`, `arma3battleye.exe`; `anti_cheat_exes` includes `beservice.exe`, `beclient_x64.dll` host `bedaisy` service `BEService`.
+- **RICOCHET** (*Call of Duty*): `cod.exe`, `modernwarfare.exe`, `blackopscoldwar.exe`, `sp22-cod.exe`, `sp23-cod.exe`.
+- **nProtect GameGuard** (*HELLDIVERS 2*): `gamemon.des`, `gamemon64.des`, `npggnt.des`, `helldivers2.exe`.
+- **HoYoKProtect** (*Genshin Impact*, *Honkai: Star Rail*, *Zenless Zone Zero*): `genshinimpact.exe`, `yuanshen.exe`, `starrail.exe`, `zenlesszonezero.exe`.
+- **Anti-Cheat Expert (ACE)** (*Delta Force*, *NARAKA: BLADEPOINT*): `sguard64.exe`, `sguardsvc64.exe`, `deltaforceclient-win64-shipping.exe`, `narakabladepoint.exe`.
+- **Blizzard Warden** (*Overwatch 2*, *World of Warcraft*): `overwatch.exe`, `wow.exe`, `wowclassic.exe`.
+
+---
+
+## 5. Fast Detection Benchmark: WMI vs. Toolhelp32 + Read-Only SCM (Measured 2026-11-24)
+
+Tested without Administrator privileges on Windows 11 (Build 26300, 322 running processes):
+1. **`Win32_ProcessStartTrace` (ETW via WMI):** Returns **`AccessDenied`** for non-admin (`asInvoker`) processes. Cannot be used without elevation (and we strictly forbid admin elevation).
+2. **`__InstanceCreationEvent WITHIN 0.5 WHERE TargetInstance ISA 'Win32_Process'` (WMI):** Subscribes without admin, **but** WMI implements `WITHIN 0.5` by polling inside `WmiPrvSE.exe` every 500 ms (adding COM/WMI service CPU overhead and external service dependency).
+3. **Dedicated `ProtectionGuard` thread using `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)` + read-only SCM (`OpenSCManagerW(SC_MANAGER_CONNECT)` / `OpenServiceW(SERVICE_QUERY_STATUS)` / `QueryServiceStatusEx`):**
+   - Average basename scan time on 322 processes: **11.1 ms**.
+   - At a **300 ms** guard interval: average detection latency **~160 ms**, worst-case **~315 ms**, full teardown + process exit well under **500–800 ms**—comfortably **1.5–5+ seconds before** EAC/BattlEye/Vanguard finishes bootstrapping and long before the game window opens!
+   - **Zero `OpenProcess` handles**, zero COM/WMI fragility, zero admin privileges, and trivially testable with a 1-second **fail-closed watchdog** verifying the guard heartbeat.
+
+---
+
+## 6. Packaging Security Evaluation: Nuitka vs. PyInstaller (Layer 6)
+
+| Criterion | PyInstaller (`--onedir`, `upx=False`) | Nuitka (`--standalone`) |
+| --- | --- | --- |
+| Windows Defender / SmartScreen on unsigned binary | Moderate–Low (one-dir avoids temp-folder dropper extraction; no UPX; still flagged as "Unknown Publisher" until signed) | Moderate–Low (native C binary, but unsigned new binaries still trigger SmartScreen & some heuristic AVs) |
+| Build & CI stability with PySide6 + `windows-capture` (Rust) + `sounddevice`/`soundfile` | Proven green locally and in GitHub Actions (~65 s build) | Requires MSVC/MinGW C compilation (15–35 min CI builds), frequent hook edge-cases with PySide6-Addons + native CFFI/Rust wheels |
+| Root fix for Defender/SmartScreen | **EV/OV Code Signing (SignPath Foundation)** + Microsoft Security Intelligence portal submission | Same: **Code Signing** is still required to eliminate SmartScreen warnings |
+
+**Decision (recorded in `DECISIONS.md`):** Keep **PyInstaller one-dir with `upx=False`**, embedded `VERSIONINFO` + `asInvoker` manifest, zero obfuscation, MIT open-source repository, SignPath Foundation free open-source code signing, and click-only Microsoft Defender false-positive submission instructions (`docs/DEFENDER-SUBMISSION.md`). This achieves the highest reliability and auditability while avoiding PyInstaller's `--onefile` / UPX AV triggers.

@@ -147,3 +147,11 @@ In Qt, putting `&` inside button or label strings (such as `&Refresh` or `&Playâ
 Read [protected_games.json](gamehub/core/protection/protected_games.json), [catalog.py](gamehub/core/protection/catalog.py), [i18n catalog](gamehub/core/i18n/catalog.py), and [test_protection_and_lifecycle.py](tests/test_protection_and_lifecycle.py).
 
 Try it yourself. Run `python -m pytest tests/test_protection_and_lifecycle.py -k elden_ring` to see how `ProtectedGamesCatalog` routes Elden Ring and Armored Core VI to **Strict** while keeping Dark Souls III in **Full** mode.
+
+## D-v1.2 â€” Zero-Presence anti-cheat design, real-PC diagnostics, and Part 6 Mods design
+
+Testing assumptions directly against a real Windows 11 machine caught three critical truths before writing a single line of v1.2 code: (1) WMI `Win32_ProcessStartTrace` requires Administrator privileges (`AccessDenied`), whereas direct `CreateToolhelp32Snapshot` basename scanning takes ~11 ms with zero handles opened; (2) `EAAntiCheatService` stays `Running` in the background even when EA FC is closed, unlike on-demand `EasyAntiCheat_EOS`, `BEService`, and `vgc` services; and (3) the modern per-user Epic Games Launcher registers games under `HKCU\...\Uninstall\EpicGames-*` (`EpicAppId`) instead of legacy `ProgramData` `.item` manifests.
+
+Read [anti-cheat.md](docs/research/anti-cheat.md), [11-v1.2-plan.md](docs/design/11-v1.2-plan.md), [12-mods-and-arabizations.md](docs/design/12-mods-and-arabizations.md), and [D-v1.2-review.md](docs/reviews/D-v1.2-review.md).
+
+Try it yourself. Open `docs/design/mockups/mods-arabizations.html` in a browser and toggle between English (LTR) and Arabic (RTL) to preview the Mafia II Arabization-vs-Mod conflict resolution design.

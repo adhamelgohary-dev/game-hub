@@ -23,5 +23,7 @@ The app uses Python and PySide6 with a modern Windows 11 / Fluent QSS interface 
 10. [Testing and debugging](09-testing-and-debugging.md)
 11. [Risks](10-risks.md)
 12. [UI Mockups (v1.1)](mockups/index.html)
+13. [Game Hub v1.2 Plan (Zero-Presence Anti-Cheat, Launchers, Covers, Settings, Rename Check)](11-v1.2-plan.md)
+14. [Mods & Arabizations Module (Part 6 — Design Only)](12-mods-and-arabizations.md) and [Mods Mockup](mockups/mods-arabizations.html)
 
 The original v1 product spec is `STRUCTURE.txt`. The [decision log](../../DECISIONS.md) records implementation choices. Update the relevant design and log the change before changing a published interface or data format.

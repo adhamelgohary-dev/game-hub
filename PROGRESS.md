@@ -24,7 +24,17 @@
 - 🔄 Owner Gate 2 — Waiting for owner to run the 10-item RC2 Windows test checklist and reply `"verified"` [simple]
 - ⬜ M13 — Publish final `v1.1.0` after owner replies `"verified"` (Part G) [simple]
 
-**Current task** — Paused at **Owner Gate 2**: `Game Hub v1.1.0-rc.2` pre-release built and published; `GameHub-Setup-v1.1.0-rc.2.exe` copied to Desktop for owner's 10-item verification checklist before publishing final `v1.1.0`.
+## v1.2 ("Zero-Presence Anti-Cheat + All Launchers + Fitting Covers + Plain Settings") — Replaces unverified `v1.1.0-rc.2`
+- ✅ D-v1.2 — Anti-cheat research v2, v1.2 design, Part 6 Mods design & mockups, Rename conflict check, Council APPROVE [complex]
+- 🔄 M14 — Part 1: Zero-Presence Anti-Cheat Protocol (Layers 1–7 + Settings Protected Games UI) [complex]
+- ⬜ M15 — Part 2: Fix Epic & Steam, add Riot/GOG/EA/Ubisoft/Battle.net/itch/Xbox detectors, Scan Folders, plain scan warnings [complex]
+- ⬜ M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
+- ⬜ M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
+- ⬜ M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
+- ⬜ M19 — Execute owner-chosen Rename variant & publish final `v1.2.0` after owner replies `"verified"` [simple]
+- ⬜ M20 — Part 6: Mods & Arabizations implementation (blocked until owner approves `docs/design/12-mods-and-arabizations.md` + mockups) [complex]
+
+**Current task** — Starting **M14 (Part 1 — Zero-Presence Anti-Cheat Protocol)** after `D-v1.2` Council APPROVE.
 
 **Last completed**
 - Verified EAC Strict defaults (`protected_games.json` + frozen `sys._MEIPASS` resolution) for Elden Ring, Armored Core VI, Elden Ring Nightreign, Lords of the Fallen, and Space Marine 2 (and confirmed Dark Souls III stays Full), removed all `&` mnemonic underlines across UI surfaces with full Arabic parity, regenerated all 4 `docs/screenshots/*.png`, passed `docs/reviews/M12c-rc2-review.md`, and published `v1.1.0-rc.2`.
