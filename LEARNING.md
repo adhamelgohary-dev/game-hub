@@ -139,3 +139,11 @@ Shipping a public desktop release safely separates internal milestone git tags (
 Read [CHANGELOG.md](CHANGELOG.md), [windows.yml](.github/workflows/windows.yml), [installer.iss](packaging/installer.iss), and [M12b-review.md](docs/reviews/M12b-review.md).
 
 Try it yourself. Run `Get-FileHash GameHub-Setup-v1.1.0-rc.1.exe -Algorithm SHA256` in PowerShell and compare the output against the corresponding line in `SHA256SUMS.txt` from the GitHub Release.
+
+## M12c — RC2 catalog verification and clean Qt button typography
+
+In Qt, putting `&` inside button or label strings (such as `&Refresh` or `&Play…`) creates keyboard mnemonics that draw visible underlines on Windows whenever accelerators are shown, and `QDialogButtonBox.StandardButton.Close` inserts a built-in `&Close` automatically. Removing `&` from `.tr()` keys—and enforcing it in the AST i18n parity test—keeps modern Fluent buttons clean while keeping English and Arabic catalogs synchronized. For bundled data files like `protected_games.json`, checking `sys._MEIPASS` explicitly in frozen PyInstaller builds ensures runtime catalog matching matches the source tree across every release candidate.
+
+Read [protected_games.json](gamehub/core/protection/protected_games.json), [catalog.py](gamehub/core/protection/catalog.py), [i18n catalog](gamehub/core/i18n/catalog.py), and [test_protection_and_lifecycle.py](tests/test_protection_and_lifecycle.py).
+
+Try it yourself. Run `python -m pytest tests/test_protection_and_lifecycle.py -k elden_ring` to see how `ProtectedGamesCatalog` routes Elden Ring and Armored Core VI to **Strict** while keeping Dark Souls III in **Full** mode.

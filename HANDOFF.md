@@ -6,22 +6,23 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Wait for owner verification at **Owner Gate 2** (after testing `GameHub-Setup-v1.1.0-rc.1.exe` on Desktop):
-- If the owner reports any bug or polish request on `v1.1.0-rc.1`: fix it with small commits, add regression tests, bump to `v1.1.0-rc.2`, publish, and repeat.
+Wait for owner verification at **Owner Gate 2** (after testing `GameHub-Setup-v1.1.0-rc.2.exe` on Desktop):
+- If the owner reports any bug or polish request on `v1.1.0-rc.2`: fix it with small commits, add regression tests, bump to `v1.1.0-rc.3`, publish, and repeat.
 - Once the owner replies `"verified"`, execute **M13 (Part G — Final `v1.1.0`)** `[simple]`:
   1. Update `gamehub/__init__.py` → `__version__ = "1.1.0"`, `tests/test_packaging.py` version assertion, and `CHANGELOG.md` (`## v1.1.0` with `Added`, `Changed`, `Fixed`, `Security`).
-  2. Run full `pytest -q`, `ruff check .`, `gitleaks`, and record `docs/reviews/M13-review.md`.
+  2. Run full `pytest -q`, `ruff check .`, `gitleaks` (if installed), local PyInstaller smoke test, and record `docs/reviews/M13-review.md`.
   3. Update `PROGRESS.md`, `HANDOFF.md`, `LEARNING.md`, commit and push `main`.
   4. Tag `v1.1.0` and push tag `v1.1.0` so Windows CI builds and publishes the final `Game Hub v1.1.0` release (non-prerelease).
 
 ## In progress
 
-Paused cleanly on green `main` at **Owner Gate 2** awaiting owner's `"verified"` reply after testing `GameHub-Setup-v1.1.0-rc.1.exe`. All v1.1 implementation milestones (`D-v1.1`, `M9`, `M10`, `M11`, `M12a`, `M12b`) are complete, reviewed, committed, and pushed. Repository is **PUBLIC** and GitHub Releases contain only `v1.0.0` and pre-release `v1.1.0-rc.1`.
+Paused cleanly on green `main` at **Owner Gate 2** awaiting owner's `"verified"` reply after testing `GameHub-Setup-v1.1.0-rc.2.exe`. All v1.1 implementation milestones (`D-v1.1`, `M9`, `M10`, `M11`, `M12a`, `M12b`, `M12c`) are complete, reviewed, committed, and pushed. Repository is **PUBLIC** and GitHub Releases contain `v1.0.0`, `v1.1.0-rc.1`, and pre-release `v1.1.0-rc.2`.
 
 ## Fragile spots
 
 - `gamehub/app.py`: Keep `watcher.start()` strictly after all `EventBus.subscribe(...)` calls, and keep `SingleInstance` anchored on `effective_default` so data-folder relocation never permits a second concurrent instance.
-- `gamehub/core/i18n/catalog.py`: Never place Unicode BiDi isolate characters (`\u2066`/`\u2069`) inside `QFileDialog` glob parentheses `(*.exe)` / `(*.png ...)` — `tests/test_i18n_and_settings_ui.py` enforces both AST `.tr()` parity and `QDir.match` validity.
+- `gamehub/core/i18n/catalog.py`: Never place Unicode BiDi isolate characters (`\u2066`/`\u2069`) inside `QFileDialog` glob parentheses `(*.exe)` / `(*.png ...)` and never reintroduce `&` mnemonic ampersands in `.tr(...)` labels — `tests/test_i18n_and_settings_ui.py` enforces AST `.tr()` parity, mnemonic-free labels, and `QDir.match` validity.
+- `gamehub/core/protection/catalog.py` & `protected_games.json`: Keep `sys._MEIPASS` resolution in `_default_bundled_catalog_path()` so frozen builds always load bundled `protected_games.json`, and avoid duplicating shared wrapper executables like `start_protected_game.exe` across multiple catalog entries.
 - `gamehub/core/storage/media.py` and `location.py`: Preserve Windows directory pinning, `lstat()` reparse-point checks, and `PRAGMA user_version` verification for all managed media and store moves.
 - `packaging/gamehub.spec`, `packaging/installer.iss`, and `packaging/THIRD_PARTY_NOTICES.txt`: Keep `PySide6-Addons`, `third-party/FFmpeg/LGPL-2.1.txt`, `[InstallDelete]` on `{app}\_internal`, and `[Registry]` `uninsdeletevalue` cleanup intact.
 

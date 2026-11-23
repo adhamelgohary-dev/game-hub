@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.1.0-rc.2
+
+### Added
+- **Expanded Easy Anti-Cheat catalog (`protected_games.json`):** Added **ARMORED CORE VI FIRES OF RUBICON** (`1888160` / `armoredcore6.exe`), **ELDEN RING NIGHTREIGN** (`2622380` / `nightreign.exe`), **Lords of the Fallen** (`1501750` / `lotf2-win64-shipping.exe`), and **Warhammer 40,000: Space Marine 2** (`2183900`) alongside **ELDEN RING** (`1245620` / `eldenring.exe` / `start_protected_game.exe`) so all default to **Strict mode**. Verified **Dark Souls III** (`374320`), **Dark Souls: Remastered**, and **Sekiro** do not use Easy Anti-Cheat or a kernel driver and therefore remain in **Full mode** by default (`docs/research/anti-cheat.md`).
+
+### Changed
+- **Cleaner button and label typography:** Removed visible `&` mnemonic underlines across all UI surfaces (`Refresh`, `Add game…`, `Back to Library`, `Play…`, `Upload controls image…`, `Previous`, `Next`, `Save settings`, dialogs, and labels) while keeping full English/Arabic translation parity.
+- **Updated README screenshots:** Regenerated `docs/screenshots/*.png` using the live `ProtectedGamesCatalog` so **Elden Ring** accurately displays **Strict** / **Auto (Strict)** and buttons render without mnemonic underlines.
+
+### Fixed
+- Ensured `ProtectedGamesCatalog.load()` explicitly checks `sys._MEIPASS` in frozen PyInstaller bundles so bundled `protected_games.json` always resolves reliably in packaged builds.
+- Replaced Qt's built-in `QDialogButtonBox.StandardButton.Close` in `LastMomentsDialog` with a translated plain `"Close"` button to eliminate its default mnemonic underline.
+
+### Security
+- Preserved zero-background lifecycle, zero `OpenProcess` handles on protected/Strict games, zero game injection/hooks/memory reads, and 100% offline operation.
+
 ## v1.1.0-rc.1
 
 ### Added
