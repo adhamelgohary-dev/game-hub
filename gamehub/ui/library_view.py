@@ -177,9 +177,9 @@ class LibraryView(QWidget):
         self._search.setMaximumWidth(260)
         self._search.textChanged.connect(self._rebuild_grid)
 
-        self._refresh = QPushButton(self.tr("&Refresh"), self)
+        self._refresh = QPushButton(self.tr("Refresh"), self)
         self._refresh.clicked.connect(self.refreshRequested)
-        self._add = QPushButton(self.tr("&Add game…"), self)
+        self._add = QPushButton(self.tr("Add game…"), self)
         self._add.setObjectName("primaryButton")
         self._add.clicked.connect(self._pick_game)
 
@@ -264,8 +264,8 @@ class LibraryView(QWidget):
     def retranslate_ui(self) -> None:
         self._title.setText(self.tr("Library"))
         self._search.setPlaceholderText(self.tr("Search games…"))
-        self._refresh.setText(self.tr("&Refresh"))
-        self._add.setText(self.tr("&Add game…"))
+        self._refresh.setText(self.tr("Refresh"))
+        self._add.setText(self.tr("Add game…"))
         self._progress.setText(self.tr("Updating library…"))
         self._rebuild_grid()
 

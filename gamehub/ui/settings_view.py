@@ -304,11 +304,11 @@ class SettingsView(QWidget):
         self._status.show()
 
     def retranslate_ui(self) -> None:
-        self._back.setText(self.tr("&Back to Library"))
+        self._back.setText(self.tr("Back to Library"))
         self._title.setText(self.tr("Settings"))
         self._lang_group.setTitle(self.tr("Language and appearance"))
-        self._lang_label.setText(self.tr("Display &language"))
-        self._theme_label.setText(self.tr("&Theme"))
+        self._lang_label.setText(self.tr("Display language"))
+        self._theme_label.setText(self.tr("Theme"))
         self._theme.setItemText(0, self.tr("Dark"))
         self._theme.setItemText(1, self.tr("Light"))
         self._theme.setItemText(2, self.tr("System"))
@@ -320,8 +320,8 @@ class SettingsView(QWidget):
         self._external_behavior.setItemText(1, self.tr("Switch to Strict mode"))
         self._external_behavior.setItemText(2, self.tr("Ask me (Windows notification)"))
         self._capture_group.setTitle(self.tr("Screenshots"))
-        self._interval_label.setText(self.tr("Capture &interval (seconds)"))
-        self._buffer_label.setText(self.tr("Screenshot &ring size"))
+        self._interval_label.setText(self.tr("Capture interval (seconds)"))
+        self._buffer_label.setText(self.tr("Screenshot ring size"))
         self._notes_group.setTitle(self.tr("Notes and Last time"))
         self._autoplay.setText(self.tr("Autoplay voice notes"))
         self._prompt_on_end.setText(self.tr("Ask for a note when a game closes"))
@@ -337,8 +337,8 @@ class SettingsView(QWidget):
         self._hk_pin.setPlaceholderText("Ctrl+Alt+C")
         self._data_group.setTitle(self.tr("Data folder"))
         self._data_path_label.setAccessibleName(self.tr("Current data folder"))
-        self._open_folder.setText(self.tr("&Open folder"))
-        self._move_folder.setText(self.tr("&Move data folder…"))
+        self._open_folder.setText(self.tr("Open folder"))
+        self._move_folder.setText(self.tr("Move data folder…"))
         self._about_group.setTitle(self.tr("About and privacy"))
         self._about_zero_bg.setText(
             self.tr(
@@ -356,7 +356,7 @@ class SettingsView(QWidget):
         self._about_version.setText(
             self.tr("Game Hub v{version} · MIT License").format(version=__version__)
         )
-        self._save.setText(self.tr("&Save settings"))
+        self._save.setText(self.tr("Save settings"))
         if self._data_root != Path():
             self._data_path_label.setText(str(self._data_root))
         if self._error_codes:

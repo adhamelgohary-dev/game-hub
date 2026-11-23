@@ -96,7 +96,7 @@ class GamePage(QWidget):
         self._voice_buttons: dict[str, tuple[QPushButton, QPushButton]] = {}
 
         # Top navigation bar
-        self._back = QPushButton(self.tr("&Back to Library"), self)
+        self._back = QPushButton(self.tr("Back to Library"), self)
         self._back.clicked.connect(self._go_back)
 
         nav_row = QHBoxLayout()
@@ -141,7 +141,7 @@ class GamePage(QWidget):
 
         hero_actions = QHBoxLayout()
         hero_actions.setSpacing(8)
-        self._play = QPushButton(self.tr("&Play…"), self._hero_card)
+        self._play = QPushButton(self.tr("Play…"), self._hero_card)
         self._play.setObjectName("primaryButton")
         self._play.setCursor(Qt.CursorShape.PointingHandCursor)
         self._play.clicked.connect(self._request_play)
@@ -393,8 +393,8 @@ class GamePage(QWidget):
         self._error.setVisible(bool(message))
 
     def retranslate_ui(self) -> None:
-        self._back.setText(self.tr("&Back to Library"))
-        self._play.setText(self.tr("&Play…"))
+        self._back.setText(self.tr("Back to Library"))
+        self._play.setText(self.tr("Play…"))
         self._overflow.setAccessibleName(self.tr("More game options"))
         self._action_change_exe.setText(self.tr("Change executable…"))
         self._action_last_moments.setText(self.tr("Last moments…"))
@@ -406,19 +406,19 @@ class GamePage(QWidget):
                 "or upload a local image below."
             )
         )
-        self._upload_image.setText(self.tr("&Upload controls image…"))
+        self._upload_image.setText(self.tr("Upload controls image…"))
         self._control_preview.setAccessibleName(self.tr("Pinned controls image preview"))
-        self._prev_control.setText(self.tr("Pre&vious"))
+        self._prev_control.setText(self.tr("Previous"))
         self._prev_control.setAccessibleName(self.tr("Previous controls image"))
-        self._next_control.setText(self.tr("&Next"))
+        self._next_control.setText(self.tr("Next"))
         self._next_control.setAccessibleName(self.tr("Next controls image"))
-        self._note_label.setText(self.tr("Controls and stra&tegy notes"))
+        self._note_label.setText(self.tr("Controls and strategy notes"))
         self._control_input.setAccessibleName(self.tr("Controls and strategy note"))
         self._control_input.setPlaceholderText(
             self.tr("Key bindings, combat tips, or reminders for this game…")
         )
-        self._save_control_text.setText(self.tr("&Save controls note"))
-        self._load_more.setText(self.tr("Load &more sessions"))
+        self._save_control_text.setText(self.tr("Save controls note"))
+        self._load_more.setText(self.tr("Load more sessions"))
         self._retranslate_protection_options()
         if self._game is not None:
             mode = str(self._protection_combo.currentData() or self._game.protection_mode)
@@ -453,7 +453,7 @@ class GamePage(QWidget):
         self._hint_label.setWordWrap(True)
         layout.addWidget(self._hint_label)
 
-        self._upload_image = QPushButton(self.tr("&Upload controls image…"), content)
+        self._upload_image = QPushButton(self.tr("Upload controls image…"), content)
         self._upload_image.clicked.connect(self._pick_control_image)
         upload_row = QHBoxLayout()
         upload_row.addWidget(self._upload_image)
@@ -470,10 +470,10 @@ class GamePage(QWidget):
         self._control_preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         layout.addWidget(self._control_preview)
 
-        self._prev_control = QPushButton(self.tr("Pre&vious"), content)
+        self._prev_control = QPushButton(self.tr("Previous"), content)
         self._prev_control.setAccessibleName(self.tr("Previous controls image"))
         self._prev_control.clicked.connect(lambda: self._move_control(-1))
-        self._next_control = QPushButton(self.tr("&Next"), content)
+        self._next_control = QPushButton(self.tr("Next"), content)
         self._next_control.setAccessibleName(self.tr("Next controls image"))
         self._next_control.clicked.connect(lambda: self._move_control(1))
         self._control_position = QLabel(content)
@@ -485,7 +485,7 @@ class GamePage(QWidget):
         nav.addWidget(self._next_control)
         layout.addLayout(nav)
 
-        self._note_label = QLabel(self.tr("Controls and stra&tegy notes"), content)
+        self._note_label = QLabel(self.tr("Controls and strategy notes"), content)
         self._note_label.setWordWrap(True)
         self._control_input = QPlainTextEdit(content)
         self._control_input.setAccessibleName(self.tr("Controls and strategy note"))
@@ -497,7 +497,7 @@ class GamePage(QWidget):
         self._control_input.setMaximumHeight(120)
         self._note_label.setBuddy(self._control_input)
 
-        self._save_control_text = QPushButton(self.tr("&Save controls note"), content)
+        self._save_control_text = QPushButton(self.tr("Save controls note"), content)
         self._save_control_text.setObjectName("primaryButton")
         self._save_control_text.clicked.connect(self._submit_control_text)
         save_row = QHBoxLayout()
@@ -526,7 +526,7 @@ class GamePage(QWidget):
         self._timeline_list = QVBoxLayout()
         outer.addLayout(self._timeline_list)
 
-        self._load_more = QPushButton(self.tr("Load &more sessions"), content)
+        self._load_more = QPushButton(self.tr("Load more sessions"), content)
         self._load_more.clicked.connect(self._request_more_timeline)
         self._load_more.hide()
         outer.addWidget(self._load_more)

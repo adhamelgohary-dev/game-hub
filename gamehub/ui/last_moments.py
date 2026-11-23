@@ -41,9 +41,9 @@ class LastMomentsDialog(QDialog):
         self._preview.setMinimumSize(280, 160)
         self._preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
 
-        self._previous = QPushButton(self.tr("&Previous"), self)
+        self._previous = QPushButton(self.tr("Previous"), self)
         self._previous.clicked.connect(self._go_previous)
-        self._next = QPushButton(self.tr("&Next"), self)
+        self._next = QPushButton(self.tr("Next"), self)
         self._next.clicked.connect(self._go_next)
         self._position = QLabel(self)
         self._position.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -53,7 +53,9 @@ class LastMomentsDialog(QDialog):
         navigation.addWidget(self._position, stretch=1)
         navigation.addWidget(self._next)
 
-        actions = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=self)
+        actions = QDialogButtonBox(self)
+        close_btn = actions.addButton(self.tr("Close"), QDialogButtonBox.ButtonRole.RejectRole)
+        close_btn.setAutoDefault(False)
         actions.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
         layout.addWidget(self._preview, stretch=1)
@@ -67,7 +69,7 @@ class LastMomentsDialog(QDialog):
         if self._next.isEnabled():
             self._next.setFocus()
         else:
-            actions.button(QDialogButtonBox.StandardButton.Close).setFocus()
+            close_btn.setFocus()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)

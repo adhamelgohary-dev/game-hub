@@ -44,6 +44,8 @@ def test_arabic_catalog_has_full_key_and_placeholder_parity() -> None:
 
     missing = sorted(keys - set(AR_CATALOG))
     assert missing == [], f"Missing Arabic translations: {missing}"
+    mnemonic_keys = sorted(key for key in keys if "&" in key)
+    assert mnemonic_keys == [], f"UI labels should not contain mnemonic ampersands: {mnemonic_keys}"
     for key in sorted(keys):
         translated = AR_CATALOG[key]
         assert translated.strip(), f"Empty Arabic translation for {key!r}"

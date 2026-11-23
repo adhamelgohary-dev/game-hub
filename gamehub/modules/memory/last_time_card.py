@@ -174,10 +174,10 @@ class LastTimeCard(QDialog):
         self._voice_status.setWordWrap(True)
         voice_layout.addWidget(self._voice_status)
 
-        self._play_voice = QPushButton(self.tr("&Play voice note"), voice_card)
+        self._play_voice = QPushButton(self.tr("Play voice note"), voice_card)
         self._play_voice.setAccessibleName(self.tr("Play voice note"))
         self._play_voice.clicked.connect(self.playVoiceRequested)
-        self._stop_voice = QPushButton(self.tr("&Stop"), voice_card)
+        self._stop_voice = QPushButton(self.tr("Stop"), voice_card)
         self._stop_voice.setAccessibleName(self.tr("Stop voice note"))
         self._stop_voice.clicked.connect(self.stopVoiceRequested)
         self._autoplay = QCheckBox(self.tr("Autoplay voice notes"), voice_card)
@@ -340,12 +340,12 @@ class LastTimeCard(QDialog):
         self._launch: QPushButton | None = None
         if allow_launch:
             self._launch = actions.addButton(
-                self.tr("&Launch"), QDialogButtonBox.ButtonRole.AcceptRole
+                self.tr("Launch"), QDialogButtonBox.ButtonRole.AcceptRole
             )
             self._launch.setObjectName("primaryButton")
             self._launch.setAutoDefault(False)
             self._launch.clicked.connect(self.launchRequested)
-        self._close = actions.addButton(self.tr("&Close"), QDialogButtonBox.ButtonRole.RejectRole)
+        self._close = actions.addButton(self.tr("Close"), QDialogButtonBox.ButtonRole.RejectRole)
         self._close.setAutoDefault(False)
         actions.rejected.connect(self.reject)
 
@@ -491,10 +491,10 @@ class LastTimeCard(QDialog):
 
     def _update_voice_controls(self) -> None:
         if self._played_once:
-            label = self.tr("&Replay voice note")
+            label = self.tr("Replay voice note")
             accessible = self.tr("Replay voice note")
         else:
-            label = self.tr("&Play voice note")
+            label = self.tr("Play voice note")
             accessible = self.tr("Play voice note")
         self._play_voice.setText(label)
         self._play_voice.setAccessibleName(accessible)
@@ -504,7 +504,7 @@ class LastTimeCard(QDialog):
     def _update_launch_button(self) -> None:
         if self._launch is None:
             return
-        self._launch.setText(self.tr("Launching…") if self._launching else self.tr("&Launch"))
+        self._launch.setText(self.tr("Launching…") if self._launching else self.tr("Launch"))
         self._launch.setEnabled(self._can_launch and not self._launching)
 
     def _go_previous(self) -> None:

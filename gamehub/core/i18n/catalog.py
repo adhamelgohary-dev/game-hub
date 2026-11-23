@@ -1,47 +1,23 @@
 """Arabic UI translation catalog with LTR isolation for key chords and formats."""
 
 AR_CATALOG: dict[str, str] = {
-    "&Add game…": "إضافة لعبة…",
-    "&Back to Library": "العودة إلى المكتبة",
-    "&Close": "إغلاق",
-    "&Dismiss": "تجاهل",
-    "&Launch": "تشغيل",
-    "&Move data folder…": "نقل مجلد البيانات…",
-    "&Next": "التالي",
-    "&Open folder": "فتح المجلد",
-    "&Open game…": "فتح صفحة اللعبة…",
-    "&Play voice note": "تشغيل الملاحظة الصوتية",
-    "&Play…": "لعب…",
-    "&Previous": "السابق",
-    "&Record voice": "تسجيل صوت",
-    "&Refresh": "تحديث",
-    "&Replay voice note": "إعادة تشغيل الملاحظة الصوتية",
-    "&Retry voice save": "إعادة محاولة حفظ الصوت",
-    "&Save controls note": "حفظ ملاحظة التحكم",
-    "&Save settings": "حفظ الإعدادات",
-    "&Save text": "حفظ النص",
-    "&Settings": "الإعدادات",
-    "&Stop": "إيقاف",
-    "&Stop recording": "إيقاف التسجيل",
-    "&Text note": "ملاحظة نصية",
-    "&Theme": "السمة",
-    "&Upload controls image…": "رفع صورة أزرار التحكم…",
     "About and privacy": "حول البرنامج والخصوصية",
     "Add a game or refresh to scan your local launchers.": (
         "أضف لعبة أو اضغط تحديث لفحص المشغّلات المثبّتة على جهازك."
     ),
     "Add game": "إضافة لعبة",
+    "Add game…": "إضافة لعبة…",
     "All ({count})": "الكل ({count})",
     "Another voice note is recording or being saved.": "يتم الآن تسجيل أو حفظ ملاحظة صوتية أخرى.",
     "Anti-cheat protection": "حماية مكافحة الغش",
     "Ask for a note when a game closes": "السؤال عن ملاحظة عند إغلاق اللعبة",
     "Ask me (Windows notification)": "اسألني (إشعار \u2066Windows\u2069)",
-    "Assign &executable…": "تحديد الملف التنفيذي…",
     "Assign executable": "تحديد الملف التنفيذي",
     "Auto (Full)": "تلقائي (الوضع الكامل)",
     "Auto (Strict)": "تلقائي (الوضع الصارم)",
     "Autoplay voice notes": "تشغيل الملاحظات الصوتية تلقائيًا",
-    "Capture &interval (seconds)": "الفاصل الزمني للالتقاط (بالثواني)",
+    "Back to Library": "العودة إلى المكتبة",
+    "Capture interval (seconds)": "الفاصل الزمني للالتقاط (بالثواني)",
     "Capture is busy. Try Ctrl+Alt+C again or upload an image from the game page.": (
         "الالتقاط مشغول الآن. جرّب \u2066Ctrl+Alt+C\u2069 مرة أخرى أو ارفع صورة من صفحة اللعبة."
     ),
@@ -62,7 +38,7 @@ AR_CATALOG: dict[str, str] = {
     "Close": "إغلاق",
     "Completed": "مكتملة",
     "Controls": "التحكم",
-    "Controls and stra&tegy notes": "ملاحظات التحكم والاستراتيجية",
+    "Controls and strategy notes": "ملاحظات التحكم والاستراتيجية",
     "Controls and strategy note": "ملاحظة التحكم والاستراتيجية",
     "Controls image {current} of {total}": "صورة التحكم {current} من {total}",
     "Could not capture the game window. Upload a local controls image from the game page.": (
@@ -84,7 +60,8 @@ AR_CATALOG: dict[str, str] = {
         "تم التحقق من مجلد البيانات وتحديثه. أعد تشغيل \u2066Game Hub\u2069 لاستخدام الموقع الجديد."
     ),
     "Details": "التفاصيل",
-    "Display &language": "لغة العرض",
+    "Dismiss": "تجاهل",
+    "Display language": "لغة العرض",
     "Don't ask after games": "لا تسأل بعد إغلاق الألعاب",
     "Each enabled shortcut must be unique.": "يجب أن يكون كل اختصار مفعّل فريدًا.",
     "Enter a controls or strategy note before saving.": "أدخل ملاحظة تحكم أو استراتيجية قبل الحفظ.",
@@ -162,7 +139,6 @@ AR_CATALOG: dict[str, str] = {
     ),
     "Language": "اللغة",
     "Language and appearance": "اللغة والمظهر",
-    "Last &moments…": "آخر اللحظات…",
     "Last moment screenshot preview": "معاينة لقطة آخر لحظة",
     "Last moments": "آخر اللحظات",
     "Last moments · {game}": "آخر اللحظات · {game}",
@@ -176,20 +152,23 @@ AR_CATALOG: dict[str, str] = {
     ),
     "Last text note": "آخر ملاحظة نصية",
     "Last time · {game}": "آخر مرة · {game}",
+    "Launch": "تشغيل",
     "Launching…": "جارٍ التشغيل…",
     "Library": "المكتبة",
     "Light": "فاتح",
-    "Load &more sessions": "تحميل جلسات أقدم",
+    "Load more sessions": "تحميل جلسات أقدم",
     "Manual": "يدوي",
     "Microphone unavailable. Check Windows microphone access or save a text note.": (
         "الميكروفون غير متاح. تحقق من إذن الميكروفون في \u2066Windows\u2069 أو احفظ ملاحظة نصية."
     ),
     "More game options": "خيارات اللعبة الإضافية",
+    "Move data folder…": "نقل مجلد البيانات…",
     "Multiple games are running. Select a game in Library to view its Last time card.": (
         "تعمل عدة ألعاب الآن. اختر لعبة من المكتبة لعرض بطاقة آخر مرة."
     ),
     "Name": "الاسم",
     "Never": "لم تُلعب بعد",
+    "Next": "التالي",
     "Next controls image": "صورة التحكم التالية",
     "Next screenshot": "اللقطة التالية",
     "No controls image pinned yet.": "لم يتم تثبيت صورة تحكم بعد.",
@@ -221,6 +200,7 @@ AR_CATALOG: dict[str, str] = {
     "Open Controls and Session Timeline for the selected game.": (
         "افتح التحكم والخط الزمني للجلسات للعبة المحددة."
     ),
+    "Open folder": "فتح المجلد",
     "Pin controls screenshot": "تثبيت لقطة التحكم",
     "Pinned controls image preview": "معاينة صورة التحكم المثبّتة",
     "Pinned controls images: {count}": "صور التحكم المثبّتة: {count}",
@@ -229,17 +209,19 @@ AR_CATALOG: dict[str, str] = {
     "Play": "تشغيل",
     "Play voice note": "تشغيل الملاحظة الصوتية",
     "Play voice note from {date}": "تشغيل الملاحظة الصوتية بتاريخ {date}",
+    "Play…": "لعب…",
     "Playing voice note…": "جارٍ تشغيل الملاحظة الصوتية…",
-    "Pre&vious": "السابق",
     "Press Ctrl+Alt+C while this game is focused to pin its controls screen, or upload a local image below.": (
         "اضغط \u2066Ctrl+Alt+C\u2069 أثناء التركيز على هذه اللعبة لتثبيت شاشة التحكم، أو ارفع صورة محلية أدناه."
     ),
     "Preview Last time and launch the selected game.": "معاينة آخر مرة وتشغيل اللعبة المحددة.",
+    "Previous": "السابق",
     "Previous controls image": "صورة التحكم السابقة",
     "Previous screenshot": "اللقطة السابقة",
     "Protected game detected": "تم اكتشاف لعبة محمية",
     "Protection mode": "وضع الحماية",
     "Record a note?": "هل تريد تسجيل ملاحظة؟",
+    "Record voice": "تسجيل صوت",
     "Record voice note": "تسجيل ملاحظة صوتية",
     "Recording voice note": "جارٍ تسجيل ملاحظة صوتية",
     "Recording voice note. Press Ctrl+Alt+N to stop.": (
@@ -247,18 +229,23 @@ AR_CATALOG: dict[str, str] = {
     ),
     "Recording · {minutes}:{seconds:02d}": "جارٍ التسجيل · \u2066{minutes}:{seconds:02d}\u2069",
     "Records up to 60 seconds.": "يسجّل حتى 60 ثانية.",
+    "Refresh": "تحديث",
     "Reopen Last time card": "إعادة فتح بطاقة آخر مرة",
     "Replay": "إعادة التشغيل",
     "Replay voice note": "إعادة تشغيل الملاحظة الصوتية",
+    "Retry voice save": "إعادة محاولة حفظ الصوت",
     "Review your notes before launching. For exclusive fullscreen games, use Play here or press Alt+Tab and Ctrl+Alt+L.": (
         "راجع ملاحظاتك قبل التشغيل. لألعاب ملء الشاشة الحصري، استخدم زر لعب هنا أو اضغط "
         "\u2066Alt+Tab\u2069 ثم \u2066Ctrl+Alt+L\u2069."
     ),
+    "Save controls note": "حفظ ملاحظة التحكم",
+    "Save settings": "حفظ الإعدادات",
+    "Save text": "حفظ النص",
     "Saved {date}": "حُفظت في {date}",
     "Saved {date}\n{text}": "حُفظت في {date}\n{text}",
     "Saved {date} · This voice note is unavailable.": "حُفظت في {date} · هذه الملاحظة الصوتية غير متاحة.",
-    "Screenshot &ring size": "حجم حلقة اللقطات",
     "Screenshot preview": "معاينة اللقطة",
+    "Screenshot ring size": "حجم حلقة اللقطات",
     "Screenshot {current} of {total}": "اللقطة {current} من {total}",
     "Screenshots": "لقطات الشاشة",
     "Search games…": "ابحث عن لعبة…",
@@ -274,6 +261,7 @@ AR_CATALOG: dict[str, str] = {
     "Source": "المصدر",
     "Steam": "\u2066Steam\u2069",
     "Stop": "إيقاف",
+    "Stop recording": "إيقاف التسجيل",
     "Stop voice note": "إيقاف الملاحظة الصوتية",
     "Stop voice note from {date}": "إيقاف الملاحظة الصوتية بتاريخ {date}",
     "Strict": "صارم",
@@ -285,6 +273,7 @@ AR_CATALOG: dict[str, str] = {
     "Text note": "ملاحظة نصية",
     "Text note · {date}": "ملاحظة نصية · {date}",
     "The selected path is not a folder.": "المسار المحدد ليس مجلدًا.",
+    "Theme": "السمة",
     "These launchers could only be partially scanned: {names}.": (
         "تعذّر الفحص الكامل لهذه المشغّلات: {names}."
     ),
@@ -300,6 +289,7 @@ AR_CATALOG: dict[str, str] = {
     "Unavailable": "غير متاح",
     "Updating library…": "جارٍ تحديث المكتبة…",
     "Upload controls image": "رفع صورة التحكم",
+    "Upload controls image…": "رفع صورة أزرار التحكم…",
     "Use Ctrl, Alt, or Shift with a letter, digit, or F1–F12. Leave blank to disable.": (
         "استخدم \u2066Ctrl\u2069 أو \u2066Alt\u2069 أو \u2066Shift\u2069 مع حرف أو رقم أو \u2066F1–F12\u2069. اتركه فارغًا للتعطيل."
     ),

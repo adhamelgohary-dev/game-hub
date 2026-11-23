@@ -52,7 +52,7 @@ class NoteDialog(QDialog):
         record_row.addWidget(self._status)
         record_row.addStretch()
 
-        text_label = QLabel(self.tr("&Text note"), self)
+        text_label = QLabel(self.tr("Text note"), self)
         text_label.setObjectName("sectionHeading")
         self._text = QPlainTextEdit(self)
         self._text.setAccessibleName(self.tr("Text note"))
@@ -69,10 +69,10 @@ class NoteDialog(QDialog):
         self._disable_prompt = QCheckBox(self.tr("Don't ask after games"), self)
         self.finished.connect(self._apply_prompt_preference)
         actions = QDialogButtonBox(self)
-        self._save = actions.addButton(self.tr("&Save text"), QDialogButtonBox.ButtonRole.AcceptRole)
+        self._save = actions.addButton(self.tr("Save text"), QDialogButtonBox.ButtonRole.AcceptRole)
         self._save.setObjectName("primaryButton")
         self._save.clicked.connect(self._submit_text)
-        dismiss = actions.addButton(self.tr("&Dismiss"), QDialogButtonBox.ButtonRole.RejectRole)
+        dismiss = actions.addButton(self.tr("Dismiss"), QDialogButtonBox.ButtonRole.RejectRole)
         actions.rejected.connect(self.reject)
         self._save.setAutoDefault(False)
         dismiss.setAutoDefault(False)
@@ -130,11 +130,11 @@ class NoteDialog(QDialog):
     def _update_record_label(self) -> None:
         description = ""
         if self._recording:
-            label = self.tr("&Stop recording")
+            label = self.tr("Stop recording")
         elif self._voice_retry:
-            label = self.tr("&Retry voice save")
+            label = self.tr("Retry voice save")
         else:
-            label = self.tr("&Record voice")
+            label = self.tr("Record voice")
             description = self.tr("Records up to 60 seconds.")
         self._record.setText(label)
         self._record.setAccessibleDescription(description)

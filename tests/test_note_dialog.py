@@ -97,13 +97,13 @@ def test_voice_save_retry_keeps_text_fallback_and_reports_work(app: QApplication
         dialog.set_voice_retry(True)
         dialog.set_busy(False)
         assert not dialog._status.isVisible()
-        assert dialog._record.text() == "&Retry voice save"
+        assert dialog._record.text() == "Retry voice save"
         assert dialog._save.isEnabled()
         QTest.keyClick(dialog._record, Qt.Key.Key_Space)
         assert requested == ["retry"]
         assert dialog._text.toPlainText() == "A fallback draft."
         dialog.set_voice_retry(False)
-        assert dialog._record.text() == "&Record voice"
+        assert dialog._record.text() == "Record voice"
         QTest.keyClick(dialog, Qt.Key.Key_Escape)
         assert dialog.result() == QDialog.DialogCode.Rejected
     finally:
