@@ -39,6 +39,11 @@ def test_initial_schema_and_read_connection(database: db.Database) -> None:
             "pending_notes",
             "scan_folders",
             "scan_folder_choices",
+            "mod_items",
+            "mod_backups",
+            "mod_deployed_files",
+            "mod_conflict_choices",
+            "mod_journal",
         }
 
     with pytest.raises(sqlite3.ProgrammingError, match="closed database"):

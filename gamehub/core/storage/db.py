@@ -6,7 +6,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 INITIAL_SCHEMA = (
     """
@@ -194,6 +194,69 @@ V12_SCHEMA = (
     "CREATE INDEX scan_folder_choices_folder ON scan_folder_choices (folder_path)",
 )
 
+MODS_SCHEMA = (
+    """
+    CREATE TABLE mod_items (
+        id TEXT PRIMARY KEY NOT NULL,
+        game_id TEXT NOT NULL REFERENCES games(id) ON DELETE RESTRICT,
+        package_id TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('translation', 'mod')),
+        name TEXT NOT NULL,
+        name_ar TEXT,
+        version TEXT NOT NULL,
+        author TEXT,
+        storage_dir TEXT NOT NULL,
+        manifest_json TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+        installed_at INTEGER NOT NULL,
+        UNIQUE (game_id, package_id)
+    ) STRICT
+    """,
+    "CREATE INDEX mod_items_game ON mod_items (game_id, installed_at, id)",
+    """
+    CREATE TABLE mod_backups (
+        game_id TEXT NOT NULL REFERENCES games(id) ON DELETE RESTRICT,
+        rel_path TEXT NOT NULL,
+        existed INTEGER NOT NULL CHECK (existed IN (0, 1)),
+        backup_path TEXT,
+        orig_sha256 TEXT,
+        backed_up_at INTEGER NOT NULL,
+        PRIMARY KEY (game_id, rel_path)
+    ) STRICT
+    """,
+    """
+    CREATE TABLE mod_deployed_files (
+        game_id TEXT NOT NULL REFERENCES games(id) ON DELETE RESTRICT,
+        rel_path TEXT NOT NULL,
+        item_id TEXT NOT NULL REFERENCES mod_items(id) ON DELETE CASCADE,
+        deployed_sha256 TEXT NOT NULL,
+        deployed_at INTEGER NOT NULL,
+        PRIMARY KEY (game_id, rel_path)
+    ) STRICT
+    """,
+    """
+    CREATE TABLE mod_conflict_choices (
+        game_id TEXT NOT NULL REFERENCES games(id) ON DELETE RESTRICT,
+        rel_path TEXT NOT NULL,
+        winner_item_id TEXT NOT NULL REFERENCES mod_items(id) ON DELETE CASCADE,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (game_id, rel_path)
+    ) STRICT
+    """,
+    """
+    CREATE TABLE mod_journal (
+        id TEXT PRIMARY KEY NOT NULL,
+        game_id TEXT NOT NULL REFERENCES games(id) ON DELETE RESTRICT,
+        operation TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('in_progress', 'committed', 'rolled_back')),
+        payload_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    ) STRICT
+    """,
+    "CREATE INDEX mod_journal_status ON mod_journal (status, updated_at)",
+)
+
 
 class StorageError(RuntimeError):
     """The application cannot safely complete a local storage operation."""
@@ -272,6 +335,7 @@ class Database:
             CONTROLS_SCHEMA,
             PROTECTION_SCHEMA,
             V12_SCHEMA,
+            MODS_SCHEMA,
         )
         for next_version, statements in enumerate(migrations[version:], start=version + 1):
             for statement in statements:

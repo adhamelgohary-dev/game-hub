@@ -370,8 +370,12 @@ class StoreLocation:
                     if not staged_file.is_file() or staged_file.stat().st_size != expected_size:
                         raise StorageError("Staged media inventory verification failed.")
 
-                # Promote verified database and media into the fresh destination.
+                # Promote verified database, media, and mods backups/packages into destination.
                 (dest / "logs").mkdir(exist_ok=True)
+                if (self._current_root / "mods").exists():
+                    _copy_safe_tree(self._current_root / "mods", stage / "mods")
+                    if (stage / "mods").exists():
+                        shutil.move(str(stage / "mods"), str(dest / "mods"))
                 if staged_media.exists():
                     shutil.move(str(staged_media), str(dest / "media"))
                 staged_db.replace(dest / "gamehub.db")

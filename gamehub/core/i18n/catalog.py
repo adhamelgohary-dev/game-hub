@@ -518,4 +518,56 @@ AR_CATALOG: dict[str, str] = {
     "Enter a valid ASCII API key (up to 128 characters).": (
         "أدخل مفتاح \u2066API\u2069 صالحًا بأحرف إنجليزية فقط (حتى 128 حرفًا)."
     ),
+    "Translations & Mods": "التعريبات والمودات",
+    "Protected online game": "لعبة أونلاين محمية",
+    "Mods and translations are turned off for online games to protect your account.": (
+        "المودات والتعريبات مقفولة للألعاب الأونلاين علشان نحمي حسابك."
+    ),
+    "Import translation or mod (.zip)": "استيراد تعريب أو مود (.zip)",
+    "Restore the original game": "استرجاع اللعبة الأصلية",
+    "Original game files are backed up ✓": "ملفات اللعبة الأصلية محفوظة في نسخة احتياطية ✓",
+    "Original game files are untouched ✓": "ملفات اللعبة الأصلية كما هي بدون تعديل ✓",
+    "This game does not have an accessible local install folder yet.": (
+        "هذه اللعبة لا تملك مجلد تثبيت محلي متاح بعد."
+    ),
+    "Select a game to manage its translations and mods.": (
+        "اختر لعبة لإدارة التعريبات والمودات الخاصة بها."
+    ),
+    "This translation and this mod change the same file. Which one should win?": (
+        "التعريب ده والمود ده بيعدلوا نفس الملف. تحب مين فيهم يكسب؟"
+    ),
+    "Two enabled items change the same file. Which one should win?": (
+        "عنصران مفعّلان يعدلان نفس الملف. أيّهما يجب أن يفوز؟"
+    ),
+    "Use {name} ✓": "استخدم {name} ✓",
+    "Use {name}": "استخدم {name}",
+    "No translations or mods installed for this game yet. Click 'Import translation or mod (.zip)' to add one.": (
+        "لا توجد تعريبات أو مودات مثبّتة لهذه اللعبة بعد. اضغط «استيراد تعريب أو مود (.zip)» لإضافة واحد."
+    ),
+    "Translation": "تعريب",
+    "Mod": "مود",
+    "On": "شغّال",
+    "Off": "مطفأ",
+    "{status} · Version {version}": "{status} · الإصدار {version}",
+    "Mod or translation packs (*.zip)": "حزم التعريبات والمودات (*.zip)",
+    "Remove {name} and restore any files it changed?": (
+        "هل تريد إزالة {name} واسترجاع الملفات التي عدّلها؟"
+    ),
+    "Turn off all translations and mods and restore the original game files?": (
+        "إيقاف كل التعريبات والمودات واسترجاع ملفات اللعبة الأصلية؟"
+    ),
+    "No games match your search.": "لا توجد ألعاب تطابق البحث.",
+    "Online": "أونلاين",
+    "Close your running game before changing translations or mods.": (
+        "أغلق اللعبة المفتوحة أولًا قبل تعديل التعريبات أو المودات."
+    ),
+    "This .zip file is not a valid translation or mod pack. Only safe declarative packs are supported.": (
+        "ملف \u2066.zip\u2069 هذا غير صالح. يُسمح فقط بحزم التعريبات والمودات الآمنة بدون سكربتات."
+    ),
+    "GameRewind could not update the translation or mod files.": (
+        "تعذّر على \u2066GameRewind\u2069 تحديث ملفات التعريب أو المود."
+    ),
+    "Imported and turned on ✓": "تم الاستيراد والتشغيل ✓",
+    "Removed cleanly ✓": "تم الحذف بنجاح ✓",
+    "Original game files restored ✓": "تم استرجاع ملفات اللعبة الأصلية ✓",
 }

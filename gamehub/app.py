@@ -89,12 +89,20 @@ from gamehub.core.storage.sessions import SessionRepository
 from gamehub.modules.memory.controls_controller import ControlsController
 from gamehub.modules.memory.last_time_controller import LastTimeController
 from gamehub.modules.memory.notes_controller import NotesController
+from gamehub.modules.mods.engine import ModsEngine
+from gamehub.modules.mods.models import (
+    GameRunningModError,
+    ManifestValidationError,
+    ModError,
+    ProtectedGameModError,
+)
 from gamehub.single_instance import SingleInstance
 from gamehub.ui.covers import clear_cover_cache, set_cover_cache_dir
 from gamehub.ui.game_page import GamePage
 from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
 from gamehub.ui.library_view import LibraryView
+from gamehub.ui.mods_view import GameModsWidget, ModsView
 from gamehub.ui.scan_folders_dialog import ScanFolderDialog
 from gamehub.ui.settings_view import SettingsView
 from gamehub.ui.theme import apply_theme, fade_in_widget, load_app_icon
@@ -145,22 +153,32 @@ class GameHubWindow(QMainWindow):
         self._nav_library.setCursor(Qt.CursorShape.PointingHandCursor)
         self._nav_library.clicked.connect(self.show_library)
 
+        self._nav_mods = QPushButton(
+            self.tr("Translations & Mods").replace("&", "&&"), self._sidebar
+        )
+        self._nav_mods.setObjectName("navButton")
+        self._nav_mods.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._nav_mods.clicked.connect(self.show_mods)
+
         self._nav_settings = QPushButton(self.tr("Settings"), self._sidebar)
         self._nav_settings.setObjectName("navButton")
         self._nav_settings.setCursor(Qt.CursorShape.PointingHandCursor)
 
         side_layout.addWidget(self._nav_library)
+        side_layout.addWidget(self._nav_mods)
         side_layout.addWidget(self._nav_settings)
         side_layout.addStretch()
 
         self.library = LibraryView(shell)
         self.game_page = GamePage(shell)
+        self.mods_view = ModsView(shell)
         self.settings_view = SettingsView(shell)
         self._nav_settings.clicked.connect(self.library.settingsRequested)
 
         self._pages = QStackedWidget(shell)
         self._pages.addWidget(self.library)
         self._pages.addWidget(self.game_page)
+        self._pages.addWidget(self.mods_view)
         self._pages.addWidget(self.settings_view)
 
         shell_layout.addWidget(self._sidebar)
@@ -206,7 +224,11 @@ class GameHubWindow(QMainWindow):
         self.statusBar().showMessage(text)
 
     def _sync_nav_state(self, active: str) -> None:
-        for name, button in (("library", self._nav_library), ("settings", self._nav_settings)):
+        for name, button in (
+            ("library", self._nav_library),
+            ("mods", self._nav_mods),
+            ("settings", self._nav_settings),
+        ):
             button.setProperty("active", name == active)
             button.style().unpolish(button)
             button.style().polish(button)
@@ -217,6 +239,13 @@ class GameHubWindow(QMainWindow):
         self._sync_nav_state("library")
         if changed:
             fade_in_widget(self.library)
+
+    def show_mods(self) -> None:
+        changed = self._pages.currentWidget() is not self.mods_view
+        self._pages.setCurrentWidget(self.mods_view)
+        self._sync_nav_state("mods")
+        if changed:
+            fade_in_widget(self.mods_view)
 
     def show_game_page(self) -> None:
         changed = self._pages.currentWidget() is not self.game_page
@@ -237,10 +266,12 @@ class GameHubWindow(QMainWindow):
 
     def retranslate_ui(self) -> None:
         self._nav_library.setText(self.tr("Library"))
+        self._nav_mods.setText(self.tr("Translations & Mods").replace("&", "&&"))
         self._nav_settings.setText(self.tr("Settings"))
         self._show_tracking_status()
         self.library.retranslate_ui()
         self.game_page.retranslate_ui()
+        self.mods_view.retranslate_ui()
         self.settings_view.retranslate_ui()
 
     def reveal(self) -> None:
@@ -741,6 +772,17 @@ def _run(
                 window.game_page.uploadControlImageRequested.connect(_controls_unavailable)
                 window.game_page.saveControlTextRequested.connect(_controls_unavailable)
 
+            mods_engine = ModsEngine(
+                database,
+                data_root,
+                library,
+                catalog,
+                is_any_game_running=lambda: bool(window._tracked_games),
+                process_scanner=process_scanner,
+            )
+            mods_engine.recover_incomplete()
+            refresh_mods_ui = _wire_mods(window, library, mods_engine, events)
+
             _wire_game_page(
                 window,
                 library,
@@ -749,10 +791,12 @@ def _run(
                 voice_player,
                 events,
                 catalog=catalog,
+                on_game_opened=refresh_mods_ui,
                 on_protection_changed=lambda: (
                     _sync_guard_policy(),
                     watcher.reload_protection(),
                     window.library.present_games(service.current().games),
+                    refresh_mods_ui(),
                 ),
             )
             hotkeys = _start_hotkeys(
@@ -952,6 +996,109 @@ def _start_last_time(
     )
 
 
+def _wire_mods(
+    window: GameHubWindow,
+    library: LibraryRepository,
+    mods_engine: ModsEngine,
+    events: EventBus,
+):
+    def _friendly_error(exc: Exception) -> str:
+        if isinstance(exc, ProtectedGameModError):
+            return window.tr(
+                "Mods and translations are turned off for online games to protect your account."
+            )
+        if isinstance(exc, GameRunningModError):
+            return window.tr("Close your running game before changing translations or mods.")
+        if isinstance(exc, ManifestValidationError):
+            return window.tr(
+                "This .zip file is not a valid translation or mod pack. Only safe declarative packs are supported."
+            )
+        return window.tr("GameRewind could not update the translation or mod files.")
+
+    def _refresh_game_panels(game_id: str | None = None, *, notice: str | None = None) -> None:
+        try:
+            games = library.list_games()
+        except StorageError:
+            return
+        rows = [(g, mods_engine.is_game_protected(g)[0]) for g in games]
+        window.mods_view.set_games(rows)
+        selected_id = game_id or window.mods_view.selected_game_id
+        if selected_id:
+            try:
+                state = mods_engine.get_state(selected_id)
+            except (ModError, StorageError):
+                pass
+            else:
+                if window.mods_view.selected_game_id == selected_id:
+                    window.mods_view.panel.present_state(state)
+                    if notice:
+                        window.mods_view.panel.show_notice(notice)
+                if window.game_page.game_id == selected_id:
+                    window.game_page.mods_panel.present_state(state)
+                    if notice:
+                        window.game_page.mods_panel.show_notice(notice)
+        else:
+            window.mods_view.panel.clear_selection()
+
+    def _run_action(panel: GameModsWidget, game_id: str, action, *, notice: str | None = None) -> None:
+        panel.clear_messages()
+        try:
+            action()
+        except (ModError, OSError, StorageError) as exc:
+            panel.show_error(_friendly_error(exc))
+            _refresh_game_panels(game_id)
+            return
+        _refresh_game_panels(game_id, notice=notice)
+
+    def _bind_panel(panel: GameModsWidget) -> None:
+        panel.importRequested.connect(
+            lambda gid, zip_str, p=panel: _run_action(
+                p,
+                gid,
+                lambda: mods_engine.import_zip(gid, Path(zip_str), enable=True),
+                notice=window.tr("Imported and turned on ✓"),
+            )
+        )
+        panel.toggleRequested.connect(
+            lambda gid, iid, enabled, p=panel: _run_action(
+                p,
+                gid,
+                lambda: mods_engine.set_enabled(gid, iid, enabled),
+            )
+        )
+        panel.removeRequested.connect(
+            lambda gid, iid, p=panel: _run_action(
+                p,
+                gid,
+                lambda: mods_engine.remove_item(gid, iid),
+                notice=window.tr("Removed cleanly ✓"),
+            )
+        )
+        panel.restoreOriginalRequested.connect(
+            lambda gid, p=panel: _run_action(
+                p,
+                gid,
+                lambda: mods_engine.restore_original(gid),
+                notice=window.tr("Original game files restored ✓"),
+            )
+        )
+        panel.conflictWinnerRequested.connect(
+            lambda gid, a_id, b_id, w_id, p=panel: _run_action(
+                p,
+                gid,
+                lambda: mods_engine.choose_conflict_winner(gid, a_id, b_id, w_id),
+            )
+        )
+
+    _bind_panel(window.mods_view.panel)
+    _bind_panel(window.game_page.mods_panel)
+    window.mods_view.gameSelected.connect(lambda gid: _refresh_game_panels(gid))
+    window._nav_mods.clicked.connect(lambda: _refresh_game_panels())
+    events.subscribe(LibraryChanged, lambda _event: _refresh_game_panels())
+    _refresh_game_panels()
+    return _refresh_game_panels
+
+
 def _wire_game_page(
     window: GameHubWindow,
     library: LibraryRepository,
@@ -961,6 +1108,7 @@ def _wire_game_page(
     events: EventBus,
     *,
     catalog: ProtectedGamesCatalog | None = None,
+    on_game_opened=None,
     on_protection_changed=None,
 ) -> None:
     def _is_auto_strict(game) -> bool:
@@ -988,6 +1136,8 @@ def _wire_game_page(
         if player is not None:
             player.stop()
         window.game_page.show_game(game, control_items, page, auto_strict=_is_auto_strict(game))
+        if on_game_opened is not None:
+            on_game_opened(game_id)
         window.show_game_page()
 
     def save_protection(game_id: str, mode: str, exit_after_launch: bool) -> None:

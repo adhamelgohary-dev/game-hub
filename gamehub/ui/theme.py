@@ -132,6 +132,28 @@ def build_stylesheet(mode: Literal["dark", "light"]) -> str:
         border: 1px solid {t["border"]};
         border-radius: 9px;
     }}
+    QFrame#conflictCard {{
+        background-color: {t["bg_elevated"]};
+        border: 1.5px solid #D97706;
+        border-radius: 10px;
+    }}
+    QPushButton#restoreButton {{
+        background-color: {t["bg_card"]};
+        color: {t["text"]};
+        border: 2px solid #D97706;
+        border-radius: 9px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 700;
+    }}
+    QPushButton#restoreButton:hover {{
+        background-color: {t["bg_card_hover"]};
+        border-color: #F59E0B;
+    }}
+    QPushButton#restoreButton:disabled {{
+        color: {t["text_muted"]};
+        border-color: {t["border"]};
+    }}
     QGroupBox {{
         margin-top: 12px;
         padding: 16px 14px 14px 14px;

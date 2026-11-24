@@ -28,6 +28,7 @@ from gamehub.core.storage.controls import ControlItem
 from gamehub.core.storage.memory import SessionCursor, TimelinePage, TimelineSession
 from gamehub.ui.covers import load_cover_pixmap
 from gamehub.ui.last_moments import LastMomentsDialog
+from gamehub.ui.mods_view import GameModsWidget
 
 
 def _format_timestamp(utc_ms: int) -> str:
@@ -203,9 +204,11 @@ class GamePage(QWidget):
         self._error.setWordWrap(True)
         self._error.hide()
 
+        self.mods_panel = GameModsWidget(self)
         self._tabs = QTabWidget(self)
         self._tabs.addTab(self._build_controls_tab(), self.tr("Controls"))
         self._tabs.addTab(self._build_timeline_tab(), self.tr("Timeline"))
+        self._tabs.addTab(self.mods_panel, self.tr("Translations & Mods").replace("&", "&&"))
         self._tabs.currentChanged.connect(lambda _index: self._fit_control_pixmap())
 
         layout = QVBoxLayout(self)
@@ -434,6 +437,8 @@ class GamePage(QWidget):
         self._action_last_moments.setText(self.tr("Last moments…"))
         self._tabs.setTabText(0, self.tr("Controls"))
         self._tabs.setTabText(1, self.tr("Timeline"))
+        self._tabs.setTabText(2, self.tr("Translations & Mods").replace("&", "&&"))
+        self.mods_panel.retranslate_ui()
         self._hint_label.setText(
             self.tr(
                 "Press Ctrl+Alt+C while this game is focused to pin its controls screen, "
