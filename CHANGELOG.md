@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.2.0
+
+### Added
+- **GameRewind Brand & Custom-Folder Per-User Installer:** Renamed the app, executable (`GameRewind.exe`), portable archive, installer, and `%LOCALAPPDATA%\GameRewind` data folder (with automatic lossless SQLite migration from `%LOCALAPPDATA%\GameHub` and quiet legacy Game Hub shortcut/uninstaller cleanup). Players can choose any writable local install folder (`DisableDirPage=no`, `UsePreviousAppDir=no`) with an optional Desktop shortcut.
+- **Zero-Presence Anti-Cheat Protocol (Layers 1–7):** Fail-closed startup self-check before any window or database write, always-strict Riot Client protection for Vanguard safety, per-launcher toggles, "Test protection" self-test button, and expanded 2026 protected-games catalog covering Fortnite (EAC), Valorant / LoL / 2XKO (Vanguard), EA SPORTS FC (EA Javelin across Epic/Steam/EA/Xbox), GTA V / Enhanced (BattlEye), Marvel Rivals, Wuthering Waves, Roblox, Dota 2, Call of Duty, PUBG, Rainbow Six Siege, and more.
+- **All-Launcher Read-Only Discovery & Scan Folders:** Added read-only detectors for Riot Games, GOG, EA app, Ubisoft Connect, Battle.net, itch.io, and registry-only Xbox (zero subprocess spawns), plus bounded symlink-safe **Scan folders** with candidate review and plain-language English/Arabic scan notices.
+- **Fitting Cover Art, Async WebP Cache & Opt-In SteamGridDB:** Landscape-first Steam cover detection, background off-UI-thread cover decoding with viewport-aware lazy loading, **"Change cover…"** / **"Reset cover"** per game, and strictly opt-in (off by default) SteamGridDB fetching with Windows DPAPI API-key encryption at rest.
+- **Plain-Language Grouped Settings & Egyptian Arabic Guide:** Five clear Settings groups with one-line explanations, **Reset to defaults** (keeping all notes and screenshots), and a complete Egyptian Arabic guide (`docs/USER-GUIDE-AR.md`).
+- **Simplified Translations & Mods Module:** Dedicated sidebar page and per-game tab with On/Off switches, one-click **"Restore the original game"**, plain two-button conflict chooser, crash-safe `mod_journal` recovery (Schema v7), declarative-only SHA-256-verified `.zip` packages, and permanent locks on all protected/online games.
+
+### Changed
+- **59% smaller shipped bundle:** Removed OpenCV (`cv2`) via a minimal in-memory sentinel-verified stub, dropped `opengl32sw.dll`, unused Qt QML/Quick/plugin/translation files, and Pillow's unused `_avif` codec (`302 MiB -> 123 MiB` installed, `121 MiB -> 52 MiB` portable `.zip`, `81 MiB -> 38 MiB` Setup `.exe`) while keeping `upx=False`, all third-party licenses, and an automated CI bundle-size & forbidden-binary gate (`< 200 MiB` unpacked, `< 70 MiB` `.zip`).
+
+### Performance
+- **>4× faster, UI-thread-independent anti-cheat exit latency:** Direct `protection-guard` thread `os._exit` + handle-free `kernel32.K32EnumProcesses` fast PID-diff checks at 80 ms drop real frozen exit latency from `~362 ms` (max `663 ms`) to **`75–87 ms` average** (`P95 <= 171 ms`, `max <= 180 ms` across 240 real frozen trials for Fortnite, Valorant, and EA SPORTS FC — both normally and under active UI scrolling).
+- **4× lower idle CPU & faster UI:** Lazy-initialized `QtMultimedia`, `PIL.Image`, and secondary startup wiring after `window.show()` (`ProtectionGuard.self_check()` remains strictly first), cutting cold frozen startup by 33%, 20/100-game cold library draws by 4.0×–4.6×, Mods page opening by 5.0×, and idle CPU by 4× (`5.65% -> 1.43%` of 1 core).
+
+### Fixed
+- **Vanguard idle `vgc` & Windows Sleep compatibility:** Excluded idle `vgc`/`vgc.exe` and `EAAntiCheatService` from false startup lockouts while keeping Riot Client and all protected games strictly enforced; switched watchdog heartbeat to `QueryUnbiasedInterruptTime` so Modern Standby / sleep never causes false trips.
+- **Store relocation & multi-launcher edge cases:** Preserved `protected_games_override.json` during `StoreLocation.move()`, normalized Windows case-insensitive mod conflicts/backups with `.casefold()`, added bounded depth-3 Epic executable discovery, and fixed `K32EnumProcesses` exact byte-length slicing.
+
+### Security
+- **Zero `psutil` & zero-handle discipline:** Completely removed `psutil` (`excludes=['psutil']`), keeping `OpenProcess` restricted exclusively to `PROCESS_QUERY_LIMITED_INFORMATION` (`0x1000`) on verified non-protected Full-mode games and gating `WindowProbe` on active Full-mode PIDs.
+- **Double independent Red-Team audits — 0 open findings:** Passed both the M21 8-agent audit and the rc.3 4-domain Red-Team audit + follow-up closure of all 19 findings (240 ms LIFO PID-reuse audit bound, unconditional per-game `anti_cheat_exes` + `gamemon*.des` / `beservice_x64.exe`, `_policy_gen` lock safety, UNC/reparse-safe cover loading & caching, dotfile/overlapped-PE/single-handle mod extraction, DPAPI-encrypted SteamGridDB key with hardened HTTPS/magic checks, explicit `upx=False` + full-file UPX scan, SHA-pinned CI actions, and clean Windows Defender `MpCmdRun.exe` scans with `0 threats`).
+
 ## v1.2.0-rc.3
 
 ### Changed

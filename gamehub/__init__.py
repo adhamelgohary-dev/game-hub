@@ -1,3 +1,3 @@
 """GameRewind desktop application."""
 
-__version__ = "1.2.0-rc.3"
+__version__ = "1.2.0"

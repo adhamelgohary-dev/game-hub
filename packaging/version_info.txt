@@ -22,7 +22,7 @@ VSVersionInfo(
             StringStruct('LegalCopyright', 'Copyright (c) 2026 GameRewind Contributors (MIT License)'),
             StringStruct('OriginalFilename', 'GameRewind.exe'),
             StringStruct('ProductName', 'GameRewind'),
-            StringStruct('ProductVersion', '1.2.0-rc.3'),
+            StringStruct('ProductVersion', '1.2.0'),
           ]
         )
       ]

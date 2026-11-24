@@ -6,16 +6,14 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Wait at **Owner Gate (v1.2-rc.3)** after publishing GitHub pre-release `GameRewind v1.2.0-rc.3` (and committing the 19 follow-up 4-domain Red-Team security fixes on `main` in `docs/reviews/security/rc3/round2-followup-verification.md`):
-- If the owner wants a fresh pre-release containing the 19 follow-up security fixes (`RC3-AC-01..07`, `RC3-NET-01..02`, `RC3-LOC-01..06`, `RC3-PKG-01..04`) before final `v1.2.0` (or reports any bug/polish request on `v1.2.0-rc.3`): bump to `v1.2.0-rc.4`, verify, review, tag, and publish.
-- Once the owner replies `"verified"`, execute **M23** `[simple]`:
-  1. Bump `gamehub/__init__.py` `__version__` from `"1.2.0-rc.3"` to `"1.2.0"`, update `packaging/version_info.txt` `ProductVersion` to `"1.2.0"`, promote the `## v1.2.0` section in `CHANGELOG.md` (including the 19 follow-up security fixes already on `main`), run full `pytest -q`, `ruff check .`, and Review Council gate (`docs/reviews/M23-review.md`).
-  2. Commit, tag `v1.2.0`, push to `origin` (`adhamelgohary-dev/game-rewind`), verify Windows CI publishes final `GameRewind v1.2.0` with `GameRewind-Setup-v1.2.0.exe`, `GameRewind-Portable-v1.2.0.zip`, and `SHA256SUMS.txt`.
-  3. Copy verified `GameRewind-Setup-v1.2.0.exe` to `%USERPROFILE%\Desktop` and confirm completion to the owner in Egyptian Arabic.
+**GameRewind v1.2.0** is complete and shipped. Wait for the owner's next direction:
+- `[simple]` If the owner reports any post-release bug on `v1.2.0`, fix with targeted regression tests and cut a patch release (`v1.2.1-rc.1` -> `v1.2.1`).
+- `[complex]` When the owner kicks off the next feature cycle (e.g., expanding Translations & Mods or starting `v1.3` from [docs/design/07-extensibility.md](docs/design/07-extensibility.md)), begin with a design doc + Review Council gate before touching code.
+- `[simple]` Once SignPath Foundation project approval arrives, set `SIGNPATH_ENABLED=true` and verify signed releases in `.github/workflows/windows.yml`.
 
 ## In progress
 
-Paused cleanly on green `main` at **Owner Gate (v1.2-rc.3)** (`243 passed`, `ruff check .` clean). Milestones `D-v1.2-rc2`, `M19a`, `M20`, `M21`, `M22`, `M22b` (`v1.2.0-rc.3`), plus follow-up remediation of all 19 independent 4-domain Red-Team findings (`docs/reviews/security/rc3/round2-followup-verification.md`) are committed on `main`. Repository is **PUBLIC** at `https://github.com/adhamelgohary-dev/game-rewind`.
+None — **v1.2.0 complete** on green `main` (`243 passed`, `ruff check .` clean). Final release `GameRewind v1.2.0` (`v1.2.0` tag, non-prerelease) is published on GitHub (`https://github.com/adhamelgohary-dev/game-rewind`, verified **PUBLIC**) with `GameRewind-Setup-v1.2.0.exe`, `GameRewind-Portable-v1.2.0.zip`, and `SHA256SUMS.txt`, and the SHA-256-verified installer is copied to `C:\Users\adham\Desktop\GameRewind-Setup-v1.2.0.exe`.
 
 ## Fragile spots
 
@@ -66,7 +64,7 @@ From the PowerShell repository root:
 
 ## Open questions for owner
 
-- Verify all 8 items in the `GameRewind v1.2.0-rc.3` Egyptian Arabic click checklist and reply `"verified"` when ready to cut final `GameRewind v1.2.0`.
+- None — `GameRewind v1.2.0` is verified and published. Ready for next milestone or SignPath Foundation approval when available.
 
 ## Future ideas
 

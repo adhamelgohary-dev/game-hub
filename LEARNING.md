@@ -233,3 +233,11 @@ Measuring before changing anything paid off immediately. Profiling the untouched
 Read [docs/perf/baseline-rc2.md](docs/perf/baseline-rc2.md), [docs/perf/rc3-results.md](docs/perf/rc3-results.md), [docs/reviews/security/rc3/judge-consolidation.md](docs/reviews/security/rc3/judge-consolidation.md), [guard.py](gamehub/core/protection/guard.py), [covers.py](gamehub/ui/covers.py), and [secrets.py](gamehub/core/secrets.py).
 
 Try it yourself. Run `.\.venv\Scripts\python.exe -m pytest tests/test_performance_regressions.py tests/test_security_rc3.py tests/test_packaging.py -q` to verify lazy startup imports, async cover decoding, frozen-UI sub-300 ms exit independence, EA SPORTS FC multi-launcher detection, and DPAPI secret storage.
+
+
+## M23 — Final `GameRewind v1.2.0` Release Discipline
+Promoting a release candidate (`v1.2.0-rc.3`) to a final SemVer release (`v1.2.0`) is intentionally boring by design: all architectural, performance, and security risk is retired during `-rc.N` cycles and independent Red-Team rounds, leaving the final release commit focused strictly on version promotion (`gamehub/__init__.py`, `packaging/version_info.txt`), consolidated release notes (`CHANGELOG.md`), a clean Review Council sign-off (`docs/reviews/M23-review.md`), and deterministic Windows CI packaging with automated size, PE-manifest, zero-UPX, smoke-test, Windows Defender, and `SHA256SUMS.txt` gates.
+
+Read [CHANGELOG.md](CHANGELOG.md), [M23-review.md](docs/reviews/M23-review.md), [windows.yml](.github/workflows/windows.yml), and [docs/SECURITY-AUDIT-v1.2.md](docs/SECURITY-AUDIT-v1.2.md).
+
+Try it yourself. Compare `Get-FileHash "$env:USERPROFILE\Desktop\GameRewind-Setup-v1.2.0.exe" -Algorithm SHA256` against `SHA256SUMS.txt` on the `GameRewind v1.2.0` GitHub Release to confirm end-to-end artifact integrity.
