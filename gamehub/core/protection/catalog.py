@@ -50,8 +50,11 @@ DEFAULT_GLOBAL_ANTI_CHEAT_EXES: tuple[str, ...] = (
     "easyanticheat.exe",
     "easyanticheat_eos.exe",
     "beservice.exe",
+    "beservice_x64.exe",
     "eaanticheat.gameservicelauncher.exe",
     "start_protected_game.exe",
+    "gamemon.des",
+    "gamemon64.des",
     "sguard64.exe",
     "sguardsvc64.exe",
 )

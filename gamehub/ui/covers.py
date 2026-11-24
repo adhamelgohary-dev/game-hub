@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import stat
 import time
 import weakref
 from collections import OrderedDict
@@ -11,7 +12,17 @@ from hashlib import blake2b
 from pathlib import Path
 from threading import Lock
 
-from PySide6.QtCore import QCoreApplication, QObject, QRect, QSize, Qt, Signal
+from PySide6.QtCore import (
+    QBuffer,
+    QByteArray,
+    QCoreApplication,
+    QIODevice,
+    QObject,
+    QRect,
+    QSize,
+    Qt,
+    Signal,
+)
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -25,7 +36,12 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QLabel, QSizePolicy, QWidget
 
+from gamehub.core.library.paths import local_path
+from gamehub.core.storage import media
+
 _MAX_COVER_PIXELS = 24_000_000
+_MAX_COVER_SOURCE_BYTES = 24 * 1024 * 1024
+_MAX_CACHE_WEBP_BYTES = 4 * 1024 * 1024
 _MAX_CACHE_ITEMS = 192
 
 _PALETTES: tuple[tuple[str, str], ...] = (
@@ -45,15 +61,31 @@ _DISK_CACHE_DIR: Path | None = None
 _LOADER: _AsyncCoverLoader | None = None
 
 
+def _is_reparse(info: os.stat_result) -> bool:
+    return stat.S_ISLNK(info.st_mode) or bool(
+        getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+    )
+
+
 def set_cover_cache_dir(cache_dir: Path | None) -> None:
     """Configure the on-disk WebP thumbnail cache directory (e.g. <data_root>/cache/covers)."""
     global _DISK_CACHE_DIR
-    _DISK_CACHE_DIR = cache_dir
-    if cache_dir is not None:
-        try:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-        except OSError:
+    if cache_dir is None:
+        _DISK_CACHE_DIR = None
+        return
+    try:
+        safe = local_path(cache_dir)
+        if safe is None:
             _DISK_CACHE_DIR = None
+            return
+        safe.mkdir(parents=True, exist_ok=True)
+        verified = local_path(safe)
+        if verified is None or _is_reparse(verified.lstat()):
+            _DISK_CACHE_DIR = None
+            return
+        _DISK_CACHE_DIR = verified
+    except OSError:
+        _DISK_CACHE_DIR = None
 
 
 def clear_cover_cache() -> None:
@@ -90,10 +122,15 @@ def _file_signature(path: Path | None) -> tuple[str, int, int]:
     if path is None:
         return ("", 0, 0)
     try:
-        st = path.stat()
-        return (os.path.normcase(str(path)), st.st_mtime_ns, st.st_size)
+        safe = local_path(path)
+        if safe is None:
+            return ("", 0, 0)
+        st = safe.lstat()
+        if not stat.S_ISREG(st.st_mode) or _is_reparse(st):
+            return ("", 0, 0)
+        return (os.path.normcase(str(safe)), st.st_mtime_ns, st.st_size)
     except OSError:
-        return (os.path.normcase(str(path)), 0, 0)
+        return ("", 0, 0)
 
 
 def _disk_cache_path(
@@ -114,10 +151,14 @@ def _disk_cache_path(
 
 def _load_cached_disk_image(cache_file: Path) -> QImage | None:
     try:
-        if not cache_file.is_file():
+        safe = local_path(cache_file)
+        if safe is None:
             return None
-        image = QImage(str(cache_file), "WEBP")
-        if image.isNull():
+        data = media.read_file(safe, _MAX_CACHE_WEBP_BYTES)
+        if not data:
+            return None
+        image = QImage()
+        if not image.loadFromData(data, "WEBP") or image.isNull():
             return None
         return image
     except OSError:
@@ -126,34 +167,67 @@ def _load_cached_disk_image(cache_file: Path) -> QImage | None:
 
 def _save_cached_disk_image(cache_file: Path, image: QImage) -> None:
     try:
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        tmp = cache_file.with_name(f"{cache_file.stem}.{os.getpid()}.{time.time_ns()}.webp.tmp")
-        if image.save(str(tmp), "WEBP", 85):
-            tmp.replace(cache_file)
-        else:
-            tmp.unlink(missing_ok=True)
+        safe_dir = local_path(cache_file.parent)
+        if safe_dir is None:
+            return
+        safe_dir.mkdir(parents=True, exist_ok=True)
+        if _is_reparse(safe_dir.lstat()):
+            return
+        safe_target = safe_dir / cache_file.name
+        if safe_target.exists() and _is_reparse(safe_target.lstat()):
+            return
+        buf = QBuffer()
+        if not buf.open(QIODevice.OpenModeFlag.WriteOnly):
+            return
+        try:
+            if not image.save(buf, "WEBP", 85):
+                return
+            encoded = bytes(buf.data())
+        finally:
+            buf.close()
+        if not encoded or len(encoded) > _MAX_CACHE_WEBP_BYTES:
+            return
+        with media.protect_directory(safe_dir):
+            tmp = safe_dir / f"{safe_target.stem}.{os.getpid()}.{time.time_ns()}.webp.tmp"
+            try:
+                with tmp.open("xb") as handle:
+                    handle.write(encoded)
+                tmp.replace(safe_target)
+            except OSError:
+                tmp.unlink(missing_ok=True)
     except OSError:
         pass
 
 
 def _load_local_qimage(path: Path, width: int, height: int) -> QImage | None:
     try:
-        if not path.is_file():
+        safe = local_path(path)
+        if safe is None:
             return None
-        reader = QImageReader(str(path))
-        reader.setAutoTransform(True)
-        size = reader.size()
-        if size.isEmpty() or size.width() * size.height() > _MAX_COVER_PIXELS:
+        data = media.read_file(safe, _MAX_COVER_SOURCE_BYTES)
+        if not data:
             return None
-        scaled = size.scaled(
-            QSize(max(width * 2, 320), max(height * 2, 180)),
-            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-        )
-        reader.setScaledSize(scaled)
-        image = reader.read()
-        if image.isNull():
+        raw = QByteArray(data)
+        buf = QBuffer(raw)
+        if not buf.open(QIODevice.OpenModeFlag.ReadOnly):
             return None
-        return image
+        try:
+            reader = QImageReader(buf)
+            reader.setAutoTransform(True)
+            size = reader.size()
+            if size.isEmpty() or size.width() * size.height() > _MAX_COVER_PIXELS:
+                return None
+            scaled = size.scaled(
+                QSize(max(width * 2, 320), max(height * 2, 180)),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+            )
+            reader.setScaledSize(scaled)
+            image = reader.read()
+            if image.isNull():
+                return None
+            return image
+        finally:
+            buf.close()
     except OSError:
         return None
 

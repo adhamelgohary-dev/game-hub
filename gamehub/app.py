@@ -764,10 +764,10 @@ def _run(
 
                 events.subscribe(GameStarted, window.game_started)
                 events.subscribe(GameStopped, window.game_stopped)
-                events.subscribe(GameStarted, lambda _e: _sync_capture_active())
-                events.subscribe(GameStopped, lambda _e: _sync_capture_active())
                 events.subscribe(GameStarted, lifecycle.on_game_started)
                 events.subscribe(GameStopped, lifecycle.on_game_stopped)
+                events.subscribe(GameStarted, lambda _e: _sync_capture_active())
+                events.subscribe(GameStopped, lambda _e: _sync_capture_active())
                 events.subscribe(ProtectedGameDetected, lifecycle.on_protected_detected)
                 events.subscribe(
                     ProtectedGameExited,

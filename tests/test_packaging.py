@@ -16,6 +16,7 @@ FORBIDDEN_NETWORK_MODULES = {
     "websockets",
 }
 FORBIDDEN_RUNTIME_MODULES = {
+    "cv2",
     "psutil",
 }
 FORBIDDEN_DYNAMIC_BUILTINS = {
@@ -38,7 +39,13 @@ FORBIDDEN_NATIVE_SYMBOLS = (
     "AdjustTokenPrivileges",
     "CreateRemoteThread",
     "CreateService",
+    "EnumProcessModules",
+    "GetModuleFileNameEx",
+    "GetProcAddress",
+    "K32EnumProcessModules",
     "LoadLibraryA",
+    "LoadLibraryExA",
+    "LoadLibraryExW",
     "LoadLibraryW",
     "NtOpenProcess",
     "NtQuerySystemInformation",
@@ -94,6 +101,8 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
                     )
                     if alias.name == "PySide6.QtNetwork" and rel != "gamehub/single_instance.py":
                         raise AssertionError(f"PySide6.QtNetwork restricted to single_instance.py: {path}")
+                    if alias.name == "PySide6.QtMultimedia" and rel != "gamehub/core/audio/player.py":
+                        raise AssertionError(f"PySide6.QtMultimedia restricted to audio/player.py: {path}")
             elif isinstance(node, ast.ImportFrom) and node.module:
                 root = node.module.split(".")[0]
                 assert root not in FORBIDDEN_RUNTIME_MODULES, (
@@ -104,25 +113,59 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
                 )
                 if node.module == "PySide6.QtNetwork" and rel != "gamehub/single_instance.py":
                     raise AssertionError(f"PySide6.QtNetwork restricted to single_instance.py: {path}")
+                if node.module == "PySide6.QtMultimedia" and rel != "gamehub/core/audio/player.py":
+                    raise AssertionError(f"PySide6.QtMultimedia restricted to audio/player.py: {path}")
+                if node.module == "PySide6":
+                    for alias in node.names:
+                        if alias.name == "QtNetwork" and rel != "gamehub/single_instance.py":
+                            raise AssertionError(f"PySide6.QtNetwork restricted to single_instance.py: {path}")
+                        if alias.name == "QtMultimedia" and rel != "gamehub/core/audio/player.py":
+                            raise AssertionError(f"PySide6.QtMultimedia restricted to audio/player.py: {path}")
                 if node.module == "importlib":
                     for alias in node.names:
                         if alias.name == "import_module":
                             raise AssertionError(f"Dynamic importlib.import_module forbidden in {path}")
-            elif isinstance(node, ast.Attribute):
-                # Enforce allowlist on ctypes.windll.<dll> attribute access
+            elif isinstance(node, ast.Subscript):
+                # Restrict sys.modules mutations strictly to the cv2 shim in capture/windows.py.
+                if (
+                    isinstance(node.ctx, (ast.Store, ast.Del))
+                    and isinstance(node.value, ast.Attribute)
+                    and node.value.attr == "modules"
+                    and isinstance(node.value.value, ast.Name)
+                    and node.value.value.id == "sys"
+                    and rel != "gamehub/core/capture/windows.py"
+                ):
+                    raise AssertionError(f"sys.modules mutation forbidden outside capture/windows.py: {path}")
+                # Block ctypes.windll["..."] / cdll["..."] / oledll["..."] / pydll["..."]
                 if (
                     isinstance(node.value, ast.Attribute)
-                    and node.value.attr == "windll"
+                    and node.value.attr in {"windll", "cdll", "oledll", "pydll"}
+                    and isinstance(node.value.value, ast.Name)
+                    and node.value.value.id == "ctypes"
+                ):
+                    raise AssertionError(f"Dynamic ctypes.{node.value.attr}[...] forbidden in {path}")
+            elif isinstance(node, ast.Attribute):
+                # Enforce allowlist on ctypes.<loader>.<dll> attribute access
+                if (
+                    isinstance(node.value, ast.Attribute)
+                    and node.value.attr in {"windll", "cdll", "oledll", "pydll"}
                     and isinstance(node.value.value, ast.Name)
                     and node.value.value.id == "ctypes"
                 ):
                     dll_name = node.attr.lower().removesuffix(".dll")
                     assert dll_name in ALLOWED_CTYPES_DLLS, (
-                        f"Non-allowlisted ctypes.windll.{node.attr} in {path}"
+                        f"Non-allowlisted ctypes.{node.value.attr}.{node.attr} in {path}"
                     )
             elif isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name) and node.func.id in FORBIDDEN_DYNAMIC_BUILTINS:
                     raise AssertionError(f"Forbidden dynamic builtin {node.func.id!r} in {path}")
+                if (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr in FORBIDDEN_DYNAMIC_BUILTINS
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "builtins"
+                ):
+                    raise AssertionError(f"Forbidden builtins.{node.func.attr} in {path}")
                 func_name = (
                     node.func.id
                     if isinstance(node.func, ast.Name)
@@ -130,7 +173,7 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
                 )
                 if func_name == "import_module":
                     raise AssertionError(f"Dynamic import_module forbidden in {path}")
-                if func_name in {"WinDLL", "CDLL", "OleDLL", "LoadLibrary"}:
+                if func_name in {"WinDLL", "CDLL", "OleDLL", "PyDLL", "LibraryLoader", "LoadLibrary"}:
                     name_node = node.args[0] if node.args else next(
                         (kw.value for kw in node.keywords if kw.arg == "name"), None
                     )
@@ -147,6 +190,8 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
             assert symbol not in source, f"Forbidden Win32 API {symbol!r} in {path}"
         if rel != "gamehub/core/sessions/processes.py":
             assert "OpenProcess" not in source, f"Forbidden OpenProcess outside processes.py in {path}"
+        if rel != "gamehub/core/protection/guard.py":
+            assert "K32EnumProcesses" not in source, f"K32EnumProcesses restricted to guard.py: {path}"
 
     # Verify EVERY self._open(...) call in processes.py uses strictly _QUERY_LIMITED_INFORMATION (0x1000).
     proc_path = Path("gamehub/core/sessions/processes.py")
@@ -182,14 +227,22 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
 
     spec_src = Path("packaging/gamerewind.spec").read_text(encoding="utf-8")
     spec_tree = ast.parse(spec_src)
-    upx_values = [
-        kw.value.value
-        for node in ast.walk(spec_tree)
-        if isinstance(node, ast.Call)
-        for kw in node.keywords
-        if kw.arg == "upx" and isinstance(kw.value, ast.Constant)
-    ]
-    assert upx_values and all(v is False for v in upx_values), f"Non-False upx in spec: {upx_values}"
+    for target_ctor in ("EXE", "COLLECT"):
+        ctor_calls = [
+            node
+            for node in ast.walk(spec_tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == target_ctor
+        ]
+        assert ctor_calls, f"Missing {target_ctor}(...) in gamerewind.spec"
+        for call in ctor_calls:
+            upx_kw = next((kw for kw in call.keywords if kw.arg == "upx"), None)
+            assert (
+                upx_kw is not None
+                and isinstance(upx_kw.value, ast.Constant)
+                and upx_kw.value.value is False
+            ), f"{target_ctor} must explicitly set upx=False in gamerewind.spec"
     assert "'psutil'" in spec_src
     assert "'cv2'" in spec_src
     assert "'opengl32sw'" in spec_src
@@ -213,7 +266,7 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
             continue
         package = stripped.split("==")[0]
         assert package.lower() != "psutil", "psutil must not be bundled in GameRewind"
-        assert package.lower() != "opencv-python", "opencv-python must not be bundled in GameRewind"
+        assert not package.lower().startswith("opencv-"), "OpenCV must not be bundled in GameRewind"
         assert f"'{package}'" in spec_text, f"Missing {package!r} in packaging/gamerewind.spec"
 
     assert __version__

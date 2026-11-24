@@ -29,8 +29,11 @@
     "easyanticheat.exe",
     "easyanticheat_eos.exe",
     "beservice.exe",
+    "beservice_x64.exe",
     "eaanticheat.gameservicelauncher.exe",
     "start_protected_game.exe",
+    "gamemon.des",
+    "gamemon64.des",
     "sguard64.exe",
     "sguardsvc64.exe"
   ],
@@ -59,9 +62,10 @@
       "starts_at": "boot",
       "default_mode": "strict",
       "steam_app_ids": [],
-      "epic_app_names": [],
+      "epic_app_names": ["league_of_legends", "league-of-legends", "9c59efaabb6a48f19b3485d5d9416032"],
       "riot_product_ids": ["league_of_legends", "teamfighttactics"],
       "xbox_package_prefixes": [],
+      "title_aliases": ["league of legends", "teamfight tactics"],
       "launcher_stage_exes": ["leagueclient.exe", "leagueclientux.exe"],
       "anti_cheat_exes": [],
       "game_exes": ["league of legends.exe"]
@@ -123,7 +127,7 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": ["1938090"],
-      "battlenet_ids": ["odin", "viper", "fore", "augs", "zeus", "lazarus", "call-of-duty"],
+      "battlenet_ids": ["odin", "viper", "fore", "auks", "augs", "zeus", "lazr", "lazarus", "call-of-duty"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["ActivisionPublishingInc.CallofDuty"],
       "title_aliases": ["call of duty"],
@@ -136,7 +140,8 @@
         "sp22-cod.exe",
         "sp23-cod.exe",
         "sp24-cod.exe",
-        "sp25-cod.exe"
+        "sp25-cod.exe",
+        "sp26-cod.exe"
       ]
     },
     {
@@ -153,7 +158,12 @@
       "title_aliases": ["rainbow six siege", "tom clancys rainbow six siege"],
       "launcher_stage_exes": ["rainbowsix_be.exe"],
       "anti_cheat_exes": ["beservice.exe"],
-      "game_exes": ["rainbowsix.exe", "rainbowsix_vulkan.exe", "rainbowsix_dx11.exe"]
+      "game_exes": [
+        "rainbowsix.exe",
+        "rainbowsix_vulkan.exe",
+        "rainbowsix_dx11.exe",
+        "rainbowsix_dx12.exe"
+      ]
     },
     {
       "id": "pubg",
@@ -163,8 +173,9 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": ["578080"],
-      "epic_app_names": [],
+      "epic_app_names": ["pubg", "pubg-battlegrounds", "pubg_battlegrounds"],
       "xbox_package_prefixes": [],
+      "title_aliases": ["pubg", "pubg battlegrounds", "playerunknowns battlegrounds"],
       "launcher_stage_exes": ["tslgame_be.exe", "execpubg.exe"],
       "anti_cheat_exes": ["beservice.exe"],
       "game_exes": ["tslgame.exe"]

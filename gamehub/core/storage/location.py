@@ -370,8 +370,18 @@ class StoreLocation:
                     if not staged_file.is_file() or staged_file.stat().st_size != expected_size:
                         raise StorageError("Staged media inventory verification failed.")
 
-                # Promote verified database, media, and mods backups/packages into destination.
+                # Promote verified database, media, overrides, and mods backups/packages into destination.
                 (dest / "logs").mkdir(exist_ok=True)
+                override_src = self._current_root / "protected_games_override.json"
+                if override_src.exists():
+                    override_info = override_src.lstat()
+                    if stat.S_ISREG(override_info.st_mode) and not _is_reparse(override_info):
+                        override_data = media.read_file(override_src, _MAX_MEDIA_BYTES)
+                        if override_data is not None:
+                            (stage / "protected_games_override.json").write_bytes(override_data)
+                            (stage / "protected_games_override.json").replace(
+                                dest / "protected_games_override.json"
+                            )
                 if (self._current_root / "mods").exists():
                     _copy_safe_tree(self._current_root / "mods", stage / "mods")
                     if (stage / "mods").exists():
@@ -383,7 +393,13 @@ class StoreLocation:
             _write_bootstrap(self._default_root, dest)
         except (OSError, sqlite3.Error, StorageError):
             LOGGER.warning("store_location_move_failed")
-            for child in (dest / "gamehub.db", dest / "media", dest / "mods", dest / "logs"):
+            for child in (
+                dest / "gamehub.db",
+                dest / "media",
+                dest / "mods",
+                dest / "logs",
+                dest / "protected_games_override.json",
+            ):
                 try:
                     if child.is_dir():
                         shutil.rmtree(child, ignore_errors=True)

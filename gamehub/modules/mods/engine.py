@@ -187,7 +187,9 @@ class ModsEngine:
         self._scanner = process_scanner if process_scanner is not None else ToolhelpProcessScanner()
         self._service_probe = service_probe if service_probe is not None else WindowsServiceProbe()
         self._op_lock = Lock()
-        self._protected_cache: dict[tuple[str, str, str, int], tuple[float, bool, str]] = {}
+        self._protected_cache: dict[
+            tuple[str, str, str, str, str, str, int], tuple[float, bool, str]
+        ] = {}
 
     def invalidate_protection_cache(self) -> None:
         self._protected_cache.clear()
@@ -203,17 +205,30 @@ class ModsEngine:
         3. Path overlap with any protected game's install_dir in the library.
         4. Explicit strict protection mode.
         """
-        cache_key: tuple[str, str, str, int] | None = None
+        cache_key: tuple[str, str, str, str, str, str, int] | None = None
         now = monotonic()
         if use_cache:
             dir_str = str(game.install_dir) if game.install_dir is not None else ""
             dir_mtime = 0
             if game.install_dir is not None:
-                try:
-                    dir_mtime = game.install_dir.stat().st_mtime_ns
-                except OSError:
-                    dir_mtime = -1
-            cache_key = (game.id, game.protection_mode, dir_str, dir_mtime)
+                safe_dir = local_path(game.install_dir)
+                if safe_dir is None:
+                    dir_mtime = -2
+                else:
+                    try:
+                        info = safe_dir.lstat()
+                        dir_mtime = -2 if _is_reparse(info) else info.st_mtime_ns
+                    except OSError:
+                        dir_mtime = -1
+            cache_key = (
+                game.id,
+                game.source.value,
+                game.source_id,
+                game.name,
+                game.protection_mode,
+                dir_str,
+                dir_mtime,
+            )
             cached = self._protected_cache.get(cache_key)
             if cached is not None and (now - cached[0]) <= 15.0:
                 return cached[1], cached[2]
@@ -649,7 +664,7 @@ class ModsEngine:
                     for entry in entries:
                         self._repo.finish_journal(entry.id, "rolled_back")
                     continue
-                protected, _ = self.is_game_protected(game)
+                protected, _ = self.is_game_protected(game, use_cache=False)
                 if protected:
                     for entry in entries:
                         self._repo.finish_journal(entry.id, "rolled_back")

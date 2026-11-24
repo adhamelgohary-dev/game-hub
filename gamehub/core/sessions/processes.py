@@ -76,6 +76,8 @@ DEFAULT_NEVER_OPEN_EXES: frozenset[str] = frozenset(
         "gta5_enhanced_be.exe",
         "sguard64.exe",
         "sguardsvc64.exe",
+        "gamemon.des",
+        "gamemon64.des",
         "robloxplayerbeta.exe",
     }
 )

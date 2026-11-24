@@ -167,15 +167,35 @@ class _StreamingPeDetector:
                 return
             if len(self._dos_head) >= 64:
                 self._pe_offset = struct.unpack_from("<I", self._dos_head, 60)[0]
-                if self._pe_offset < 64 or self._pe_offset > MAX_SINGLE_FILE_BYTES:
+                if self._pe_offset < 4 or self._pe_offset > MAX_SINGLE_FILE_BYTES:
                     self._pe_offset = -1
+                    return
+                if self._pe_offset + 4 <= 64:
+                    # Handle overlapped/tiny PE headers where e_lfanew lies within [4, 60].
+                    if bytes(self._dos_head[self._pe_offset : self._pe_offset + 4]) == b"PE\x00\x00":
+                        self.is_pe = True
+                    self._pe_offset = -1
+                    return
+                if self._pe_offset < 64:
+                    # e_lfanew in (60, 64): seed bytes already buffered inside _dos_head.
+                    self._sig_buf.extend(self._dos_head[self._pe_offset : 64])
+                    sig_start = 64
+                    sig_end = self._pe_offset + 4
+                    if end > sig_start and start < sig_end:
+                        overlap_start = max(start, sig_start)
+                        overlap_end = min(end, sig_end)
+                        self._sig_buf.extend(chunk[overlap_start - start : overlap_end - start])
+                        if len(self._sig_buf) >= 4:
+                            if bytes(self._sig_buf[:4]) == b"PE\x00\x00":
+                                self.is_pe = True
+                            self._pe_offset = -1
                     return
 
         if self._pe_offset is None or self._pe_offset < 0:
             return
 
-        sig_start = self._pe_offset
-        sig_end = sig_start + 4
+        sig_start = max(self._pe_offset, 64) if self._pe_offset < 64 else self._pe_offset
+        sig_end = self._pe_offset + 4
         if end > sig_start and start < sig_end:
             overlap_start = max(start, sig_start)
             overlap_end = min(end, sig_end)
@@ -225,8 +245,10 @@ def normalize_rel_path(raw: str, *, allow_empty: bool = False) -> str:
 
 
 def _assert_safe_extension(rel_path: str) -> None:
-    suffix = PurePosixPath(rel_path).suffix.lower()
-    if suffix in FORBIDDEN_EXTENSIONS:
+    p = PurePosixPath(rel_path)
+    suffix = p.suffix.lower()
+    name = p.name.lower()
+    if suffix in FORBIDDEN_EXTENSIONS or (name.startswith(".") and name in FORBIDDEN_EXTENSIONS):
         raise ManifestValidationError(
             f"Executable or script files are not allowed in packs: {rel_path!r}"
         )
@@ -401,27 +423,81 @@ def _inspect_zip_members(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]
     return by_casefold
 
 
+def _validate_open_archive(archive: zipfile.ZipFile) -> tuple[ModManifest, dict[str, zipfile.ZipInfo]]:
+    members = _inspect_zip_members(archive)
+    manifest_info = members.get("manifest.json")
+    if manifest_info is None:
+        raise ManifestValidationError("The .zip file is missing manifest.json.")
+    with archive.open(manifest_info, "r") as m_stream:
+        raw_bytes = m_stream.read(MAX_MANIFEST_BYTES + 1)
+    if len(raw_bytes) > MAX_MANIFEST_BYTES:
+        raise ManifestValidationError("manifest.json is too large.")
+    try:
+        raw_manifest = json.loads(raw_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
+        raise ManifestValidationError("manifest.json is not valid UTF-8 JSON.") from exc
+
+    manifest = parse_manifest_dict(raw_manifest)
+    total_declared_bytes = 0
+    for item in manifest.files:
+        member_key = _zip_member_key(manifest.files_root, item.src)
+        info = members.get(member_key)
+        if info is None:
+            raise ManifestValidationError(
+                f"Declared file is missing from the .zip archive: {item.src!r}"
+            )
+        digest = hashlib.sha256()
+        read_bytes = 0
+        pe_detector = _StreamingPeDetector()
+        with archive.open(info, "r") as src_stream:
+            while True:
+                chunk = src_stream.read(128 * 1024)
+                if not chunk:
+                    break
+                pe_detector.feed(chunk)
+                if pe_detector.is_pe:
+                    raise ManifestValidationError(
+                        f"Executable PE binary payload is not allowed: {item.dest!r}"
+                    )
+                read_bytes += len(chunk)
+                total_declared_bytes += len(chunk)
+                if read_bytes > MAX_SINGLE_FILE_BYTES:
+                    raise ManifestValidationError("Archive member exceeded size limit.")
+                if total_declared_bytes > MAX_TOTAL_UNCOMPRESSED_BYTES:
+                    raise ManifestValidationError(
+                        "Total declared output size exceeds safety limit."
+                    )
+                digest.update(chunk)
+        if digest.hexdigest() != item.sha256:
+            raise ManifestValidationError(
+                f"Checksum mismatch for {item.dest!r}; the package may be damaged."
+            )
+    return manifest, members
+
+
 def validate_zip_manifest(zip_path: Path) -> ModManifest:
     """Validate a .zip pack's manifest and verify SHA-256 + non-PE content of every declared member."""
     if not zip_path.is_file():
         raise ManifestValidationError("Selected .zip file does not exist.")
     try:
         with zipfile.ZipFile(zip_path, "r") as archive:
-            members = _inspect_zip_members(archive)
-            manifest_info = members.get("manifest.json")
-            if manifest_info is None:
-                raise ManifestValidationError("The .zip file is missing manifest.json.")
-            with archive.open(manifest_info, "r") as m_stream:
-                raw_bytes = m_stream.read(MAX_MANIFEST_BYTES + 1)
-            if len(raw_bytes) > MAX_MANIFEST_BYTES:
-                raise ManifestValidationError("manifest.json is too large.")
-            try:
-                raw_manifest = json.loads(raw_bytes.decode("utf-8"))
-            except (UnicodeDecodeError, ValueError, RecursionError) as exc:
-                raise ManifestValidationError("manifest.json is not valid UTF-8 JSON.") from exc
+            manifest, _members = _validate_open_archive(archive)
+            return manifest
+    except zipfile.BadZipFile as exc:
+        raise ManifestValidationError("The selected file is not a valid .zip archive.") from exc
 
-            manifest = parse_manifest_dict(raw_manifest)
-            total_declared_bytes = 0
+
+def extract_verified_package(zip_path: Path, dest_dir: Path) -> ModManifest:
+    """Validate and extract ONLY declared files into dest_dir/files from a single open zip handle."""
+    if not zip_path.is_file():
+        raise ManifestValidationError("Selected .zip file does not exist.")
+    try:
+        with zipfile.ZipFile(zip_path, "r") as archive:
+            manifest, members = _validate_open_archive(archive)
+            files_dir = dest_dir / "files"
+            files_dir.mkdir(parents=True, exist_ok=True)
+            resolved_root = files_dir.resolve()
+            total_written = 0
             for item in manifest.files:
                 member_key = _zip_member_key(manifest.files_root, item.src)
                 info = members.get(member_key)
@@ -429,67 +505,42 @@ def validate_zip_manifest(zip_path: Path) -> ModManifest:
                     raise ManifestValidationError(
                         f"Declared file is missing from the .zip archive: {item.src!r}"
                     )
+                out_path = files_dir.joinpath(*PurePosixPath(item.dest).parts)
+                resolved_out = out_path.resolve()
+                if not resolved_out.is_relative_to(resolved_root):
+                    raise ManifestValidationError("Extraction path escaped package directory.")
+                out_path.parent.mkdir(parents=True, exist_ok=True)
                 digest = hashlib.sha256()
-                read_bytes = 0
                 pe_detector = _StreamingPeDetector()
-                with archive.open(info, "r") as src_stream:
-                    while True:
-                        chunk = src_stream.read(128 * 1024)
-                        if not chunk:
-                            break
-                        pe_detector.feed(chunk)
-                        if pe_detector.is_pe:
-                            raise ManifestValidationError(
-                                f"Executable PE binary payload is not allowed: {item.dest!r}"
-                            )
-                        read_bytes += len(chunk)
-                        total_declared_bytes += len(chunk)
-                        if read_bytes > MAX_SINGLE_FILE_BYTES:
-                            raise ManifestValidationError("Archive member exceeded size limit.")
-                        if total_declared_bytes > MAX_TOTAL_UNCOMPRESSED_BYTES:
-                            raise ManifestValidationError(
-                                "Total declared output size exceeds safety limit."
-                            )
-                        digest.update(chunk)
-                if digest.hexdigest() != item.sha256:
-                    raise ManifestValidationError(
-                        f"Checksum mismatch for {item.dest!r}; the package may be damaged."
-                    )
+                written = 0
+                aborted = False
+                try:
+                    with archive.open(info, "r") as src_stream, out_path.open("wb") as dst_stream:
+                        while True:
+                            chunk = src_stream.read(128 * 1024)
+                            if not chunk:
+                                break
+                            pe_detector.feed(chunk)
+                            if pe_detector.is_pe:
+                                aborted = True
+                                break
+                            written += len(chunk)
+                            total_written += len(chunk)
+                            if written > MAX_SINGLE_FILE_BYTES or total_written > MAX_TOTAL_UNCOMPRESSED_BYTES:
+                                aborted = True
+                                break
+                            digest.update(chunk)
+                            dst_stream.write(chunk)
+                        if not aborted:
+                            dst_stream.flush()
+                            os.fsync(dst_stream.fileno())
+                except BaseException:
+                    out_path.unlink(missing_ok=True)
+                    raise
+                if aborted or pe_detector.is_pe or digest.hexdigest() != item.sha256:
+                    out_path.unlink(missing_ok=True)
+                    raise ManifestValidationError(f"Verification failed while extracting {item.dest!r}.")
+            (dest_dir / "manifest.json").write_text(manifest_to_json(manifest), encoding="utf-8")
             return manifest
     except zipfile.BadZipFile as exc:
         raise ManifestValidationError("The selected file is not a valid .zip archive.") from exc
-
-
-def extract_verified_package(zip_path: Path, dest_dir: Path) -> ModManifest:
-    """Validate and extract ONLY declared files into dest_dir/files with SHA-256 verification."""
-    manifest = validate_zip_manifest(zip_path)
-    files_dir = dest_dir / "files"
-    files_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path, "r") as archive:
-        members = _inspect_zip_members(archive)
-        for item in manifest.files:
-            member_key = _zip_member_key(manifest.files_root, item.src)
-            info = members[member_key]
-            out_path = files_dir.joinpath(*PurePosixPath(item.dest).parts)
-            resolved_root = files_dir.resolve()
-            resolved_out = out_path.resolve()
-            if not resolved_out.is_relative_to(resolved_root):
-                raise ManifestValidationError("Extraction path escaped package directory.")
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            digest = hashlib.sha256()
-            pe_detector = _StreamingPeDetector()
-            with archive.open(info, "r") as src_stream, out_path.open("wb") as dst_stream:
-                while True:
-                    chunk = src_stream.read(128 * 1024)
-                    if not chunk:
-                        break
-                    pe_detector.feed(chunk)
-                    digest.update(chunk)
-                    dst_stream.write(chunk)
-                dst_stream.flush()
-                os.fsync(dst_stream.fileno())
-            if pe_detector.is_pe or digest.hexdigest() != item.sha256:
-                out_path.unlink(missing_ok=True)
-                raise ManifestValidationError(f"Verification failed while extracting {item.dest!r}.")
-    (dest_dir / "manifest.json").write_text(manifest_to_json(manifest), encoding="utf-8")
-    return manifest

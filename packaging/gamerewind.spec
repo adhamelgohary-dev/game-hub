@@ -32,21 +32,31 @@ for package in (
     installed = distribution(package)
     license_files = [
         file for file in installed.files or ()
-        if any(part.endswith('.dist-info') for part in file.parts)
-        and (
-            'licenses' in file.parts
-            or file.name.lower().startswith(('license', 'copying', 'notice'))
+        if (
+            (
+                any(part.endswith('.dist-info') for part in file.parts)
+                and (
+                    'licenses' in file.parts
+                    or file.name.lower().startswith(('license', 'copying', 'notice'))
+                )
+            )
+            or (
+                'licensing' in file.parts
+                and file.name.lower().startswith(('license', 'copying', 'notice'))
+            )
         )
         and file.name != 'LicenseRef-Qt-Commercial.txt'
         and file.locate().is_file()
     ]
-    if not license_files and package == 'PyInstaller':
+    if not license_files and package not in {'PySide6-Essentials', 'PySide6-Addons', 'shiboken6', 'vdf'}:
         raise FileNotFoundError(f'Installed wheel has no license files: {package}')
     for file in license_files:
         metadata_index = next(
-            index for index, part in enumerate(file.parts) if part.endswith('.dist-info')
+            (index for index, part in enumerate(file.parts) if part.endswith('.dist-info')),
+            -1,
         )
-        directory = Path(notice_dir, package, *file.parts[metadata_index + 1:-1])
+        sub_parts = file.parts[metadata_index + 1:-1] if metadata_index >= 0 else file.parts[:-1]
+        directory = Path(notice_dir, package, *sub_parts)
         notices.append((str(file.locate()), str(directory)))
 
 _EXCLUDED_MODULES = [

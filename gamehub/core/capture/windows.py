@@ -118,10 +118,12 @@ def ensure_cv2_shim() -> None:
     GameRewind reads ``frame.frame_buffer`` directly and encodes WebP via Pillow; it never calls
     ``Frame.save_as_image()``. Any accidental call into ``cv2.*`` fails fast with a clear error.
     """
-    if "cv2" in sys.modules:
+    existing = sys.modules.get("cv2")
+    if existing is not None and getattr(existing, "_GAMEREWIND_CV2_SHIM", False) is True:
         return
     shim = ModuleType("cv2")
     shim.__doc__ = "Minimal stub for unused windows_capture top-level cv2 import."
+    shim._GAMEREWIND_CV2_SHIM = True  # type: ignore[attr-defined]
 
     def _unsupported(name: str):
         if name.startswith("__") and name.endswith("__"):

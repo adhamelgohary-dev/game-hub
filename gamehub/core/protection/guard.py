@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 
 DEFAULT_GUARD_INTERVAL_SEC = 0.08
 DEFAULT_WATCHDOG_STALE_SEC = 2.5
-_FULL_AUDIT_INTERVAL_SEC = 2.0
+_FULL_AUDIT_INTERVAL_SEC = 0.24
 _SCM_CHECK_EVERY_N_TICKS = 3
 _ENUM_PID_CAPACITY = 4096
 
@@ -179,9 +179,9 @@ class ToolhelpProcessScanner:
         if not self._enum_procs(self._pid_buf, self._pid_buf_cb, ctypes.byref(self._pid_needed)):
             return None
         used = int(self._pid_needed.value)
-        if used <= 0 or used >= self._pid_buf_cb:
+        if used <= 0 or used >= self._pid_buf_cb or (used % 4) != 0:
             return None
-        return bytes(memoryview(self._pid_buf)[:used])
+        return bytes(memoryview(self._pid_buf).cast("B")[:used])
 
     def list_processes(self) -> tuple[tuple[int, str], ...]:
         if self._kernel is None:
@@ -329,6 +329,7 @@ class ProtectionGuard:
             if exe and name
         )
         self._ignored_pids: set[int] = set()
+        self._policy_gen: int = 0
         self._trigger_map: dict[str, tuple[int, ProtectionTrigger]] = {}
         self._rebuild_trigger_map_locked()
 
@@ -336,6 +337,7 @@ class ProtectionGuard:
             self._scanner.pid_snapshot if isinstance(self._scanner, ToolhelpProcessScanner) else None
         )
         self._last_pid_sig: bytes | None = None
+        self._last_pid_gen: int = -1
         self._last_full_scan: float = 0.0
 
         self._stop = Event()
@@ -418,9 +420,8 @@ class ProtectionGuard:
                 ),
             )
 
+        # Per-game anti-cheat binaries are NEVER disabled even if the user overrides a game to Full.
         for entry in self._catalog.entries:
-            if entry.id in disabled_entries:
-                continue
             for exe in entry.anti_cheat_exes:
                 _put(
                     exe,
@@ -489,8 +490,8 @@ class ProtectionGuard:
                     if exe and name
                 )
             self._rebuild_trigger_map_locked()
-            # Force a full process re-check on next tick after policy changes.
-            self._last_pid_sig = None
+            # Advance generation so the next tick always runs a full process scan.
+            self._policy_gen += 1
 
     def ignore_pid(self, pid: int) -> None:
         """Temporarily exempt only a self-test dummy child PID owned by the Test Protection button."""
@@ -500,7 +501,7 @@ class ProtectionGuard:
     def unignore_pid(self, pid: int) -> None:
         with self._config_lock:
             self._ignored_pids.discard(int(pid))
-            self._last_pid_sig = None
+            self._policy_gen += 1
 
     def self_check(self) -> ProtectionTrigger | None:
         """Run mandatory startup self-test before showing any window.
@@ -527,10 +528,15 @@ class ProtectionGuard:
         with self._config_lock:
             trigger_map = self._trigger_map
             ignored_pids = frozenset(self._ignored_pids)
+            policy_gen = self._policy_gen
 
         now = self._clock()
         did_full_scan = True
-        if not force_full and self._fast_pid_fn is not None:
+        if (
+            not force_full
+            and self._fast_pid_fn is not None
+            and policy_gen == self._last_pid_gen
+        ):
             sig = self._fast_pid_fn()
             if (
                 sig is not None
@@ -542,8 +548,9 @@ class ProtectionGuard:
                 self._last_pid_sig = sig
 
         if did_full_scan:
-            if force_full and self._fast_pid_fn is not None:
+            if (force_full or policy_gen != self._last_pid_gen) and self._fast_pid_fn is not None:
                 self._last_pid_sig = self._fast_pid_fn()
+            self._last_pid_gen = policy_gen
             raw_procs = self._scanner.list_processes()
             self._last_full_scan = now
             best_prio = 999

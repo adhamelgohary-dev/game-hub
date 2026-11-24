@@ -6,21 +6,22 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Wait at **Owner Gate (v1.2-rc.3)** after delivering `GameRewind-Setup-v1.2.0-rc.3.exe` on `C:\Users\adham\Desktop` and publishing GitHub pre-release `GameRewind v1.2.0-rc.3`:
-- If the owner reports any bug or polish request on `v1.2.0-rc.3`: fix with small commits + regression tests, bump to `v1.2.0-rc.4`, publish, and repeat.
+Wait at **Owner Gate (v1.2-rc.3)** after publishing GitHub pre-release `GameRewind v1.2.0-rc.3` (and committing the 19 follow-up 4-domain Red-Team security fixes on `main` in `docs/reviews/security/rc3/round2-followup-verification.md`):
+- If the owner wants a fresh pre-release containing the 19 follow-up security fixes (`RC3-AC-01..07`, `RC3-NET-01..02`, `RC3-LOC-01..06`, `RC3-PKG-01..04`) before final `v1.2.0` (or reports any bug/polish request on `v1.2.0-rc.3`): bump to `v1.2.0-rc.4`, verify, review, tag, and publish.
 - Once the owner replies `"verified"`, execute **M23** `[simple]`:
-  1. Bump `gamehub/__init__.py` `__version__` from `"1.2.0-rc.3"` to `"1.2.0"`, update `packaging/version_info.txt` `ProductVersion` to `"1.2.0"`, promote the `## v1.2.0` section in `CHANGELOG.md`, run full `pytest -q`, `ruff check .`, and Review Council gate (`docs/reviews/M23-review.md`).
+  1. Bump `gamehub/__init__.py` `__version__` from `"1.2.0-rc.3"` to `"1.2.0"`, update `packaging/version_info.txt` `ProductVersion` to `"1.2.0"`, promote the `## v1.2.0` section in `CHANGELOG.md` (including the 19 follow-up security fixes already on `main`), run full `pytest -q`, `ruff check .`, and Review Council gate (`docs/reviews/M23-review.md`).
   2. Commit, tag `v1.2.0`, push to `origin` (`adhamelgohary-dev/game-rewind`), verify Windows CI publishes final `GameRewind v1.2.0` with `GameRewind-Setup-v1.2.0.exe`, `GameRewind-Portable-v1.2.0.zip`, and `SHA256SUMS.txt`.
-  3. Copy verified `GameRewind-Setup-v1.2.0.exe` to Desktop and confirm completion to the owner in Egyptian Arabic.
+  3. Copy verified `GameRewind-Setup-v1.2.0.exe` to `%USERPROFILE%\Desktop` and confirm completion to the owner in Egyptian Arabic.
 
 ## In progress
 
-Paused cleanly on green `main` at **Owner Gate (v1.2-rc.3)**. Milestones `D-v1.2-rc2`, `M19a`, `M20`, `M21`, `M22`, and `M22b` (`v1.2.0-rc.3` Speed + Size + Fresh Independent Security Re-Check — 0 open findings) are complete, Council-approved, tagged (`v1.2.0-rc.3`), and pushed. Repository is **PUBLIC** at `https://github.com/adhamelgohary-dev/game-rewind`.
+Paused cleanly on green `main` at **Owner Gate (v1.2-rc.3)** (`243 passed`, `ruff check .` clean). Milestones `D-v1.2-rc2`, `M19a`, `M20`, `M21`, `M22`, `M22b` (`v1.2.0-rc.3`), plus follow-up remediation of all 19 independent 4-domain Red-Team findings (`docs/reviews/security/rc3/round2-followup-verification.md`) are committed on `main`. Repository is **PUBLIC** at `https://github.com/adhamelgohary-dev/game-rewind`.
 
 ## Fragile spots
 
 - `gamehub/app.py`: Keep `ProtectionGuard.self_check()` strictly BEFORE `migrate_legacy_data_root()`, `SingleInstance.claim_or_activate()`, and before any window creation or DB writes; keep `protection_guard.start()` BEFORE `window.show()`; keep direct guard-thread `os._exit` when `hard_exit_on_emergency=True` (never reintroduce a `QueuedConnection` wait on the UI thread); keep startup TOCTOU `protection_guard.check_once()` inside `_finish_startup()` strictly BEFORE `mods_engine.recover_incomplete()`, hotkeys, and `watcher.start()`; close `instance` and `shutdown_cover_loader(wait=False)` first in `finally:`.
-- `gamehub/core/protection/guard.py`: Keep `K32EnumProcesses` PID snapshot captured BEFORE `list_processes()` (race-free), fail-closed fallback to full `Toolhelp32` on overflow/error, 2 s unconditional full audit, 240 ms SCM check, and `_last_pid_sig = None` invalidation in `update_policy()` and `unignore_pid()`.
+- `gamehub/core/protection/guard.py`: Keep `K32EnumProcesses` PID snapshot using exact byte slicing (`memoryview(...).cast("B")[:used]`) captured BEFORE `list_processes()`, fail-closed fallback to full `Toolhelp32` on overflow/error, `0.24 s` (`240 ms`) unconditional full audit (PID-reuse bound), `240 ms` SCM check, `_policy_gen` monotonic generation counter in `update_policy()`/`unignore_pid()`, and never skip `entry.anti_cheat_exes` on `disabled_entries`.
+- `gamehub/ui/covers.py`: Keep `local_path()` + non-reparse `lstat()` + bounded `media.read_file()` + `QBuffer` decoding and `media.protect_directory()` disk-cache writes (zero UNC/symlink exposure).
 - `gamehub/core/capture/windows.py` & `packaging/gamerewind.spec`: Keep `ensure_cv2_shim()` (with PEP 562 dunder `AttributeError` handling for Shiboken!) called before importing `windows_capture`, keep `psutil` and `cv2` excluded in `gamerewind.spec`, keep `qoffscreen.dll` (CI headless tests) and FFmpeg `QtMultimedia` plugins intact, and keep CI size gate (`< 200 MiB` unpacked, `< 70 MiB` zip).
 - `gamehub/core/sessions/processes.py` & `gamehub/core/capture/windows.py`: `psutil` is strictly banned (`tests/test_packaging.py` + `excludes`). `OpenProcess` is allowed ONLY in `processes.py` with `_QUERY_LIMITED_INFORMATION = 0x1000` on verified non-protected Full-mode targets; `WindowProbe.foreground()` must always gate on `allowed_pids` (`tracker.active_pids()`).
 - `gamehub/core/secrets.py` & `tests/test_packaging.py`: `crypt32` DLL access is strictly restricted to `gamehub/core/secrets.py` for Windows DPAPI encryption of the optional `covers.steamgriddb_api_key`.
@@ -29,7 +30,7 @@ Paused cleanly on green `main` at **Owner Gate (v1.2-rc.3)**. Milestones `D-v1.2
 - `packaging/installer.iss`: Keep `DisableDirPage=no`, `UsePreviousAppDir=no`, `PrivilegesRequired=lowest`, `ValidateInstallDir` called in BOTH `NextButtonClick` and `PrepareToInstall`, and `RunValidatedQuietUninstaller` validating `IsLocalDrivePath` + exact parent-dir match before `FileExists`.
 - `gamehub/core/i18n/catalog.py`: Never place Unicode BiDi isolate characters inside `QFileDialog` glob parentheses `(*.exe)` / `(*.zip)` and never reintroduce `&[A-Za-z]` mnemonic ampersands in `.tr(...)` labels.
 
-Last worked on by: Gemini 4 Neon (High), 2026-11-24
+Last worked on by: Gemini 4 Neon (High), 2026-11-25
 
 ## Run the app and tests
 

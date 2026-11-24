@@ -135,8 +135,12 @@ class SessionWatcher:
                     full_override_exes.update(matched.game_exes)
                     full_override_exes.update(target_exes)
 
+        games_with_exe = {target.game_id for target in raw_targets if target.kind == "exe_path"}
         active_targets = tuple(
-            target for target in raw_targets if target.game_id not in strict_games
+            target
+            for target in raw_targets
+            if target.game_id not in strict_games
+            and (target.kind == "exe_path" or target.game_id in games_with_exe)
         )
         always_protected = set(self._catalog.global_anti_cheat_exes)
         for exes in self._catalog.always_strict_launchers.values():
