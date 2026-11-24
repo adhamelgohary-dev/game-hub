@@ -187,7 +187,9 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
         if kw.arg == "upx" and isinstance(kw.value, ast.Constant)
     ]
     assert upx_values and all(v is False for v in upx_values), f"Non-False upx in spec: {upx_values}"
-    assert "excludes=['psutil']" in spec_src
+    assert "'psutil'" in spec_src
+    assert "'cv2'" in spec_src
+    assert "'opengl32sw'" in spec_src
 
 
 def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
@@ -208,6 +210,7 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
             continue
         package = stripped.split("==")[0]
         assert package.lower() != "psutil", "psutil must not be bundled in GameRewind"
+        assert package.lower() != "opencv-python", "opencv-python must not be bundled in GameRewind"
         assert f"'{package}'" in spec_text, f"Missing {package!r} in packaging/gamerewind.spec"
 
     assert __version__
@@ -254,4 +257,25 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert "GameRewind-Portable-" in workflow_text
     assert "MpCmdRun.exe" in workflow_text
     assert "highestAvailable" in workflow_text
+    assert "Verify bundle size and excluded binaries gate" in workflow_text
     assert "@v4" not in workflow_text and "@v3" not in workflow_text
+
+
+def test_cv2_shim_allows_windows_capture_without_opencv() -> None:
+    import sys
+
+    import pytest
+
+    from gamehub.core.capture.windows import ensure_cv2_shim
+
+    ensure_cv2_shim()
+    assert "cv2" in sys.modules
+    import cv2
+
+    with pytest.raises(RuntimeError, match="not bundled"):
+        _ = cv2.imwrite
+    from inspect import signature
+
+    from windows_capture import WindowsCapture
+
+    assert "window_hwnd" in signature(WindowsCapture).parameters

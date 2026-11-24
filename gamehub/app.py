@@ -1694,6 +1694,9 @@ def _wire_settings(
 def _check_capture_runtime() -> None:
     from inspect import signature
 
+    from gamehub.core.capture.windows import ensure_cv2_shim
+
+    ensure_cv2_shim()
     from windows_capture import WindowsCapture
 
     if "window_hwnd" not in signature(WindowsCapture).parameters:

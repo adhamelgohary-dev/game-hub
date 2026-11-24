@@ -8,6 +8,7 @@ from ctypes import wintypes
 from dataclasses import dataclass, field
 from threading import Event, Lock, Thread
 from time import monotonic
+from types import ModuleType
 
 from gamehub.core.sessions.models import ProcessIdentity
 from gamehub.core.sessions.processes import query_process_creation_time
@@ -111,7 +112,30 @@ class WindowProbe:
         return 0
 
 
+def ensure_cv2_shim() -> None:
+    """Register a minimal cv2 stub so windows_capture imports without bundling OpenCV (~126 MiB).
+
+    GameRewind reads ``frame.frame_buffer`` directly and encodes WebP via Pillow; it never calls
+    ``Frame.save_as_image()``. Any accidental call into ``cv2.*`` fails fast with a clear error.
+    """
+    if "cv2" in sys.modules:
+        return
+    shim = ModuleType("cv2")
+    shim.__doc__ = "Minimal stub for unused windows_capture top-level cv2 import."
+
+    def _unsupported(name: str):
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+        raise RuntimeError(
+            f"OpenCV (cv2.{name}) is not bundled in GameRewind; use Pillow for image encoding."
+        )
+
+    shim.__getattr__ = _unsupported  # type: ignore[method-assign]
+    sys.modules["cv2"] = shim
+
+
 def _native_capture(**options):
+    ensure_cv2_shim()
     from windows_capture import WindowsCapture
 
     return WindowsCapture(**options)

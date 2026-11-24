@@ -121,10 +121,13 @@ def _find_visible_window(pid: int, title_prefix: str = "GameRewind") -> int | No
         if not buf.value.startswith(title_prefix):
             return True
         rect = _RECT()
-        if _user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-            if (rect.right - rect.left) > 100 and (rect.bottom - rect.top) > 100:
-                found.append(hwnd)
-                return False
+        if (
+            _user32.GetWindowRect(hwnd, ctypes.byref(rect))
+            and (rect.right - rect.left) > 100
+            and (rect.bottom - rect.top) > 100
+        ):
+            found.append(hwnd)
+            return False
         return True
 
     _user32.EnumWindows(_WNDENUMPROC(_cb), 0)

@@ -24,7 +24,9 @@ jobs:
           python-version: '3.12'
           architecture: x64
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+        run: |
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+          python -m pip uninstall -y opencv-python
       - name: Run tests
         run: python -m pytest
       - name: Lint
@@ -51,7 +53,9 @@ jobs:
           python-version: '3.12'
           architecture: x64
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+        run: |
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+          python -m pip uninstall -y opencv-python
       - name: Build the portable application
         run: |
           $tag = $env:GITHUB_REF_NAME
@@ -65,6 +69,28 @@ jobs:
           python -m PyInstaller --noconfirm --clean packaging/gamerewind.spec
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)." }
           Compress-Archive -LiteralPath dist/GameRewind -DestinationPath "dist/GameRewind-Portable-$tag.zip"
+      - name: Verify bundle size and excluded binaries gate
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $maxUnpackedBytes = 200MB
+          $maxZipBytes = 70MB
+          $unpackedBytes = (Get-ChildItem -LiteralPath 'dist/GameRewind' -Recurse -File | Measure-Object Length -Sum).Sum
+          $zipBytes = (Get-Item -LiteralPath "dist/GameRewind-Portable-$tag.zip").Length
+          Write-Host ("Installed folder: {0:N2} MiB ({1} bytes) | Limit: 200 MiB" -f ($unpackedBytes / 1MB), $unpackedBytes)
+          Write-Host ("Portable zip:     {0:N2} MiB ({1} bytes) | Limit: 70 MiB" -f ($zipBytes / 1MB), $zipBytes)
+          if ($unpackedBytes -gt $maxUnpackedBytes) {
+            throw "Installed bundle size ($unpackedBytes bytes) exceeds 200 MiB limit!"
+          }
+          if ($zipBytes -gt $maxZipBytes) {
+            throw "Portable zip size ($zipBytes bytes) exceeds 70 MiB limit!"
+          }
+          $forbidden = Get-ChildItem -LiteralPath 'dist/GameRewind' -Recurse -File | Where-Object {
+            $_.Name -match '(?i)^(cv2\.pyd|opencv_|.*psutil.*|opengl32sw\.dll|qt6qml|qt6quick)'
+          }
+          if ($forbidden) {
+            $names = ($forbidden | ForEach-Object Name) -join ', '
+            throw "Forbidden binary found in dist/GameRewind: $names"
+          }
       - name: Build the per-user installer
         run: |
           $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
