@@ -5,9 +5,12 @@
     "riot": [
       "riotclientservices.exe",
       "riotclientux.exe",
+      "riotclientuxrender.exe",
       "riotclientcrashhandler.exe",
+      "riot client.exe",
       "leagueclient.exe",
-      "leagueclientux.exe"
+      "leagueclientux.exe",
+      "leagueclientuxrender.exe"
     ]
   },
   "optional_strict_launchers": {
@@ -20,15 +23,14 @@
   "anti_cheat_services": [
     "EasyAntiCheat_EOS",
     "EasyAntiCheat",
-    "BEService",
-    "vgc"
+    "BEService"
   ],
   "global_anti_cheat_exes": [
     "easyanticheat.exe",
     "easyanticheat_eos.exe",
     "beservice.exe",
-    "vgc.exe",
     "eaanticheat.gameservicelauncher.exe",
+    "start_protected_game.exe",
     "sguard64.exe",
     "sguardsvc64.exe"
   ],
@@ -45,7 +47,7 @@
       "riot_product_ids": ["valorant"],
       "xbox_package_prefixes": [],
       "launcher_stage_exes": ["valorant.exe"],
-      "anti_cheat_exes": ["vgc.exe"],
+      "anti_cheat_exes": [],
       "game_exes": ["valorant-win64-shipping.exe"]
     },
     {
@@ -60,8 +62,23 @@
       "riot_product_ids": ["league_of_legends", "teamfighttactics"],
       "xbox_package_prefixes": [],
       "launcher_stage_exes": ["leagueclient.exe", "leagueclientux.exe"],
-      "anti_cheat_exes": ["vgc.exe"],
+      "anti_cheat_exes": [],
       "game_exes": ["league of legends.exe"]
+    },
+    {
+      "id": "2xko",
+      "name": "2XKO",
+      "anti_cheat": "Riot Vanguard",
+      "privilege": "kernel",
+      "starts_at": "boot",
+      "default_mode": "strict",
+      "steam_app_ids": [],
+      "epic_app_names": [],
+      "riot_product_ids": ["lion", "2xko"],
+      "xbox_package_prefixes": [],
+      "launcher_stage_exes": ["2xko.exe", "lion.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["lion-win64-shipping.exe", "2xko-win64-shipping.exe"]
     },
     {
       "id": "fortnite",
@@ -88,6 +105,7 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": ["1172470"],
+      "ea_ids": ["apex-legends"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
       "launcher_stage_exes": ["easyanticheat_launcher.exe"],
@@ -116,6 +134,7 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": ["359550"],
+      "ubisoft_ids": ["635", "1843"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["Ubisoft.RainbowSixSiege"],
       "launcher_stage_exes": ["rainbowsix_be.exe"],
@@ -158,6 +177,14 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": ["2195250", "2669320", "3405690"],
+      "ea_ids": [
+        "ea-sports-fc-24",
+        "ea-sports-fc-25",
+        "ea-sports-fc-26",
+        "ea-sports-fc-27",
+        "ea-sports-fc-26-showcase",
+        "ea-sports-fc-27-showcase"
+      ],
       "epic_app_names": [],
       "xbox_package_prefixes": ["ElectronicArtsMobile.EASPORTSFC"],
       "launcher_stage_exes": ["eaanticheat.gameservicelauncher.exe"],
@@ -172,6 +199,7 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": ["1517290", "1238810", "1238840"],
+      "ea_ids": ["battlefield-2042", "battlefield-v", "battlefield-1", "battlefield-6"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
       "launcher_stage_exes": [],
@@ -375,7 +403,11 @@
       "xbox_package_prefixes": ["BehaviourInteractive.DeadbyDaylight"],
       "launcher_stage_exes": [],
       "anti_cheat_exes": [],
-      "game_exes": ["deadbydaylight-win64-shipping.exe", "deadbydaylight-egs-shipping.exe"]
+      "game_exes": [
+        "deadbydaylight-win64-shipping.exe",
+        "deadbydaylight-egs-shipping.exe",
+        "deadbydaylight-wingdk-shipping.exe"
+      ]
     },
     {
       "id": "the_finals",
@@ -553,6 +585,7 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": ["2357570"],
+      "battlenet_ids": ["pro", "overwatch"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
       "launcher_stage_exes": [],
@@ -567,6 +600,7 @@
       "starts_at": "launch",
       "default_mode": "strict",
       "steam_app_ids": [],
+      "battlenet_ids": ["wow", "wow_classic", "wow_classic_era"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
       "launcher_stage_exes": [],

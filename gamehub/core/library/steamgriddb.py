@@ -14,18 +14,33 @@ import urllib.request
 from collections.abc import Callable
 
 _API_BASE = "https://www.steamgriddb.com/api/v2"
+_ALLOWED_API_HOSTS: frozenset[str] = frozenset({"www.steamgriddb.com"})
+_ALLOWED_CDN_HOSTS: frozenset[str] = frozenset({"cdn.steamgriddb.com", "cdn2.steamgriddb.com"})
 _REQUEST_TIMEOUT_SEC = 6.0
 _MAX_JSON_BYTES = 256 * 1024
 _MAX_IMAGE_BYTES = 8 * 1024 * 1024
 _LANDSCAPE_DIMS = "460x215,920x430"
 
 
-def _default_get_bytes(url: str, headers: dict[str, str], max_bytes: int) -> bytes:
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(
+            req.full_url, code, "Redirects are disabled for security.", headers, fp
+        )
+
+
+def _validate_https_host(url: str, allowed_hosts: frozenset[str]) -> None:
     parsed = urllib.parse.urlparse(url)
-    if parsed.scheme != "https" or not parsed.netloc:
-        raise ValueError("Only HTTPS URLs are permitted.")
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or host not in allowed_hosts:
+        raise ValueError(f"Disallowed HTTPS host: {host!r}")
+
+
+def _default_get_bytes(url: str, headers: dict[str, str], max_bytes: int) -> bytes:
+    _validate_https_host(url, _ALLOWED_API_HOSTS | _ALLOWED_CDN_HOSTS)
+    opener = urllib.request.build_opener(_NoRedirectHandler())
     req = urllib.request.Request(url, headers=headers, method="GET")
-    with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT_SEC) as resp:
+    with opener.open(req, timeout=_REQUEST_TIMEOUT_SEC) as resp:
         data = resp.read(max_bytes + 1)
     if len(data) > max_bytes:
         raise ValueError("Response exceeded maximum allowed size.")
@@ -42,8 +57,10 @@ def _extract_grid_url(payload: object) -> str | None:
         if not isinstance(item, dict):
             continue
         url = item.get("url")
-        if isinstance(url, str) and url.startswith("https://"):
-            return url
+        if isinstance(url, str):
+            parsed = urllib.parse.urlparse(url)
+            if parsed.scheme == "https" and (parsed.hostname or "").lower() in _ALLOWED_CDN_HOSTS:
+                return url
     return None
 
 

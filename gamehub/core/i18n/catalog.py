@@ -570,4 +570,10 @@ AR_CATALOG: dict[str, str] = {
     "Imported and turned on ✓": "تم الاستيراد والتشغيل ✓",
     "Removed cleanly ✓": "تم الحذف بنجاح ✓",
     "Original game files restored ✓": "تم استرجاع ملفات اللعبة الأصلية ✓",
+    "{name} is running — GameRewind won't run alongside it. Close it first.": (
+        "{name} قيد التشغيل — لن يعمل \u2066GameRewind\u2069 بجانبه. أغلقه أولًا."
+    ),
+    "{name} is running (check the system tray if you closed its window) — GameRewind won't run alongside it. Close it first.": (
+        "{name} قيد التشغيل (راجع شريط المهام/الأيقونات المخفية لو أغلقت نافذته) — لن يعمل \u2066GameRewind\u2069 بجانبه. أغلقه أولًا."
+    ),
 }

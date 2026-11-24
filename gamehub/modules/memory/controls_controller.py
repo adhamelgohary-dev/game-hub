@@ -149,8 +149,8 @@ class ControlsController(QObject):
         if not self._closed:
             done(future)
 
-    def close(self) -> None:
+    def close(self, *, wait: bool = True) -> None:
         if self._closed:
             return
         self._closed = True
-        self._worker.shutdown(wait=True)
+        self._worker.shutdown(wait=wait, cancel_futures=not wait)

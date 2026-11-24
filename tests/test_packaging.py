@@ -15,10 +15,35 @@ FORBIDDEN_NETWORK_MODULES = {
     "urllib3",
     "websockets",
 }
+FORBIDDEN_RUNTIME_MODULES = {
+    "psutil",
+}
+FORBIDDEN_DYNAMIC_BUILTINS = {
+    "__import__",
+    "compile",
+    "eval",
+    "exec",
+}
+ALLOWED_CTYPES_DLLS = {
+    "advapi32",
+    "combase",
+    "dwmapi",
+    "kernel32",
+    "ole32",
+    "shell32",
+    "user32",
+}
 FORBIDDEN_NATIVE_SYMBOLS = (
+    "AdjustTokenPrivileges",
     "CreateRemoteThread",
+    "CreateService",
+    "LoadLibraryA",
+    "LoadLibraryW",
+    "NtOpenProcess",
+    "NtQuerySystemInformation",
     "NtReadVirtualMemory",
     "NtWriteVirtualMemory",
+    "OpenProcessToken",
     "PROCESS_ALL_ACCESS",
     "PROCESS_VM_READ",
     "PROCESS_VM_WRITE",
@@ -26,13 +51,20 @@ FORBIDDEN_NATIVE_SYMBOLS = (
     "QSystemTrayIcon",
     "QTcpSocket",
     "QUdpSocket",
+    "QWebEngineView",
+    "QueueUserAPC",
     "ReadProcessMemory",
     "SeDebugPrivilege",
     "SendInput",
+    "SetThreadContext",
     "SetValueEx",
+    "SetWinEventHook",
     "SetWindowsHookEx",
+    "StartService",
     "VirtualAllocEx",
+    "VirtualProtectEx",
     "WriteProcessMemory",
+    "ZwOpenProcess",
     "keybd_event",
     "mouse_event",
 )
@@ -53,30 +85,109 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     root = alias.name.split(".")[0]
+                    assert root not in FORBIDDEN_RUNTIME_MODULES, (
+                        f"Forbidden runtime module {alias.name!r} in {path}"
+                    )
                     assert root not in FORBIDDEN_NETWORK_MODULES or root in allowed_net, (
                         f"Forbidden network import {alias.name!r} in {path}"
                     )
+                    if alias.name == "PySide6.QtNetwork" and rel != "gamehub/single_instance.py":
+                        raise AssertionError(f"PySide6.QtNetwork restricted to single_instance.py: {path}")
             elif isinstance(node, ast.ImportFrom) and node.module:
                 root = node.module.split(".")[0]
+                assert root not in FORBIDDEN_RUNTIME_MODULES, (
+                    f"Forbidden runtime module {node.module!r} in {path}"
+                )
                 assert root not in FORBIDDEN_NETWORK_MODULES or root in allowed_net, (
                     f"Forbidden network import {node.module!r} in {path}"
                 )
+                if node.module == "PySide6.QtNetwork" and rel != "gamehub/single_instance.py":
+                    raise AssertionError(f"PySide6.QtNetwork restricted to single_instance.py: {path}")
+                if node.module == "importlib":
+                    for alias in node.names:
+                        if alias.name == "import_module":
+                            raise AssertionError(f"Dynamic importlib.import_module forbidden in {path}")
+            elif isinstance(node, ast.Attribute):
+                # Enforce allowlist on ctypes.windll.<dll> attribute access
+                if (
+                    isinstance(node.value, ast.Attribute)
+                    and node.value.attr == "windll"
+                    and isinstance(node.value.value, ast.Name)
+                    and node.value.value.id == "ctypes"
+                ):
+                    dll_name = node.attr.lower().removesuffix(".dll")
+                    assert dll_name in ALLOWED_CTYPES_DLLS, (
+                        f"Non-allowlisted ctypes.windll.{node.attr} in {path}"
+                    )
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id in FORBIDDEN_DYNAMIC_BUILTINS:
+                    raise AssertionError(f"Forbidden dynamic builtin {node.func.id!r} in {path}")
+                func_name = (
+                    node.func.id
+                    if isinstance(node.func, ast.Name)
+                    else (node.func.attr if isinstance(node.func, ast.Attribute) else None)
+                )
+                if func_name == "import_module":
+                    raise AssertionError(f"Dynamic import_module forbidden in {path}")
+                if func_name in {"WinDLL", "CDLL", "OleDLL", "LoadLibrary"}:
+                    name_node = node.args[0] if node.args else next(
+                        (kw.value for kw in node.keywords if kw.arg == "name"), None
+                    )
+                    if not (isinstance(name_node, ast.Constant) and isinstance(name_node.value, str)):
+                        raise AssertionError(f"Dynamic ctypes DLL load is forbidden in {path}")
+                    dll_name = name_node.value.lower().removesuffix(".dll")
+                    assert dll_name in ALLOWED_CTYPES_DLLS, (
+                        f"Non-allowlisted DLL {name_node.value!r} loaded in {path}"
+                    )
+
         for symbol in FORBIDDEN_NATIVE_SYMBOLS:
             assert symbol not in source, f"Forbidden Win32 API {symbol!r} in {path}"
         if rel != "gamehub/core/sessions/processes.py":
             assert "OpenProcess" not in source, f"Forbidden OpenProcess outside processes.py in {path}"
 
+    # Verify EVERY self._open(...) call in processes.py uses strictly _QUERY_LIMITED_INFORMATION (0x1000).
+    proc_path = Path("gamehub/core/sessions/processes.py")
+    proc_src = proc_path.read_text(encoding="utf-8")
+    proc_tree = ast.parse(proc_src)
+    open_calls = [
+        node
+        for node in ast.walk(proc_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "_open"
+    ]
+    assert open_calls, "Expected at least one self._open call in processes.py"
+    for call in open_calls:
+        assert call.args and isinstance(call.args[0], ast.Name) and call.args[0].id == "_QUERY_LIMITED_INFORMATION"
+    assert "_QUERY_LIMITED_INFORMATION = 0x1000" in proc_src
+    assert "psutil" not in proc_src
+
+    xbox_src = Path("gamehub/core/library/xbox.py").read_text(encoding="utf-8")
+    assert "powershell" not in xbox_src.lower()
+    assert "subprocess" not in xbox_src
+
     sgdb_src = Path("gamehub/core/library/steamgriddb.py").read_text(encoding="utf-8")
     assert "https://www.steamgriddb.com/api/v2" in sgdb_src
-    assert 'if not enabled or not key or not query:' in sgdb_src
+    assert "if not enabled or not key or not query:" in sgdb_src
+    assert "_NoRedirectHandler" in sgdb_src
+    assert "_ALLOWED_CDN_HOSTS" in sgdb_src
 
     manifest = Path("packaging/GameRewind.manifest").read_text(encoding="utf-8")
     assert "asInvoker" in manifest
     assert "requireAdministrator" not in manifest
     assert "highestAvailable" not in manifest
-    spec = Path("packaging/gamerewind.spec").read_text(encoding="utf-8")
-    assert "upx=False" in spec
-    assert "upx=True" not in spec
+
+    spec_src = Path("packaging/gamerewind.spec").read_text(encoding="utf-8")
+    spec_tree = ast.parse(spec_src)
+    upx_values = [
+        kw.value.value
+        for node in ast.walk(spec_tree)
+        if isinstance(node, ast.Call)
+        for kw in node.keywords
+        if kw.arg == "upx" and isinstance(kw.value, ast.Constant)
+    ]
+    assert upx_values and all(v is False for v in upx_values), f"Non-False upx in spec: {upx_values}"
+    assert "excludes=['psutil']" in spec_src
 
 
 def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
@@ -96,6 +207,7 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
         if not stripped or stripped.startswith("#"):
             continue
         package = stripped.split("==")[0]
+        assert package.lower() != "psutil", "psutil must not be bundled in GameRewind"
         assert f"'{package}'" in spec_text, f"Missing {package!r} in packaging/gamerewind.spec"
 
     assert __version__
@@ -106,6 +218,9 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert "GameRewind-Setup" in installer_text
     assert 'Name: "desktopicon"' in installer_text
     assert "IsDirWritable" in installer_text
+    assert "IsForbiddenDestination" in installer_text
+    assert "ValidateInstallDir" in installer_text
+    assert "RunValidatedQuietUninstaller" in installer_text
     assert "LegacyGameHubUninstallKey" in installer_text
     assert "Flags: deletevalue uninsdeletevalue dontcreatekey" in installer_text
     assert "ValueType: none" in installer_text
@@ -116,6 +231,7 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert "FFmpeg" in notices_text
     assert "PySide6 Addons" in notices_text
     assert "MIT License" in notices_text
+    assert "Game Hub" not in notices_text
     assert (root / "LICENSE").is_file()
     assert "MIT License" in (root / "LICENSE").read_text(encoding="utf-8")
     assert (root / "SECURITY.md").is_file()
@@ -136,3 +252,6 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert "tags: ['v*']" in workflow_text
     assert "GameRewind-Setup-" in workflow_text
     assert "GameRewind-Portable-" in workflow_text
+    assert "MpCmdRun.exe" in workflow_text
+    assert "highestAvailable" in workflow_text
+    assert "@v4" not in workflow_text and "@v3" not in workflow_text

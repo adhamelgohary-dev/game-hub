@@ -19,9 +19,12 @@ DEFAULT_ALWAYS_STRICT_LAUNCHERS: dict[str, tuple[str, ...]] = {
     "riot": (
         "riotclientservices.exe",
         "riotclientux.exe",
+        "riotclientuxrender.exe",
         "riotclientcrashhandler.exe",
+        "riot client.exe",
         "leagueclient.exe",
         "leagueclientux.exe",
+        "leagueclientuxrender.exe",
     )
 }
 DEFAULT_OPTIONAL_STRICT_LAUNCHERS: dict[str, tuple[str, ...]] = {
@@ -35,14 +38,13 @@ DEFAULT_ANTI_CHEAT_SERVICES: tuple[str, ...] = (
     "EasyAntiCheat_EOS",
     "EasyAntiCheat",
     "BEService",
-    "vgc",
 )
 DEFAULT_GLOBAL_ANTI_CHEAT_EXES: tuple[str, ...] = (
     "easyanticheat.exe",
     "easyanticheat_eos.exe",
     "beservice.exe",
-    "vgc.exe",
     "eaanticheat.gameservicelauncher.exe",
+    "start_protected_game.exe",
     "sguard64.exe",
     "sguardsvc64.exe",
 )
@@ -101,6 +103,9 @@ class ProtectedGameEntry:
     steam_app_ids: tuple[str, ...] = ()
     epic_app_names: tuple[str, ...] = ()
     riot_product_ids: tuple[str, ...] = ()
+    ubisoft_ids: tuple[str, ...] = ()
+    battlenet_ids: tuple[str, ...] = ()
+    ea_ids: tuple[str, ...] = ()
     xbox_package_prefixes: tuple[str, ...] = ()
     launcher_stage_exes: tuple[str, ...] = ()
     anti_cheat_exes: tuple[str, ...] = ()
@@ -160,7 +165,8 @@ def _parse_launcher_map(raw: object) -> dict[str, tuple[str, ...]] | None:
 
 def _parse_file(path: Path) -> _ParsedCatalogFile:
     raw = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict) or raw.get("schema_version") not in {1, 2}:
+    schema_ver = raw.get("schema_version") if isinstance(raw, dict) else None
+    if not isinstance(raw, dict) or type(schema_ver) is not int or schema_ver not in {1, 2}:
         raise ValueError("Unsupported protected-games catalog schema.")
     items = raw.get("games")
     if not isinstance(items, list):
@@ -194,6 +200,9 @@ def _parse_file(path: Path) -> _ParsedCatalogFile:
                 steam_app_ids=_norm_str_tuple(item.get("steam_app_ids", ())),
                 epic_app_names=_norm_str_tuple(item.get("epic_app_names", ()), fold=True),
                 riot_product_ids=_norm_str_tuple(item.get("riot_product_ids", ()), fold=True),
+                ubisoft_ids=_norm_str_tuple(item.get("ubisoft_ids", ()), fold=True),
+                battlenet_ids=_norm_str_tuple(item.get("battlenet_ids", ()), fold=True),
+                ea_ids=_norm_str_tuple(item.get("ea_ids", ()), fold=True),
                 xbox_package_prefixes=_norm_str_tuple(
                     item.get("xbox_package_prefixes", ()), fold=True
                 ),
@@ -263,6 +272,9 @@ class ProtectedGamesCatalog:
         self._by_steam: dict[str, ProtectedGameEntry] = {}
         self._by_epic: dict[str, ProtectedGameEntry] = {}
         self._by_riot: dict[str, ProtectedGameEntry] = {}
+        self._by_ubisoft: dict[str, ProtectedGameEntry] = {}
+        self._by_battlenet: dict[str, ProtectedGameEntry] = {}
+        self._by_ea: dict[str, ProtectedGameEntry] = {}
         self._by_exe: dict[str, ProtectedGameEntry] = {}
         self._by_launcher_stage_exe: dict[str, ProtectedGameEntry] = {}
         self._by_anti_cheat_exe: dict[str, ProtectedGameEntry] = {}
@@ -270,11 +282,17 @@ class ProtectedGamesCatalog:
 
         for entry in self._entries:
             for app_id in entry.steam_app_ids:
-                self._by_steam[app_id] = entry
+                self._by_steam.setdefault(app_id, entry)
             for epic_name in entry.epic_app_names:
-                self._by_epic[epic_name] = entry
+                self._by_epic.setdefault(epic_name, entry)
             for riot_id in entry.riot_product_ids:
-                self._by_riot[riot_id] = entry
+                self._by_riot.setdefault(riot_id, entry)
+            for ubi_id in entry.ubisoft_ids:
+                self._by_ubisoft.setdefault(ubi_id, entry)
+            for bnet_id in entry.battlenet_ids:
+                self._by_battlenet.setdefault(bnet_id, entry)
+            for ea_id in entry.ea_ids:
+                self._by_ea.setdefault(ea_id, entry)
             for exe in entry.launcher_stage_exes:
                 self._by_launcher_stage_exe.setdefault(exe, entry)
                 self._by_exe.setdefault(exe, entry)
@@ -282,8 +300,40 @@ class ProtectedGamesCatalog:
                 self._by_anti_cheat_exe.setdefault(exe, entry)
                 self._by_exe.setdefault(exe, entry)
             for exe in entry.game_exes:
-                self._by_game_exe[exe] = entry
-                self._by_exe[exe] = entry
+                self._by_game_exe.setdefault(exe, entry)
+                self._by_exe.setdefault(exe, entry)
+
+    @staticmethod
+    def _merge_override_entry(
+        base: ProtectedGameEntry, override: ProtectedGameEntry
+    ) -> ProtectedGameEntry:
+        """Strictly additive merge: an override can never weaken or strip bundled protection."""
+        return ProtectedGameEntry(
+            id=base.id,
+            name=base.name,
+            anti_cheat=base.anti_cheat,
+            privilege=base.privilege,
+            starts_at=base.starts_at,
+            default_mode="strict" if base.default_mode == "strict" else override.default_mode,
+            steam_app_ids=tuple(dict.fromkeys((*base.steam_app_ids, *override.steam_app_ids))),
+            epic_app_names=tuple(dict.fromkeys((*base.epic_app_names, *override.epic_app_names))),
+            riot_product_ids=tuple(
+                dict.fromkeys((*base.riot_product_ids, *override.riot_product_ids))
+            ),
+            ubisoft_ids=tuple(dict.fromkeys((*base.ubisoft_ids, *override.ubisoft_ids))),
+            battlenet_ids=tuple(dict.fromkeys((*base.battlenet_ids, *override.battlenet_ids))),
+            ea_ids=tuple(dict.fromkeys((*base.ea_ids, *override.ea_ids))),
+            xbox_package_prefixes=tuple(
+                dict.fromkeys((*base.xbox_package_prefixes, *override.xbox_package_prefixes))
+            ),
+            launcher_stage_exes=tuple(
+                dict.fromkeys((*base.launcher_stage_exes, *override.launcher_stage_exes))
+            ),
+            anti_cheat_exes=tuple(
+                dict.fromkeys((*base.anti_cheat_exes, *override.anti_cheat_exes))
+            ),
+            game_exes=tuple(dict.fromkeys((*base.game_exes, *override.game_exes))),
+        )
 
     @classmethod
     def load(
@@ -305,14 +355,20 @@ class ProtectedGamesCatalog:
             for entry in parsed.entries:
                 by_id[entry.id] = entry
             if parsed.always_strict_launchers is not None:
-                always_strict = parsed.always_strict_launchers
+                for key, exes in parsed.always_strict_launchers.items():
+                    always_strict[key] = tuple(
+                        dict.fromkeys((*always_strict.get(key, ()), *exes))
+                    )
             if parsed.optional_strict_launchers is not None:
-                optional_strict = parsed.optional_strict_launchers
+                for key, exes in parsed.optional_strict_launchers.items():
+                    optional_strict[key] = tuple(
+                        dict.fromkeys((*optional_strict.get(key, ()), *exes))
+                    )
             if parsed.anti_cheat_services is not None:
-                services = list(parsed.anti_cheat_services)
+                services = list(dict.fromkeys((*services, *parsed.anti_cheat_services)))
             if parsed.global_anti_cheat_exes is not None:
-                global_ac = list(parsed.global_anti_cheat_exes)
-        except (OSError, TypeError, ValueError) as exc:
+                global_ac = list(dict.fromkeys((*global_ac, *parsed.global_anti_cheat_exes)))
+        except (OSError, TypeError, ValueError, RecursionError) as exc:
             LOGGER.warning("protected_catalog_load_failed")
             if strict_load:
                 raise CatalogLoadError("Bundled protected-games catalog could not be loaded.") from exc
@@ -324,12 +380,34 @@ class ProtectedGamesCatalog:
             try:
                 override = _parse_file(override_path)
                 for entry in override.entries:
-                    by_id[entry.id] = entry
+                    if entry.id in by_id:
+                        by_id[entry.id] = cls._merge_override_entry(by_id[entry.id], entry)
+                    else:
+                        # New override entries can only ADD strict protection, never weaken defaults.
+                        by_id[entry.id] = ProtectedGameEntry(
+                            id=entry.id,
+                            name=entry.name,
+                            anti_cheat=entry.anti_cheat,
+                            privilege=entry.privilege,
+                            starts_at=entry.starts_at,
+                            default_mode="strict",
+                            steam_app_ids=entry.steam_app_ids,
+                            epic_app_names=entry.epic_app_names,
+                            riot_product_ids=entry.riot_product_ids,
+                            ubisoft_ids=entry.ubisoft_ids,
+                            battlenet_ids=entry.battlenet_ids,
+                            ea_ids=entry.ea_ids,
+                            xbox_package_prefixes=entry.xbox_package_prefixes,
+                            launcher_stage_exes=entry.launcher_stage_exes,
+                            anti_cheat_exes=entry.anti_cheat_exes,
+                            game_exes=entry.game_exes,
+                            exe_names=entry.exe_names,
+                        )
                 if override.anti_cheat_services:
                     services = list(dict.fromkeys((*services, *override.anti_cheat_services)))
                 if override.global_anti_cheat_exes:
                     global_ac = list(dict.fromkeys((*global_ac, *override.global_anti_cheat_exes)))
-            except (OSError, TypeError, ValueError):
+            except (OSError, TypeError, ValueError, RecursionError):
                 LOGGER.warning("protected_catalog_override_invalid")
 
         return cls(
@@ -366,6 +444,14 @@ class ProtectedGamesCatalog:
         for exes in self._always_strict_launchers.values():
             all_names.update(exes)
         return frozenset(all_names)
+
+    def all_launcher_exe_names(self) -> frozenset[str]:
+        names: set[str] = set()
+        for exes in self._always_strict_launchers.values():
+            names.update(exes)
+        for exes in self._optional_strict_launchers.values():
+            names.update(exes)
+        return frozenset(names)
 
     def match_exe_name(self, basename: str) -> ProtectedGameEntry | None:
         if not basename:
@@ -407,6 +493,18 @@ class ProtectedGamesCatalog:
         elif source.value == "riot" and source_id:
             cleaned = source_id.strip().casefold().split(".", 1)[0]
             found = self._by_riot.get(cleaned)
+            if found is not None:
+                return found
+        elif source == GameSource.UBISOFT and source_id:
+            found = self._by_ubisoft.get(source_id.strip().casefold())
+            if found is not None:
+                return found
+        elif source == GameSource.BATTLENET and source_id:
+            found = self._by_battlenet.get(source_id.strip().casefold())
+            if found is not None:
+                return found
+        elif source == GameSource.EA and source_id:
+            found = self._by_ea.get(source_id.strip().casefold())
             if found is not None:
                 return found
         elif source == GameSource.XBOX and source_id:

@@ -33,9 +33,14 @@ class SingleInstance:
         if self._lock.error() != QLockFile.LockError.LockFailedError:
             raise OSError("Could not lock the local GameRewind data folder.")
 
-        # Another process may have the lock but still be opening its local server.
-        deadline = monotonic() + 1
+        # Another process may have the lock while starting up OR just releasing it on exit.
+        deadline = monotonic() + 1.0
         while monotonic() < deadline:
+            if self._lock.tryLock(0):
+                QLocalServer.removeServer(self._name)
+                if self._server.listen(self._name):
+                    return True
+                raise RuntimeError("Could not start the local activation service.")
             client = QLocalSocket()
             client.connectToServer(self._name)
             if client.waitForConnected(50):

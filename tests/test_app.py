@@ -3,7 +3,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import psutil
 import pytest
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
@@ -11,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 from gamehub import app as gamehub_app
 from gamehub.app import GameHubWindow
 from gamehub.core.library.service import LibraryService
+from gamehub.core.protection.guard import ToolhelpProcessScanner
 from gamehub.core.sessions.models import GameStarted, GameStopped
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
@@ -84,7 +84,8 @@ raise SystemExit(code)
         if proc.poll() is None:
             proc.kill()
             proc.wait(timeout=5)
-    assert not psutil.pid_exists(proc.pid)
+    assert proc.poll() is not None
+    assert all(pid != proc.pid for pid, _ in ToolhelpProcessScanner().list_processes())
 
 
 def test_second_instance_activates_primary(app: QApplication, tmp_path: Path) -> None:

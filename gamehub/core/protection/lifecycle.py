@@ -71,7 +71,7 @@ class LifecycleCoordinator:
                 return False
             exes = self._library.list_target_basenames().get(game_id, ())
         except StorageError:
-            return False
+            return True
         return (
             self._catalog.effective_mode(game.protection_mode, game.source, game.source_id, exes)
             == "strict"

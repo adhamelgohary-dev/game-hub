@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.2.0-rc.2
+
+### Added
+- **GameRewind Brand & Custom-Folder Installer (M19a):**
+  - Renamed the application, executable (`GameRewind.exe`), portable archive (`GameRewind-Portable-vX.Y.Z.zip`), installer (`GameRewind-Setup-vX.Y.Z.exe`), data folder (`%LOCALAPPDATA%\GameRewind`), and repository (`adhamelgohary-dev/game-rewind`) to **GameRewind**.
+  - Added automatic, lossless SQLite online-backup migration from legacy `%LOCALAPPDATA%\GameHub` (including integrity checks, media, overrides, and relocated `store-location.json`), plus quiet removal of legacy Game Hub shortcuts and uninstall entries during installation without touching user data.
+  - Enabled choosing any writable local install folder (`DisableDirPage=no`, `UsePreviousAppDir=no`) with an optional **Create a desktop shortcut** task and automatic cleanup of a previous GameRewind install when moving to a new folder.
+- **Simplified Translations & Mods Module (M20):**
+  - Added a dedicated **Translations & Mods** sidebar page and per-game tab with jargon-free **On/Off** toggles, one-click **"Restore the original game"**, and a plain two-button conflict chooser in English and Arabic (RTL).
+  - Added crash-safe `mod_journal` recovery on startup, atomic original-file backups under `<data_root>/mods/backups/`, and SQLite Schema v7 (`mod_items`, `mod_backups`, `mod_deployed_files`, `mod_conflict_choices`, `mod_journal`) with automatic `gamehub.db-v6.bak` pre-upgrade backup.
+  - Hard-locked Translations & Mods for all protected/online/strict games (even if per-game protection is overridden) and blocked all file mutations while any game or anti-cheat service is active.
+
+### Changed
+- Reduced passive `ProtectionGuard` polling interval from `300 ms` to `150 ms` for faster pre-anti-cheat exit latency (`<250 ms`).
+- Replaced `XboxDetector`'s `powershell.exe` subprocess inventory with direct read-only Windows Registry (`HKCU\...\AppModel\Repository\Packages`) + `MicrosoftGame.config` scanning (zero subprocess spawns).
+- Expanded `protected_games.json` with **2XKO** (`lion`), `deadbydaylight-wingdk-shipping.exe`, additional Riot Client processes (`riot client.exe`, `riotclientuxrender.exe`, `leagueclientuxrender.exe`), Ubisoft/Battle.net/EA catalog IDs, and global `start_protected_game.exe`.
+
+### Fixed
+- **Vanguard `vgc` startup false-lockout:** Excluded persistent `vgc` service / `vgc.exe` from startup refusal triggers (matching the `EAAntiCheatService` precedent) while keeping Riot Client (`always_strict_launchers`) and Valorant/LoL/2XKO binaries strictly enforced, and named the exact blocking trigger (with system-tray hint for launchers) on refusal notifications.
+- **Sleep / Modern Standby false watchdog trips:** Switched `ProtectionGuard`'s heartbeat clock to `kernel32.QueryUnbiasedInterruptTime` so Windows sleep/standby no longer triggers false fail-closed exits on resume.
+- **Emergency shutdown blocking & races:** Eliminated modal `QMessageBox` hangs on startup refusal and fail-closed exits (using non-blocking Windows notifications instead), prevented `ThreadPoolExecutor`/`ProtectionGuard`/`SessionWatcher` shutdown waits from delaying emergency exits, exempted the "Test protection" dummy PID from `SessionWatcher`, suspended hotkeys/capture before protected Play launches, and prevented `NoteDialog` teardown from flashing the window during emergency exit.
+- **Translations & Mods edge cases:** Handled Windows case-insensitive collisions (`fonts.cfg` vs `Fonts.cfg`), stored relative package/backup paths so **Restore the original game** keeps working after `StoreLocation.move()`, and added re-verification + per-operation locking.
+
+### Security
+- **Complete removal of `psutil`:** Removed `psutil` from runtime code, tests, `requirements.txt`, and `packaging/gamerewind.spec` (`excludes=['psutil']`), eliminating `_psutil_windows.pyd` (and its `AdjustTokenPrivileges("SeDebugPrivilege")` / `ReadProcessMemory` imports). Replaced process creation-time lookup with `kernel32.GetProcessTimes` on a single `PROCESS_QUERY_LIMITED_INFORMATION` (`0x1000`) handle restricted exclusively to verified Full-mode tracked games.
+- **Zero-handle discipline:** Kept `CaptureScheduler` paused when zero Full-mode games are active, gated `WindowProbe.foreground()` strictly on `tracker.active_pids()`, prevented `ProcessProbe` from opening handles to OS/system/security/launcher/anti-cheat processes, and prevented per-game `"full"` overrides from stripping global anti-cheat binaries or always-strict launchers.
+- **Fail-closed & override hardening:** Made `protected_games_override.json` strictly additive (never able to weaken bundled protection), rejected `bool` schema versions and deeply nested JSON, failed closed on empty Toolhelp snapshots / transitional SCM states / `StorageError` in `LifecycleCoordinator`, caught `BaseException` in `ProtectionGuard._loop()`, and enforced custom user-marked `strict` games at both startup and runtime.
+- **Declarative-only mod pack enforcement:** Rejected renamed PE binaries (`MZ` + `PE\0\0` header check), expanded forbidden executable/script extensions (`.asi`, `.pyd`, `.pyc`, etc.), blocked `src`-reuse zip bombs, deep JSON recursion, invalid Windows/BiDi/device-name paths, file-vs-directory collisions, symlinks/junctions, and `install_dir` overlap with `data_root`, verifying SHA-256 before atomic replacement.
+- **Installer, SteamGridDB, and CI hardening:** Blocked installing into drive roots, Desktop, `%USERPROFILE%`, `%LOCALAPPDATA%\GameRewind`, non-empty unrelated folders, or UNC paths; validated HKCU `UninstallString` targets strictly against `InstallLocation\unins*.exe`; disabled HTTP redirects and restricted SteamGridDB image downloads to `cdn.steamgriddb.com` / `cdn2.steamgriddb.com`; pinned all GitHub Actions to commit SHAs; and added CI PE `asInvoker`/`VERSIONINFO`/zero-UPX and Windows Defender (`MpCmdRun.exe`) gates.
+
 ## v1.2.0-rc.1
 
 ### Added

@@ -383,7 +383,7 @@ class StoreLocation:
             _write_bootstrap(self._default_root, dest)
         except (OSError, sqlite3.Error, StorageError):
             LOGGER.warning("store_location_move_failed")
-            for child in (dest / "gamehub.db", dest / "media", dest / "logs"):
+            for child in (dest / "gamehub.db", dest / "media", dest / "mods", dest / "logs"):
                 try:
                     if child.is_dir():
                         shutil.rmtree(child, ignore_errors=True)

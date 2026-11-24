@@ -1,14 +1,13 @@
 import os
 from collections.abc import Iterator
 
-import psutil
 import pytest
 
 from gamehub.core.sessions.models import ProcessIdentity, WatchTarget
 from gamehub.core.sessions.processes import ProcessProbe, _WindowsProcessMetadata
 
 GAME = WatchTarget("game", "exe_path", r"C:\Games\Sample\Game.exe")
-PACKAGE = WatchTarget("game", "package_id", "Sample.Game_abcdef0123456")
+PACKAGE = WatchTarget("pkg_only", "package_id", "Sample.Game_abcdef0123456")
 
 
 class ProcessRows:
@@ -57,14 +56,19 @@ def test_probe_matches_exact_family_and_discards_conflicting_identity() -> None:
         10: ("XboxApp.exe", None, "SAMPLE.GAME_ABCDEF0123456"),
         11: ("Game.exe", GAME.match_key, "Other.Game_abcdef0123456"),
         12: ("Similar.exe", None, "Sample.Game2_abcdef0123456"),
+        13: ("vgtray.exe", None, None),
+        14: ("EpicGamesLauncher.exe", None, None),
+        15: ("explorer.exe", None, None),
     })
     other_package = WatchTarget("other", "package_id", "OTHER.GAME_abcdef0123456")
 
     sample = ProcessProbe(metadata, lambda pid: float(pid)).snapshot([GAME, PACKAGE, other_package])
 
-    assert sample.games == {"game": frozenset({ProcessIdentity(10, 10.0)})}
+    assert sample.games == {"pkg_only": frozenset({ProcessIdentity(10, 10.0)})}
     assert sample.unknown_pids == frozenset({11})
     assert (10, False, True) in metadata.inspected
+    inspected_pids = {pid for pid, _, _ in metadata.inspected}
+    assert inspected_pids.isdisjoint({13, 14, 15})
 
 
 def test_probe_distinguishes_access_denial_from_exit() -> None:
@@ -109,4 +113,4 @@ def test_native_probe_observes_current_process_image() -> None:
     sample = ProcessProbe(backend).snapshot([WatchTarget("sample", "exe_path", image)])
 
     assert sample.complete
-    assert ProcessIdentity(pid, psutil.Process(pid).create_time()) in sample.games["sample"]
+    assert ProcessIdentity(pid, backend.creation_time(pid)) in sample.games["sample"]

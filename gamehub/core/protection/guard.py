@@ -27,16 +27,37 @@ from gamehub.core.protection.catalog import ProtectedGamesCatalog
 
 LOGGER = logging.getLogger(__name__)
 
-DEFAULT_GUARD_INTERVAL_SEC = 0.30
+DEFAULT_GUARD_INTERVAL_SEC = 0.15
 DEFAULT_WATCHDOG_STALE_SEC = 2.5
 
 # Win32 Service Control Manager read-only constants
 _SC_MANAGER_CONNECT = 0x0001
 _SERVICE_QUERY_STATUS = 0x0004
 _SC_STATUS_PROCESS_INFO = 0
-_SERVICE_START_PENDING = 0x00000002
-_SERVICE_RUNNING = 0x00000004
+_SERVICE_STOPPED = 0x00000001
 _ERROR_SERVICE_DOES_NOT_EXIST = 1060
+
+
+_UNBIASED_TIME_FN = None
+
+
+def unbiased_monotonic() -> float:
+    """Return monotonic seconds that pause during Windows S3/Modern Standby sleep."""
+    global _UNBIASED_TIME_FN
+    if os.name == "nt":
+        try:
+            if _UNBIASED_TIME_FN is None:
+                kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+                fn = kernel.QueryUnbiasedInterruptTime
+                fn.argtypes = [ctypes.POINTER(ctypes.c_uint64)]
+                fn.restype = wintypes.BOOL
+                _UNBIASED_TIME_FN = fn
+            ticks = ctypes.c_uint64(0)
+            if _UNBIASED_TIME_FN(ctypes.byref(ticks)):
+                return ticks.value / 10_000_000.0
+        except (AttributeError, OSError):
+            pass
+    return monotonic()
 
 # Toolhelp32 constants (basename-only, zero process handles)
 _TH32CS_SNAPPROCESS = 0x00000002
@@ -150,6 +171,8 @@ class ToolhelpProcessScanner:
             err = ctypes.get_last_error()
             if err != _ERROR_NO_MORE_FILES:
                 raise ProtectionCheckError(f"Process32NextW failed (winerror={err})")
+            if not results:
+                raise ProtectionCheckError("Toolhelp32 returned an empty process snapshot")
         finally:
             self._close(snap)
         return tuple(results)
@@ -226,7 +249,7 @@ class WindowsServiceProbe:
                         raise ProtectionCheckError(
                             f"QueryServiceStatusEx({name}) failed (winerror={ctypes.get_last_error()})"
                         )
-                    if status.dwCurrentState in {_SERVICE_RUNNING, _SERVICE_START_PENDING}:
+                    if status.dwCurrentState != _SERVICE_STOPPED:
                         running.add(name)
                 finally:
                     self._close_svc(svc)
@@ -246,8 +269,9 @@ class ProtectionGuard:
         service_probe: ServiceProbe | None = None,
         enabled_optional_launchers: Iterable[str] = (),
         disabled_entry_ids: Iterable[str] = (),
+        extra_strict_exes: Iterable[tuple[str, str]] = (),
         interval_sec: float = DEFAULT_GUARD_INTERVAL_SEC,
-        clock: Callable[[], float] = monotonic,
+        clock: Callable[[], float] = unbiased_monotonic,
     ) -> None:
         self._catalog = catalog
         self._scanner = process_scanner if process_scanner is not None else ToolhelpProcessScanner()
@@ -263,6 +287,11 @@ class ProtectionGuard:
         self._disabled_entry_ids: frozenset[str] = frozenset(
             e.strip() for e in disabled_entry_ids if e.strip()
         )
+        self._extra_strict_exes: tuple[tuple[str, str], ...] = tuple(
+            (ntpath.normcase(ntpath.basename(exe)), name)
+            for exe, name in extra_strict_exes
+            if exe and name
+        )
         self._ignored_pids: set[int] = set()
 
         self._stop = Event()
@@ -277,6 +306,7 @@ class ProtectionGuard:
         *,
         enabled_optional_launchers: Iterable[str] | None = None,
         disabled_entry_ids: Iterable[str] | None = None,
+        extra_strict_exes: Iterable[tuple[str, str]] | None = None,
     ) -> None:
         with self._config_lock:
             if enabled_optional_launchers is not None:
@@ -286,6 +316,12 @@ class ProtectionGuard:
             if disabled_entry_ids is not None:
                 self._disabled_entry_ids = frozenset(
                     e.strip() for e in disabled_entry_ids if e.strip()
+                )
+            if extra_strict_exes is not None:
+                self._extra_strict_exes = tuple(
+                    (ntpath.normcase(ntpath.basename(exe)), name)
+                    for exe, name in extra_strict_exes
+                    if exe and name
                 )
 
     def ignore_pid(self, pid: int) -> None:
@@ -318,6 +354,7 @@ class ProtectionGuard:
         with self._config_lock:
             enabled_optional = self._enabled_optional_launchers
             disabled_entries = self._disabled_entry_ids
+            extra_strict = self._extra_strict_exes
             ignored_pids = frozenset(self._ignored_pids)
 
         raw_procs = self._scanner.list_processes()
@@ -402,6 +439,16 @@ class ProtectionGuard:
                         entry_id=entry.id,
                     )
 
+        # 5b. User-marked custom Strict games
+        for exe, display_name in extra_strict:
+            if exe in basenames:
+                return ProtectionTrigger(
+                    kind="game_exe",
+                    identifier=exe,
+                    display_name=display_name,
+                    stage="game",
+                )
+
         # 6. Read-only SCM status of on-demand anti-cheat services
         running_svcs = self._service_probe.running_services(self._catalog.anti_cheat_services)
         if running_svcs:
@@ -448,11 +495,17 @@ class ProtectionGuard:
                         return
                     delay = max(0.0, self._interval - (self._clock() - started))
                     self._stop.wait(delay)
-            except Exception as exc:  # noqa: BLE001 — fail-closed on ANY detector failure
-                reason = f"{type(exc).__name__}: {exc}"
+            except BaseException as exc:  # noqa: BLE001 — fail-closed on ANY detector failure
+                try:
+                    reason = f"{type(exc).__name__}: {exc}"
+                except BaseException:  # noqa: BLE001
+                    reason = "protection_guard_fatal"
                 with self._heartbeat_lock:
                     self._failed_reason = reason
-                LOGGER.error("protection_guard_failed_closed")
+                try:
+                    LOGGER.error("protection_guard_failed_closed")
+                except BaseException:  # noqa: BLE001, S110
+                    pass
                 on_failure(reason)
 
         self._thread = Thread(target=_loop, name="protection-guard", daemon=True)
@@ -482,9 +535,9 @@ class ProtectionGuard:
         with self._heartbeat_lock:
             return self._failed_reason
 
-    def close(self) -> None:
+    def close(self, *, wait: bool = True) -> None:
         self._stop.set()
-        if self._thread is not None and self._thread.is_alive():
+        if wait and self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
 
@@ -510,6 +563,7 @@ def run_dummy_process_protection_test(
     *,
     dummy_exe_name: str = "FortniteLauncher.exe",
     live_guard: ProtectionGuard | None = None,
+    live_watcher=None,
     interval_sec: float = 0.15,
     timeout_sec: float = 3.0,
 ) -> SelfTestResult:
@@ -554,8 +608,24 @@ def run_dummy_process_protection_test(
                 if donor.name.lower() == "ping.exe"
                 else [str(dummy_path)]
             )
-            if live_guard is not None:
-                with live_guard._scan_lock:
+            if live_watcher is not None:
+                live_watcher.pause()
+            try:
+                if live_guard is not None:
+                    with live_guard._scan_lock:
+                        proc = subprocess.Popen(
+                            args,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            stdin=subprocess.DEVNULL,
+                            creationflags=creation_flags,
+                            shell=False,
+                        )
+                        live_guard.ignore_pid(proc.pid)
+                        if live_watcher is not None:
+                            live_watcher.ignore_pid(proc.pid)
+                        target_pid[0] = proc.pid
+                else:
                     proc = subprocess.Popen(
                         args,
                         stdout=subprocess.DEVNULL,
@@ -564,18 +634,12 @@ def run_dummy_process_protection_test(
                         creationflags=creation_flags,
                         shell=False,
                     )
-                    live_guard.ignore_pid(proc.pid)
+                    if live_watcher is not None:
+                        live_watcher.ignore_pid(proc.pid)
                     target_pid[0] = proc.pid
-            else:
-                proc = subprocess.Popen(
-                    args,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    creationflags=creation_flags,
-                    shell=False,
-                )
-                target_pid[0] = proc.pid
+            finally:
+                if live_watcher is not None:
+                    live_watcher.resume()
 
             triggered_event.wait(timeout=timeout_sec)
             elapsed_ms = max(1, round((monotonic() - t0) * 1000))
@@ -591,6 +655,8 @@ def run_dummy_process_protection_test(
 
             if live_guard is not None:
                 live_guard.unignore_pid(proc.pid)
+            if live_watcher is not None:
+                live_watcher.unignore_pid(proc.pid)
 
             if errors:
                 return SelfTestResult(False, elapsed_ms, dummy_exe_name, errors[0])
@@ -602,5 +668,7 @@ def run_dummy_process_protection_test(
             proc.kill()
         if proc is not None and live_guard is not None:
             live_guard.unignore_pid(proc.pid)
+        if proc is not None and live_watcher is not None:
+            live_watcher.unignore_pid(proc.pid)
         test_guard.close()
         return SelfTestResult(False, 0, dummy_exe_name, str(exc))

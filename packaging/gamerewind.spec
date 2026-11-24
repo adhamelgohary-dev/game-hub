@@ -25,7 +25,7 @@ if not python_license.is_file():
 notices.append((str(python_license), f'{notice_dir}/CPython'))
 
 for package in (
-    'PySide6-Essentials', 'PySide6-Addons', 'shiboken6', 'PyInstaller', 'psutil', 'vdf',
+    'PySide6-Essentials', 'PySide6-Addons', 'shiboken6', 'PyInstaller', 'vdf',
     'Pillow', 'numpy', 'opencv-python', 'windows-capture',
     'sounddevice', 'soundfile', 'cffi', 'pycparser', 'typing-extensions',
 ):
@@ -52,6 +52,7 @@ for package in (
 analysis = Analysis(
     [str(root / 'gamehub' / 'app.py')],
     pathex=[str(root)],
+    excludes=['psutil'],
     datas=[
         *notices,
         (

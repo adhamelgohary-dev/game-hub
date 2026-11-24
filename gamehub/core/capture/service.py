@@ -37,8 +37,16 @@ class CaptureService:
     def set_buffer_size(self, buffer_size: int) -> None:
         self._buffer_size = buffer_size
 
+    def _probe_foreground(self, active_pids: frozenset[int]):
+        if isinstance(self._windows, WindowProbe):
+            return self._windows.foreground(allowed_pids=active_pids)
+        return self._windows.foreground()
+
     def acquire(self) -> CaptureLease | None:
-        window = self._windows.foreground()
+        active_pids = self._tracker.active_pids()
+        if not active_pids:
+            return None
+        window = self._probe_foreground(active_pids)
         if window is None:
             return None
         session = self._tracker.active_for(window.process)
@@ -47,11 +55,11 @@ class CaptureService:
         return CaptureLease(window, session, monotonic() + LEASE_SECONDS, perf_counter_ns() // 100)
 
     def is_current(self, lease: CaptureLease) -> bool:
-        return (
-            monotonic() < lease.expires_at
-            and self._windows.foreground() == lease.window
-            and self._tracker.active_for(lease.window.process) == lease.session
-        )
+        if monotonic() >= lease.expires_at:
+            return False
+        if self._tracker.active_for(lease.window.process) != lease.session:
+            return False
+        return self._probe_foreground(frozenset({lease.window.process.pid})) == lease.window
 
     def capture_webp(self, lease: CaptureLease) -> bytes | None:
         """Capture and encode one verified foreground frame without saving it to the ring."""

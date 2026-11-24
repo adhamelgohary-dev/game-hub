@@ -2,10 +2,12 @@
 
 import argparse
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Timer
 
 from PySide6.QtCore import QObject, QStandardPaths, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QImageReader
@@ -293,17 +295,21 @@ class _GuardBridge(QObject):
     failed = Signal(str)
 
 
-def _read_startup_guard_prefs(data_root: Path) -> tuple[str, frozenset[str]]:
-    """Read language and optional strict-launcher prefs read-only without creating any files."""
+def _read_startup_guard_prefs(
+    data_root: Path,
+) -> tuple[str, frozenset[str], tuple[tuple[str, str], ...]]:
+    """Read language, optional strict-launcher prefs, and custom Strict game exes read-only."""
     import json
+    import ntpath
     import sqlite3
     from contextlib import closing
 
     db_path = data_root / "gamehub.db"
     if not db_path.is_file():
-        return "en", frozenset()
+        return "en", frozenset(), ()
     language = "en"
     enabled: set[str] = set()
+    custom_strict: list[tuple[str, str]] = []
     try:
         uri = f"{db_path.absolute().as_uri()}?mode=ro"
         with closing(sqlite3.connect(uri, uri=True)) as conn:
@@ -311,6 +317,14 @@ def _read_startup_guard_prefs(data_root: Path) -> tuple[str, frozenset[str]]:
                 "SELECT key, value FROM settings WHERE key = 'ui.language' "
                 "OR key LIKE 'protection.strict_launcher.%'"
             ).fetchall()
+            try:
+                strict_rows = conn.execute(
+                    "SELECT g.name, t.match_key FROM games g "
+                    "JOIN game_targets t ON t.game_id = g.id "
+                    "WHERE g.protection_mode = 'strict' AND t.kind = 'exe_path'"
+                ).fetchall()
+            except sqlite3.Error:
+                strict_rows = []
         for key, raw in rows:
             try:
                 val = json.loads(raw)
@@ -320,9 +334,13 @@ def _read_startup_guard_prefs(data_root: Path) -> tuple[str, frozenset[str]]:
                 language = val
             elif key.startswith("protection.strict_launcher.") and val is True:
                 enabled.add(key.rsplit(".", 1)[-1])
+        for game_name, match_key in strict_rows:
+            base = ntpath.normcase(ntpath.basename(str(match_key)))
+            if base and game_name:
+                custom_strict.append((base, str(game_name)))
     except sqlite3.Error:
         pass
-    return language, frozenset(enabled)
+    return language, frozenset(enabled), tuple(custom_strict)
 
 
 def _disabled_catalog_entries(
@@ -344,6 +362,26 @@ def _disabled_catalog_entries(
     return frozenset(disabled)
 
 
+def _custom_strict_exes(
+    catalog: ProtectedGamesCatalog, library: LibraryRepository
+) -> tuple[tuple[str, str], ...]:
+    """Return (exe_basename, game_name) pairs for user-marked custom Strict games."""
+    pairs: list[tuple[str, str]] = []
+    try:
+        basenames_by_game = library.list_target_basenames()
+        for game in library.list_games():
+            if game.protection_mode != "strict":
+                continue
+            exes = basenames_by_game.get(game.id, ())
+            if catalog.match_game(game.source, game.source_id, exes) is not None:
+                continue
+            for exe in exes:
+                pairs.append((exe, game.name))
+    except StorageError:
+        pass
+    return tuple(pairs)
+
+
 def _run(
     app: QApplication,
     data_root: Path,
@@ -355,8 +393,9 @@ def _run(
     catalog_path: Path | None = None,
     process_scanner: ProcessScanner | None = None,
     service_probe: ServiceProbe | None = None,
-    guard_interval_sec: float = 0.30,
+    guard_interval_sec: float = 0.15,
     show_guard_dialog=None,
+    hard_exit_on_emergency: bool = False,
 ) -> int:
     effective_default = default_root if default_root is not None else data_root
     prefs_root = data_root
@@ -364,8 +403,8 @@ def _run(
         legacy_resolved, legacy_err = resolve_data_root(legacy_root)
         if legacy_err is None and (legacy_resolved / "gamehub.db").is_file():
             prefs_root = legacy_resolved
-    startup_lang, startup_strict_launchers = (
-        ("en", frozenset()) if smoke_test else _read_startup_guard_prefs(prefs_root)
+    startup_lang, startup_strict_launchers, startup_custom_strict = (
+        ("en", frozenset(), ()) if smoke_test else _read_startup_guard_prefs(prefs_root)
     )
     if startup_lang != "en":
         apply_language(app, startup_lang)
@@ -374,10 +413,16 @@ def _run(
         if show_guard_dialog is not None:
             show_guard_dialog(kind, text)
             return
-        if kind == "fail_closed":
-            QMessageBox.critical(None, "GameRewind", text)
-        else:
-            QMessageBox.information(None, "GameRewind", text)
+        # Never block with a modal QMessageBox while a protected game may be running
+        # or protection failed closed; send a non-blocking Windows notification instead.
+        try:
+            WindowsNotifier().notify_protected_game(
+                "GameRewind",
+                title="GameRewind",
+                body=text,
+            )
+        except OSError:
+            logging.getLogger("gamehub").warning("guard_notification_unavailable")
 
     # Layer 2 (Cases 1 & 4 + Self-Check + Fail-Closed): runs BEFORE SingleInstance, BEFORE
     # data migration, and BEFORE creating any window or writing any data.
@@ -392,6 +437,7 @@ def _run(
             process_scanner=process_scanner,
             service_probe=service_probe,
             enabled_optional_launchers=startup_strict_launchers,
+            extra_strict_exes=startup_custom_strict,
             interval_sec=guard_interval_sec,
         )
         startup_trigger = protection_guard.self_check()
@@ -411,13 +457,17 @@ def _run(
             startup_trigger.kind,
             startup_trigger.display_name,
         )
-        _notify_guard_block(
-            "refused",
-            app.translate(
+        if startup_trigger.kind == "strict_launcher":
+            refusal_text = app.translate(
                 "GameHubWindow",
-                "A protected game or its launcher is running — GameRewind won't run alongside it. Close it first.",
-            ),
-        )
+                "{name} is running (check the system tray if you closed its window) — GameRewind won't run alongside it. Close it first.",
+            ).format(name=startup_trigger.display_name)
+        else:
+            refusal_text = app.translate(
+                "GameHubWindow",
+                "{name} is running — GameRewind won't run alongside it. Close it first.",
+            ).format(name=startup_trigger.display_name)
+        _notify_guard_block("refused", refusal_text)
         return 0
 
     if not smoke_test and legacy_root is not None:
@@ -447,6 +497,7 @@ def _run(
     move_worker = None
     guard_watchdog = None
     emergency_exit = [False]
+    emergency_exit_code = [0]
     try:
         if not instance.claim_or_activate():
             return 0
@@ -572,25 +623,46 @@ def _run(
             notifier = WindowsNotifier()
 
             def _emergency_shutdown(*, fail_closed: bool = False) -> None:
+                if emergency_exit[0]:
+                    return
                 emergency_exit[0] = True
-                if guard_watchdog is not None:
-                    guard_watchdog.stop()
-                if hotkeys is not None:
-                    hotkeys.suspend()
-                if capture_scheduler is not None:
-                    capture_scheduler.pause()
-                if voice_player is not None:
-                    voice_player.stop()
-                protection_guard.close()
-                if fail_closed:
-                    _notify_guard_block(
-                        "fail_closed",
-                        window.tr(
-                            "Protection could not start — GameRewind will close to keep you safe."
-                        ),
-                    )
-                window.close()
-                app.quit()
+                emergency_exit_code[0] = 2 if fail_closed else 0
+                try:
+                    if guard_watchdog is not None:
+                        guard_watchdog.stop()
+                    if hotkeys is not None:
+                        hotkeys.suspend()
+                    if capture_scheduler is not None:
+                        capture_scheduler.pause()
+                    if voice_player is not None:
+                        voice_player.stop()
+                    if watcher is not None:
+                        watcher.close(wait=False)
+                    protection_guard.close(wait=False)
+                    if fail_closed:
+                        try:
+                            _notify_guard_block(
+                                "fail_closed",
+                                window.tr(
+                                    "Protection could not start — GameRewind will close to keep you safe."
+                                ),
+                            )
+                        except BaseException:  # noqa: BLE001, S110
+                            pass
+                    window.close()
+                    app.quit()
+                finally:
+                    if hard_exit_on_emergency:
+                        try:
+                            if hotkeys is not None:
+                                hotkeys.close()
+                        except BaseException:  # noqa: BLE001, S110
+                            pass
+                        try:
+                            instance.close()
+                        except BaseException:  # noqa: BLE001, S110
+                            pass
+                        os._exit(emergency_exit_code[0])
 
             guard_bridge = _GuardBridge(window)
             guard_bridge.triggered.connect(
@@ -607,12 +679,28 @@ def _run(
                 protection_guard.update_policy(
                     enabled_optional_launchers=snap.enabled_optional_strict_launchers(),
                     disabled_entry_ids=_disabled_catalog_entries(catalog, library),
+                    extra_strict_exes=_custom_strict_exes(catalog, library),
                 )
+
+            def _arm_hard_exit_failsafe(code: int) -> None:
+                if not hard_exit_on_emergency:
+                    return
+                failsafe = Timer(0.20, lambda: os._exit(code))
+                failsafe.daemon = True
+                failsafe.start()
+
+            def _on_guard_trigger(trigger) -> None:
+                _arm_hard_exit_failsafe(0)
+                guard_bridge.triggered.emit(trigger)
+
+            def _on_guard_failure(reason: str) -> None:
+                _arm_hard_exit_failsafe(2)
+                guard_bridge.failed.emit(reason)
 
             _sync_guard_policy(initial_settings)
             protection_guard.start(
-                on_trigger=guard_bridge.triggered.emit,
-                on_failure=guard_bridge.failed.emit,
+                on_trigger=_on_guard_trigger,
+                on_failure=_on_guard_failure,
             )
             guard_watchdog = QTimer(window)
             guard_watchdog.setInterval(1000)
@@ -625,6 +713,14 @@ def _run(
             guard_watchdog.timeout.connect(_check_guard_heartbeat)
             guard_watchdog.start()
 
+            def _sync_capture_active() -> None:
+                if capture_scheduler is None or emergency_exit[0]:
+                    return
+                if window._tracked_games and not lifecycle.is_strict_active():
+                    capture_scheduler.start()
+                else:
+                    capture_scheduler.pause()
+
             lifecycle = LifecycleCoordinator(
                 catalog,
                 library,
@@ -635,11 +731,9 @@ def _run(
                 pause_capture=lambda: capture_scheduler.pause()
                 if capture_scheduler is not None
                 else None,
-                resume_capture=lambda: capture_scheduler.start()
-                if capture_scheduler is not None
-                else None,
+                resume_capture=_sync_capture_active,
                 minimize_window=window.showMinimized,
-                restore_window=window.reveal,
+                restore_window=lambda: None if emergency_exit[0] else window.reveal(),
                 exit_app=lambda: _emergency_shutdown(fail_closed=False),
                 show_status=lambda name: window.statusBar().showMessage(
                     window.tr("Strict mode active for {game}").format(game=name)
@@ -658,6 +752,8 @@ def _run(
             window.library.set_strict_resolver(lambda game: lifecycle.is_strict_game(game.id))
             events.subscribe(GameStarted, window.game_started)
             events.subscribe(GameStopped, window.game_stopped)
+            events.subscribe(GameStarted, lambda _e: _sync_capture_active())
+            events.subscribe(GameStopped, lambda _e: _sync_capture_active())
             events.subscribe(GameStarted, lifecycle.on_game_started)
             events.subscribe(GameStopped, lifecycle.on_game_stopped)
             events.subscribe(ProtectedGameDetected, lifecycle.on_protected_detected)
@@ -679,10 +775,13 @@ def _run(
                 publish_protected=events.publish,
             )
             events.subscribe(LibraryChanged, watcher.library_changed)
-            windows = _open_window_probe()
+            windows = _open_window_probe(allowed_pids=tracker.active_pids)
 
             def foreground_session() -> SessionIdentity | None:
-                foreground = windows.foreground() if windows is not None else None
+                active_pids = tracker.active_pids()
+                if not active_pids or windows is None:
+                    return None
+                foreground = windows.foreground(allowed_pids=active_pids)
                 return tracker.active_for(foreground.process) if foreground is not None else None
 
             if screenshots is not None and windows is not None:
@@ -724,6 +823,10 @@ def _run(
                 launcher,
                 foreground_session,
                 is_strict_game=lifecycle.is_strict_game,
+                before_strict_launch=lambda _gid: (
+                    hotkeys.suspend() if hotkeys is not None else None,
+                    capture_scheduler.pause() if capture_scheduler is not None else None,
+                ),
                 on_launch_accepted=lambda gid, exit_after: lifecycle.on_play_launched(
                     gid, exit_after_play=exit_after
                 ),
@@ -772,6 +875,16 @@ def _run(
                 window.game_page.uploadControlImageRequested.connect(_controls_unavailable)
                 window.game_page.saveControlTextRequested.connect(_controls_unavailable)
 
+            # Startup TOCTOU re-check: verify no protected game launched during initialization
+            # before recovering mod journals, registering hotkeys, or starting background watchers.
+            try:
+                if protection_guard.check_once() is not None:
+                    _emergency_shutdown(fail_closed=False)
+                    return 0
+            except ProtectionCheckError:
+                _emergency_shutdown(fail_closed=True)
+                return 2
+
             mods_engine = ModsEngine(
                 database,
                 data_root,
@@ -779,6 +892,7 @@ def _run(
                 catalog,
                 is_any_game_running=lambda: bool(window._tracked_games),
                 process_scanner=process_scanner,
+                service_probe=service_probe,
             )
             mods_engine.recover_incomplete()
             refresh_mods_ui = _wire_mods(window, library, mods_engine, events)
@@ -844,11 +958,12 @@ def _run(
                     _sync_guard_policy(snap),
                     watcher.reload_protection(),
                     window.library.present_games(service.current().games),
+                    refresh_mods_ui(),
                 ),
+                on_resume_capture=_sync_capture_active,
             )
             watcher.start()
-            if capture_scheduler is not None:
-                capture_scheduler.start()
+            # CaptureScheduler stays paused until a non-strict Full-mode game starts!
             QTimer.singleShot(0, controller.refresh)
             if play_game_id and last_time_controller is not None:
                 QTimer.singleShot(
@@ -859,11 +974,13 @@ def _run(
                 )
             elif notes_controller is not None:
                 QTimer.singleShot(0, notes_controller.offer_pending_notes)
-        return app.exec()
+        exit_code = app.exec()
+        return emergency_exit_code[0] if emergency_exit[0] else exit_code
     finally:
+        instance.close()
         if guard_watchdog is not None:
             guard_watchdog.stop()
-        protection_guard.close()
+        protection_guard.close(wait=not emergency_exit[0])
         if hotkeys is not None:
             hotkeys.close()
         if move_worker is not None:
@@ -871,26 +988,25 @@ def _run(
         if voice_player is not None:
             voice_player.stop()
         if controls_controller is not None:
-            controls_controller.close()
+            controls_controller.close(wait=not emergency_exit[0])
         if last_time_controller is not None:
             last_time_controller.close()
         if notes_controller is not None:
-            notes_controller.close()
+            notes_controller.close(wait=not emergency_exit[0])
         if capture_scheduler is not None:
             capture_scheduler.close()
         if watcher is not None:
-            watcher.close()
+            watcher.close(wait=not emergency_exit[0])
         if controller is not None:
             controller.close(wait=not emergency_exit[0])
         if log_handler is not None:
             logging.getLogger("gamehub").removeHandler(log_handler)
             log_handler.close()
-        instance.close()
 
 
-def _open_window_probe() -> WindowProbe | None:
+def _open_window_probe(*, allowed_pids=None) -> WindowProbe | None:
     try:
-        return WindowProbe()
+        return WindowProbe(allowed_pids=allowed_pids)
     except OSError:
         logging.getLogger("gamehub").warning("foreground_probe_unavailable")
         return None
@@ -973,6 +1089,7 @@ def _start_last_time(
     foreground_session,
     *,
     is_strict_game=None,
+    before_strict_launch=None,
     on_launch_accepted=None,
 ) -> LastTimeController | None:
     if memory is None or player is None:
@@ -992,6 +1109,7 @@ def _start_last_time(
         window.notify,
         load_control_image=load_control_image,
         is_strict_game=is_strict_game,
+        before_strict_launch=before_strict_launch,
         on_launch_accepted=on_launch_accepted,
     )
 
@@ -1308,6 +1426,7 @@ def _wire_settings(
     on_remove_scan_folder=None,
     on_covers_updated=None,
     on_guard_policy_changed=None,
+    on_resume_capture=None,
 ) -> ThreadPoolExecutor:
     action_map = {
         "hotkey.record_note": (
@@ -1471,6 +1590,7 @@ def _wire_settings(
                 catalog,
                 dummy_exe_name="FortniteLauncher.exe",
                 live_guard=protection_guard,
+                live_watcher=watcher,
             )
             move_bridge.protectionTested.emit(res.ok, res.elapsed_ms)
 
@@ -1504,7 +1624,9 @@ def _wire_settings(
             window.settings_view.show_status("location_moved_restart")
         else:
             watcher.resume()
-            if capture_scheduler is not None:
+            if on_resume_capture is not None:
+                on_resume_capture()
+            elif capture_scheduler is not None:
                 capture_scheduler.start()
             window.settings_view.set_busy(False)
             window.settings_view.show_field_errors(
@@ -1685,6 +1807,7 @@ def main(argv: list[str] | None = None) -> int:
             default_root=default_root,
             legacy_root=legacy_root,
             play_game_id=args.play_game_id,
+            hard_exit_on_emergency=True,
         )
     except (OSError, RuntimeError, StorageError):
         QMessageBox.critical(

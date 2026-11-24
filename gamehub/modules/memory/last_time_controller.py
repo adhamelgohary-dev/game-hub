@@ -36,6 +36,7 @@ class LastTimeController(QObject):
         *,
         load_control_image: Callable[[Path], bytes | None] | None = None,
         is_strict_game: Callable[[str], bool] | None = None,
+        before_strict_launch: Callable[[str], None] | None = None,
         on_launch_accepted: Callable[[str, bool], None] | None = None,
     ) -> None:
         super().__init__(parent)
@@ -44,6 +45,7 @@ class LastTimeController(QObject):
         self._load_image = load_image
         self._load_control_image = load_control_image or (lambda _path: None)
         self._is_strict_game = is_strict_game or (lambda _game_id: False)
+        self._before_strict_launch = before_strict_launch
         self._on_launch_accepted = on_launch_accepted
         self._player = player
         self._launcher = launcher
@@ -266,6 +268,8 @@ class LastTimeController(QObject):
             card.show_error(self.tr("This game is already running."))
             return
         self._player.stop()
+        if self._is_strict_game(game_id) and self._before_strict_launch is not None:
+            self._before_strict_launch(game_id)
         card.clear_error()
         card.set_launching(True)
         self._submit(

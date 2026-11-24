@@ -9,9 +9,8 @@ from dataclasses import dataclass, field
 from threading import Event, Lock, Thread
 from time import monotonic
 
-import psutil
-
 from gamehub.core.sessions.models import ProcessIdentity
+from gamehub.core.sessions.processes import query_process_creation_time
 
 from .models import CaptureFrame, CaptureLease, WindowIdentity
 
@@ -26,7 +25,14 @@ _MAX_FRAME_PIXELS = 16 * 1024 * 1024
 
 
 class WindowProbe:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        allowed_pids: Callable[[], frozenset[int]] | None = None,
+        creation_time: Callable[[int], float] = query_process_creation_time,
+    ) -> None:
+        self._allowed_pids = allowed_pids
+        self._creation_time = creation_time
         user = ctypes.WinDLL("user32", use_last_error=True)
         self._foreground = user.GetForegroundWindow
         self._desktop = user.GetDesktopWindow
@@ -53,16 +59,24 @@ class WindowProbe:
         ]
         self._dwm_attribute.restype = wintypes.LONG
 
-    def foreground(self) -> WindowIdentity | None:
+    def foreground(self, *, allowed_pids: frozenset[int] | None = None) -> WindowIdentity | None:
         hwnd = self._foreground()
         if not hwnd:
             return None
         pid = self._eligible_owner(hwnd)
         if not pid:
             return None
+        effective_allowed = (
+            allowed_pids
+            if allowed_pids is not None
+            else (self._allowed_pids() if self._allowed_pids is not None else None)
+        )
+        # Never open a handle to any process that is not an actively tracked Full-mode game.
+        if effective_allowed is not None and pid not in effective_allowed:
+            return None
         try:
-            created_at = psutil.Process(pid).create_time()
-        except (psutil.Error, OSError):
+            created_at = self._creation_time(pid)
+        except (ProcessLookupError, OSError):
             return None
         if self._eligible_owner(hwnd) != pid:
             return None

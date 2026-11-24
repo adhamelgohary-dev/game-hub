@@ -107,6 +107,17 @@ class SessionTracker:
         """Match an exact identity only while its current observation is reliable."""
         return self._eligible.get(process)
 
+    def active_pids(self) -> frozenset[int]:
+        """Return PIDs of currently eligible tracked Full-mode game processes (nonzero created_at)."""
+        return frozenset(proc.pid for proc in self._eligible if proc.created_at > 0.0)
+
+    def identity_for_pid(self, pid: int) -> ProcessIdentity | None:
+        """Return the tracked ProcessIdentity for an eligible PID without touching the OS."""
+        for proc in self._eligible:
+            if proc.pid == pid and proc.created_at > 0.0:
+                return proc
+        return None
+
     def shutdown(self) -> None:
         self._eligible = {}
         for active in tuple(self._active.values()):

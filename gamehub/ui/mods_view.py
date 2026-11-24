@@ -195,6 +195,10 @@ class GameModsWidget(QWidget):
         self._state = state
         self._empty_selection.hide()
         if state.protected:
+            self._import_btn.setEnabled(False)
+            self._restore_btn.setEnabled(False)
+            self._clear_layout(self._conflicts_layout)
+            self._clear_layout(self._items_layout)
             self._normal_box.hide()
             self._lock_card.show()
             return

@@ -423,9 +423,16 @@ class NotesController(QObject):
     def _complete(self, done: Callable[[Future], None], future: Future) -> None:
         done(future)
 
-    def close(self) -> None:
+    def close(self, *, wait: bool = True) -> None:
         self._timer.stop()
         if self._voice is not None:
             self._voice.cancellation.set()
-        self._worker.submit(self._recorder.abort)
-        self._worker.shutdown()
+        if wait:
+            self._worker.submit(self._recorder.abort)
+            self._worker.shutdown(wait=True)
+        else:
+            try:
+                self._recorder.abort()
+            except OSError:
+                pass
+            self._worker.shutdown(wait=False, cancel_futures=True)

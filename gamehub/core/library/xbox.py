@@ -2,10 +2,8 @@
 
 import codecs
 import hashlib
-import json
 import os
 import re
-import subprocess
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
@@ -14,16 +12,16 @@ from pathlib import Path
 from .models import DetectedGame, DiscoveryBatch, GameSource, GameTarget, LaunchTarget
 from .paths import contained_file, local_path
 
+if os.name == "nt":
+    import winreg
+
 _MAX_ENTRIES = 4096
 _MAX_CONFIG_BYTES = 256 * 1024
 _PACKAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,127}")
 _PACKAGE_FAMILY = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,127}_[a-z0-9]{13}", re.IGNORECASE)
-_PACKAGE_COMMAND = (
-    "$ErrorActionPreference = 'Stop'; "
-    '$env:PSModulePath = "$PSHOME\\Modules"; '
-    "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); "
-    "Get-AppxPackage -PackageTypeFilter Main | Select-Object -First 4097 "
-    "Name,Publisher,PackageFamilyName,InstallLocation | ConvertTo-Json -Compress"
+_APPX_REPO_KEY = (
+    r"Software\Classes\Local Settings\Software\Microsoft\Windows"
+    r"\CurrentVersion\AppModel\Repository\Packages"
 )
 
 
@@ -105,7 +103,7 @@ class XboxDetector:
                         _merge_game(games, game)
                 except (OSError, ValueError, ET.ParseError):
                     diagnostics.add("xbox_package_metadata_unreadable")
-        except (OSError, TypeError, ValueError, subprocess.SubprocessError):
+        except (OSError, TypeError, ValueError):
             diagnostics.add("xbox_package_list_unavailable")
             return False
         return True
@@ -144,41 +142,63 @@ class XboxDetector:
 
 
 def _installed_packages() -> Iterable[XboxPackage]:
+    """Read current-user AppX/Xbox packages directly from Windows Registry."""
     if os.name != "nt":
         raise OSError("Current-user Xbox package inventory requires Windows")
 
-    import ctypes
-
-    system = ctypes.create_unicode_buffer(32768)
-    length = ctypes.windll.kernel32.GetSystemDirectoryW(system, len(system))
-    if length == 0 or length >= len(system):
-        raise OSError("Could not locate Windows System32")
-    powershell = Path(system.value) / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-    result = subprocess.run(
-        [str(powershell), "-NoProfile", "-NonInteractive", "-Command", _PACKAGE_COMMAND],
-        capture_output=True,
-        shell=False,
-        creationflags=subprocess.CREATE_NO_WINDOW,
-        check=True,
-        timeout=8,
-        encoding="utf-8",
-    )
-    if not result.stdout.strip():
+    packages: list[XboxPackage] = []
+    try:
+        root_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _APPX_REPO_KEY, 0, winreg.KEY_READ)
+    except FileNotFoundError:
         return ()
-    records = json.loads(result.stdout)
-    if isinstance(records, dict):
-        records = [records]
-    if not isinstance(records, list):
-        raise TypeError("Unexpected current-user package inventory")
-    packages = []
-    for record in records:
-        if not isinstance(record, dict):
-            continue
-        fields = [record.get(key) for key in ("Name", "Publisher", "PackageFamilyName", "InstallLocation")]
-        if all(isinstance(value, str) and value for value in fields):
-            name, publisher, family, install_dir = fields
-            packages.append(XboxPackage(name, publisher, family, Path(install_dir)))
+
+    with root_key:
+        index = 0
+        while len(packages) < _MAX_ENTRIES + 1:
+            try:
+                subname = winreg.EnumKey(root_key, index)
+            except OSError:
+                break
+            index += 1
+            parts = subname.split("_")
+            if len(parts) < 5:
+                continue
+            name = parts[0]
+            pub_id = parts[-1]
+            family = f"{name}_{pub_id}"
+            try:
+                with winreg.OpenKey(root_key, subname, 0, winreg.KEY_READ) as pkg_key:
+                    install_dir_raw, _ = winreg.QueryValueEx(pkg_key, "PackageRootFolder")
+            except OSError:
+                continue
+            if not isinstance(install_dir_raw, str) or not install_dir_raw.strip():
+                continue
+            install_dir = Path(install_dir_raw)
+            # Only parse publisher from MicrosoftGame.config if present (avoids non-game UWP apps).
+            config_path = contained_file(install_dir, "MicrosoftGame.config")
+            if config_path is None:
+                continue
+            try:
+                publisher = _read_config_publisher(config_path)
+            except (OSError, ValueError, ET.ParseError):
+                continue
+            if publisher:
+                packages.append(XboxPackage(name, publisher, family, install_dir))
     return packages
+
+
+def _read_config_publisher(config: Path) -> str:
+    with config.open("rb") as infile:
+        content = infile.read(_MAX_CONFIG_BYTES + 1)
+    if len(content) > _MAX_CONFIG_BYTES:
+        raise ValueError("Oversized GDK config")
+    encoding = "utf-16" if content.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)) else "utf-8-sig"
+    xml = content.decode(encoding)
+    if "<!DOCTYPE" in xml or "<!ENTITY" in xml:
+        raise ValueError("Unexpected XML declaration in GDK config")
+    game = ET.fromstring(xml)
+    identity = game.find("Identity")
+    return identity.get("Publisher", "").strip() if identity is not None else ""
 
 
 def _source_id(name: str, publisher: str) -> str | None:
@@ -243,6 +263,10 @@ def _read_config(config: Path, fallback_name: str) -> DetectedGame | None:
 
 
 def _with_package_family(game: DetectedGame, families: dict[str, set[str]]) -> DetectedGame:
+    # Only attach package_id when the game already has verified exe_path targets so
+    # ProcessProbe never opens handles to unrelated Windows processes.
+    if not any(target.kind == "exe_path" for target in game.targets):
+        return game
     matches = families.get(game.source_id, set())
     if len(matches) != 1:
         return game

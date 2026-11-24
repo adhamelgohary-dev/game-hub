@@ -194,9 +194,8 @@ def _window_probe(monkeypatch, *, cloaked=0, minimized=False, shell_owner=999):
 
     probe._window_process = window_process
     probe._dwm_attribute = dwm_attribute
-    process = Mock()
-    process.create_time.return_value = 300.0
-    monkeypatch.setattr("gamehub.core.capture.windows.psutil.Process", Mock(return_value=process))
+    probe._allowed_pids = None
+    probe._creation_time = Mock(return_value=300.0)
     return probe
 
 
@@ -204,6 +203,11 @@ def test_foreground_rechecks_the_same_visible_uncloaked_window(monkeypatch) -> N
     probe = _window_probe(monkeypatch)
 
     assert probe.foreground() == WindowIdentity(100, ProcessIdentity(200, 300.0))
+    # Disallowed PID (e.g. non-tracked or protected game) must return None with ZERO handle calls!
+    probe._creation_time.reset_mock()
+    assert probe.foreground(allowed_pids=frozenset({999})) is None
+    probe._creation_time.assert_not_called()
+
     probe._foreground.side_effect = [100, 100, 101]
     assert probe.foreground() is None
 

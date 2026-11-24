@@ -32,7 +32,7 @@ https://doc.qt.io/qt-6/licenses-used-in-qt.html
 
 The installation and the portable bundle keep Qt and PySide files separate
 from the program executable under _internal. You may replace the LGPL
-libraries with interface-compatible modified versions. The Game Hub terms
+libraries with interface-compatible modified versions. The GameRewind terms
 allow reverse engineering for debugging such modifications.
 
 The executable uses the PyInstaller bootloader with its distribution
@@ -41,9 +41,6 @@ https://pyinstaller.org/en/stable/license.html
 
 The Steam launcher parser uses ValvePython vdf under the MIT license.
 https://github.com/ValvePython/vdf
-
-Process observation uses psutil under the BSD 3-Clause license.
-https://github.com/giampaolo/psutil
 
 Game screenshot capture uses Windows Capture under the MIT license and
 image encoding uses Pillow under MIT-CMU. The capture wheel also uses

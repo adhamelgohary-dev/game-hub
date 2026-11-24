@@ -186,11 +186,50 @@ jobs:
           Remove-Item -LiteralPath $canary -Force
           Remove-Item -LiteralPath $legacyCanary -Force
 
+      - name: Security verify PE manifest, no UPX, and Windows Defender scan
+        run: |
+          $exe = (Resolve-Path -LiteralPath 'dist/GameRewind/GameRewind.exe').Path
+          $setup = (Resolve-Path -LiteralPath "dist/GameRewind-Setup-$($env:GITHUB_REF_NAME).exe").Path
+          python -c "
+          from pathlib import Path
+          exe_bytes = Path(r'$exe').read_bytes()
+          assert b'asInvoker' in exe_bytes, 'Missing asInvoker manifest in GameRewind.exe'
+          assert b'requireAdministrator' not in exe_bytes, 'Forbidden requireAdministrator in GameRewind.exe'
+          assert b'highestAvailable' not in exe_bytes, 'Forbidden highestAvailable in GameRewind.exe'
+          assert 'FileVersion'.encode('utf-16le') in exe_bytes, 'Missing VERSIONINFO FileVersion in GameRewind.exe'
+          assert 'GameRewind.exe'.encode('utf-16le') in exe_bytes, 'Missing VERSIONINFO OriginalFilename in GameRewind.exe'
+          for p in Path('dist/GameRewind').rglob('*'):
+              if p.is_file() and p.suffix.lower() in ('.exe', '.dll', '.pyd'):
+                  head = p.read_bytes()[:4096]
+                  assert b'UPX0' not in head and b'UPX!' not in head, f'UPX marker in {p}'
+          print('PE manifest, VERSIONINFO, and zero-UPX checks passed.')
+          "
+          if ($LASTEXITCODE -ne 0) { throw "PE manifest/UPX security verification failed ($LASTEXITCODE)." }
+          $mp = Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe'
+          $svc = Get-Service -Name WinDefend -ErrorAction SilentlyContinue
+          if ((Test-Path -LiteralPath $mp -PathType Leaf) -and $null -ne $svc -and $svc.Status -eq 'Running') {
+            foreach ($target in @((Resolve-Path -LiteralPath 'dist/GameRewind').Path, $setup)) {
+              $scanOut = & $mp -Scan -ScanType 3 -DisableRemediation -File $target 2>&1 | Out-String
+              $code = $LASTEXITCODE
+              Write-Host $scanOut
+              if ($code -ne 0) {
+                if ($scanOut -match '0x80004005') {
+                  Write-Warning "Windows Defender scanning is disabled on this runner; skipping scan for $target."
+                } else {
+                  throw "Windows Defender scan failed on $target ($code)."
+                }
+              }
+            }
+          } else {
+            Write-Warning 'WinDefend service is not running on this runner; skipping Defender scan.'
+          }
+
       # SignPath Foundation free open-source code signing (disabled until approved; enable via vars.SIGNPATH_ENABLED == 'true').
+      # Note: once SignPath project policy is live, extend signing to cover both GameRewind.exe (before Inno Setup) and GameRewind-Setup.
       - name: Upload unsigned installer for SignPath
         if: vars.SIGNPATH_ENABLED == 'true'
         id: upload-unsigned
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unsigned-installer-${{ github.ref_name }}
           path: dist/GameRewind-Setup-${{ github.ref_name }}.exe
@@ -198,7 +237,7 @@ jobs:
 
       - name: Sign installer via SignPath Foundation
         if: vars.SIGNPATH_ENABLED == 'true'
-        uses: signpath/github-action-submit-signing-request@v3
+        uses: signpath/github-action-submit-signing-request@a2c5b60d9c75f073142b653c354b632eedce097b
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORG_ID }}

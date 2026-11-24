@@ -105,15 +105,16 @@ def test_layer2_all_four_orders_and_service_detection(tmp_path: Path, monkeypatc
     # Case 1: App opened while Riot Client / FortniteLauncher / running anti-cheat service is ALREADY active
     for procs, svcs, expected_name in (
         ([(100, "RiotClientServices.exe")], set(), "Riot Client"),
+        ([(100, "Riot Client.exe")], set(), "Riot Client"),
         ([(101, "FortniteLauncher.exe")], set(), "Fortnite"),
         ([(102, "FortniteBootstrapper.exe")], set(), "Fortnite"),
-        ([(103, "EasyAntiCheat_EOS.exe")], set(), "easyanticheat_eos.exe"),
+        ([(103, "EasyAntiCheat_EOS.exe")], set(), "Apex Legends"),
+        ([(104, "lion-win64-shipping.exe")], set(), "2XKO"),
         ([], {"EasyAntiCheat_EOS"}, "EasyAntiCheat_EOS"),
-        ([], {"vgc"}, "vgc"),
         ([], {"BEService"}, "BEService"),
     ):
         dialogs: list[tuple[str, str]] = []
-        root = tmp_path / f"case1_{expected_name.replace(' ', '_')}"
+        root = tmp_path / f"case1_{expected_name.replace(' ', '_')}_{procs[0][1] if procs else 'svc'}"
         code = _run(
             app,
             root,
@@ -124,9 +125,17 @@ def test_layer2_all_four_orders_and_service_detection(tmp_path: Path, monkeypatc
         )
         assert code == 0
         assert len(dialogs) == 1 and dialogs[0][0] == "refused"
-        assert "protected game" in dialogs[0][1].lower()
+        assert expected_name.lower() in dialogs[0][1].lower()
         # Wrote nothing to disk!
         assert not (root / "gamehub.db").exists()
+
+    # Idle Vanguard vgc / vgk / vgtray.exe (no Riot Client, no Valorant/LoL/2XKO) MUST NOT lock out GameRewind!
+    idle_guard = ProtectionGuard(
+        ProtectedGamesCatalog.load(strict_load=True),
+        process_scanner=_FakeScanner([(50, "vgc.exe"), (51, "vgtray.exe"), (52, "vgm.exe")]),
+        service_probe=_FakeServiceProbe({"vgc"}),
+    )
+    assert idle_guard.self_check() is None
 
     # Case 4: App opened AGAIN while a protected game is running, even when SingleInstance is held!
     holder_root = tmp_path / "case4_holder"

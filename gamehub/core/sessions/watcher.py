@@ -49,7 +49,17 @@ class SessionWatcher:
         self._reload_targets = Event()
         self._reload_targets.set()
         self._announced_protected: set[str] = set()
-        self._thread = Thread(target=self._run, name="game-session-watcher")
+        self._ignored_lock = Lock()
+        self._ignored_pids: set[int] = set()
+        self._thread = Thread(target=self._run, name="game-session-watcher", daemon=True)
+
+    def ignore_pid(self, pid: int) -> None:
+        with self._ignored_lock:
+            self._ignored_pids.add(int(pid))
+
+    def unignore_pid(self, pid: int) -> None:
+        with self._ignored_lock:
+            self._ignored_pids.discard(int(pid))
 
     def start(self) -> None:
         self._store.recover()
@@ -64,11 +74,11 @@ class SessionWatcher:
     def resume(self) -> None:
         self._paused.clear()
 
-    def close(self) -> None:
+    def close(self, *, wait: bool = True, timeout: float = 0.5) -> None:
         self._stop.set()
         self._paused.clear()
-        if self._thread.ident is not None:
-            self._thread.join()
+        if wait and self._thread.ident is not None:
+            self._thread.join(timeout=timeout)
 
     def library_changed(self, _event: LibraryChanged) -> None:
         self._reload_targets.set()
@@ -114,14 +124,22 @@ class SessionWatcher:
                     for exe in combined_exes:
                         passive_map[exe].add(game.id)
                 elif matched is not None and game.protection_mode == "full":
-                    # User explicitly opted this game into Full mode.
-                    full_override_exes.update(combined_exes)
+                    # User explicitly opted this game into Full mode: only exempt its game_exes,
+                    # NEVER exempt global anti-cheat binaries or always-strict launchers.
+                    full_override_exes.update(matched.game_exes)
+                    full_override_exes.update(target_exes)
 
         active_targets = tuple(
             target for target in raw_targets if target.game_id not in strict_games
         )
-        # Keep protected_exes excluding only explicit Full-mode user overrides.
-        effective_protected = frozenset(protected_exes.difference(full_override_exes))
+        always_protected = set(self._catalog.global_anti_cheat_exes)
+        for exes in self._catalog.always_strict_launchers.values():
+            always_protected.update(exes)
+        for entry in self._catalog.entries:
+            always_protected.update(entry.anti_cheat_exes)
+        effective_protected = frozenset(
+            protected_exes.difference(full_override_exes) | always_protected
+        )
         passive_frozen = {exe: frozenset(ids) for exe, ids in passive_map.items()}
         return active_targets, passive_frozen, effective_protected, exe_to_game, frozenset(strict_games)
 
@@ -145,8 +163,10 @@ class SessionWatcher:
                                 next_protected = protected_exes
                                 next_exe_to_game = exe_to_game
                                 next_strict = strict_games
+                                reloaded = False
                                 if self._reload_targets.is_set():
                                     self._reload_targets.clear()
+                                    reloaded = True
                                     next_raw = self._store.watch_targets()
                                     (
                                         next_active,
@@ -156,15 +176,24 @@ class SessionWatcher:
                                         next_strict,
                                     ) = self._build_watch_plan(next_raw)
 
-                                if next_passive or next_protected:
+                                with self._ignored_lock:
+                                    ignored_pids = frozenset(self._ignored_pids)
+                                never_open = (
+                                    self._catalog.all_launcher_exe_names()
+                                    if self._catalog is not None
+                                    else frozenset()
+                                )
+                                if next_passive or next_protected or ignored_pids or never_open:
                                     snapshot = self._probe.snapshot(
                                         next_active,
                                         passive_basenames=next_passive,
                                         protected_exes=next_protected,
+                                        never_open_exes=never_open,
+                                        ignored_pids=ignored_pids,
                                     )
                                 else:
                                     snapshot = self._probe.snapshot(next_active)
-                                if raw_targets is not next_raw or strict_games is not next_strict:
+                                if reloaded:
                                     if self._finish_removed_games(raw_targets, next_raw, snapshot):
                                         raw_targets = next_raw
                                         active_targets = next_active
