@@ -14,11 +14,12 @@
 | --- | --- | --- | --- | --- |
 | Local working folder (total) | `2,964.2 MB` (`~2.89 GB`) | **`736.56 MB`** (after clean + rc.3 build; `543.49 MB` clean) | **-75.2% (-2.23 GB freed)** | Clean local junk |
 | Git repository (`git count-objects -vH` / GitHub) | `4.62 MiB` / `3.86 MiB` (0 binaries in history) | `~4.7 MiB` (0 binaries in history) | Verified clean | Public & small |
-| Installed folder (`dist\GameRewind`) | `302.13 MiB` (`316.81 MB`) | **`123.24 MiB`** (`129.23 MB`) | **-59.2% (-178.9 MiB)** | `< 200 MiB` ✅ |
-| Portable `.zip` | `121.32 MiB` (`127.21 MB`) | **`50.98 MiB`** (`53.46 MB`) | **-58.0% (-70.3 MiB)** | `< 70 MiB` ✅ |
+| Installed folder (`dist\GameRewind`) | `302.13 MiB` (`316.81 MB`) | **`123.24 MiB`** local / **`123.45 MiB`** CI (`129.44 MB`) | **-59.1% (-178.7 MiB)** | `< 200 MiB` ✅ |
+| Portable `.zip` | `121.32 MiB` (`127.21 MB`) | **`50.98 MiB`** local / **`52.41 MiB`** CI (`54.96 MB`) | **-56.8% (-68.9 MiB)** | `< 70 MiB` ✅ |
+| Setup `.exe` (Inno Setup LZMA2) | `81.24 MiB` (`85.19 MB`) | **`38.07 MiB`** CI (`39.92 MB`) | **-53.1% (-43.2 MiB)** | Clean & Defender `0 threats` ✅ |
 | PE binary count in `dist\GameRewind` | `114` PE files | **`85` PE files** | **-29 binaries** | 0 `cv2`/`psutil`/`opengl32sw` ✅ |
 
-*Setup `.exe` final CI size is published on GitHub Release `v1.2.0-rc.3` (LZMA2-compressed from the 59% smaller bundle).*
+*Verified on Windows CI (`windows-2025`, run `45510996638`): `GameRewind-Setup-v1.2.0-rc.3.exe` (`38.07 MiB`, SHA-256 `980d4499836bcae0cc3c41b0b3e75a44f1348b269e896e294e05b0fa1753b085`) and `GameRewind-Portable-v1.2.0-rc.3.zip` (`52.41 MiB`, SHA-256 `b79b2e8f3ab43837869e95088ffc3814a87bdb24a7d5df2a9529907c132d5e2b`) passed all bundle-size gates, PE manifest/zero-UPX checks, smoke tests, and Windows Defender (`MpCmdRun.exe`) scans with `0 threats`.*
 
 ---
 
