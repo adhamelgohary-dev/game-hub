@@ -6,24 +6,27 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Wait at **Owner Gate (v1.2-rc.2)** after delivering `GameRewind-Setup-v1.2.0-rc.2.exe` and `Sample-Translation-Pack.zip` on `C:\Users\adham\Desktop` and publishing GitHub pre-release `GameRewind v1.2.0-rc.2`:
-- If the owner reports any bug or polish request on `v1.2.0-rc.2`: fix with small commits + regression tests, bump to `v1.2.0-rc.3`, publish, and repeat.
+Wait at **Owner Gate (v1.2-rc.3)** after delivering `GameRewind-Setup-v1.2.0-rc.3.exe` on `C:\Users\adham\Desktop` and publishing GitHub pre-release `GameRewind v1.2.0-rc.3`:
+- If the owner reports any bug or polish request on `v1.2.0-rc.3`: fix with small commits + regression tests, bump to `v1.2.0-rc.4`, publish, and repeat.
 - Once the owner replies `"verified"`, execute **M23** `[simple]`:
-  1. Bump `gamehub/__init__.py` `__version__` from `"1.2.0-rc.2"` to `"1.2.0"`, promote the `## v1.2.0` section in `CHANGELOG.md`, run full `pytest -q`, `ruff check .`, and Review Council gate (`docs/reviews/M23-review.md`).
+  1. Bump `gamehub/__init__.py` `__version__` from `"1.2.0-rc.3"` to `"1.2.0"`, update `packaging/version_info.txt` `ProductVersion` to `"1.2.0"`, promote the `## v1.2.0` section in `CHANGELOG.md`, run full `pytest -q`, `ruff check .`, and Review Council gate (`docs/reviews/M23-review.md`).
   2. Commit, tag `v1.2.0`, push to `origin` (`adhamelgohary-dev/game-rewind`), verify Windows CI publishes final `GameRewind v1.2.0` with `GameRewind-Setup-v1.2.0.exe`, `GameRewind-Portable-v1.2.0.zip`, and `SHA256SUMS.txt`.
   3. Copy verified `GameRewind-Setup-v1.2.0.exe` to Desktop and confirm completion to the owner in Egyptian Arabic.
 
 ## In progress
 
-Paused cleanly on green `main` at **Owner Gate (v1.2-rc.2)**. Milestones `D-v1.2-rc2`, `M19a` (GameRewind rename + data migration + custom-folder installer), `M20` (Simplified Translations & Mods), `M21` (8-agent Red-Team Security Re-Audit — 0 open findings), and `M22` (`v1.2.0-rc.2` pre-release) are complete, Council-approved, tagged (`m19a`, `m20`, `m21`, `v1.2.0-rc.2`), and pushed. Repository is **PUBLIC** at `https://github.com/adhamelgohary-dev/game-rewind`.
+Paused cleanly on green `main` at **Owner Gate (v1.2-rc.3)**. Milestones `D-v1.2-rc2`, `M19a`, `M20`, `M21`, `M22`, and `M22b` (`v1.2.0-rc.3` Speed + Size + Fresh Independent Security Re-Check — 0 open findings) are complete, Council-approved, tagged (`v1.2.0-rc.3`), and pushed. Repository is **PUBLIC** at `https://github.com/adhamelgohary-dev/game-rewind`.
 
 ## Fragile spots
 
-- `gamehub/app.py`: Keep `ProtectionGuard.self_check()` strictly BEFORE `migrate_legacy_data_root()`, `SingleInstance.claim_or_activate()`, and before any window creation or DB writes; keep startup TOCTOU `protection_guard.check_once()` before `mods_engine.recover_incomplete()`, hotkeys, and `watcher.start()`; keep 200 ms daemon `os._exit` failsafe armed on guard trigger/failure when `hard_exit_on_emergency=True`; close `instance` first in `finally:`.
-- `gamehub/core/sessions/processes.py` & `gamehub/core/capture/windows.py`: `psutil` is strictly banned (`tests/test_packaging.py` + `excludes=['psutil']` in `packaging/gamerewind.spec`). `OpenProcess` is allowed ONLY in `processes.py` with `_QUERY_LIMITED_INFORMATION = 0x1000` on verified non-protected Full-mode targets; `WindowProbe.foreground()` must always gate on `allowed_pids` (`tracker.active_pids()`).
-- `gamehub/core/protection/catalog.py` & `protected_games.json`: Keep `strict_load=True`, additive-only `protected_games_override.json` (using `.setdefault()` and forcing new overrides to `strict`), and keep `vgk`, `vgtray.exe`, `vgm.exe`, idle `vgc`/`vgc.exe`, and `EAAntiCheatService` out of active blocklists while keeping all Riot Client binaries (`Riot Client.exe`, `RiotClientServices.exe`, etc.) and Valorant/LoL/2XKO binaries strictly enforced.
-- `gamehub/modules/mods/`: Keep case-insensitive `.casefold()` conflict/backup keys, streaming arbitrary-offset PE detection (`_StreamingPeDetector`), `require_child=True` on `remove_item`, relative DB `storage_dir`/`backup_path` (surviving `StoreLocation.move()`), reparse-safe `os.scandir` cleanup, and permanent protected-game lock even if `protection_mode='full'`.
-- `packaging/installer.iss`: Keep `DisableDirPage=no`, `UsePreviousAppDir=no`, `PrivilegesRequired=lowest`, `ValidateInstallDir` called in BOTH `NextButtonClick` and `PrepareToInstall` (for `/VERYSILENT` safety), and `RunValidatedQuietUninstaller` validating `IsLocalDrivePath` + exact parent-dir match before `FileExists`.
+- `gamehub/app.py`: Keep `ProtectionGuard.self_check()` strictly BEFORE `migrate_legacy_data_root()`, `SingleInstance.claim_or_activate()`, and before any window creation or DB writes; keep `protection_guard.start()` BEFORE `window.show()`; keep direct guard-thread `os._exit` when `hard_exit_on_emergency=True` (never reintroduce a `QueuedConnection` wait on the UI thread); keep startup TOCTOU `protection_guard.check_once()` inside `_finish_startup()` strictly BEFORE `mods_engine.recover_incomplete()`, hotkeys, and `watcher.start()`; close `instance` and `shutdown_cover_loader(wait=False)` first in `finally:`.
+- `gamehub/core/protection/guard.py`: Keep `K32EnumProcesses` PID snapshot captured BEFORE `list_processes()` (race-free), fail-closed fallback to full `Toolhelp32` on overflow/error, 2 s unconditional full audit, 240 ms SCM check, and `_last_pid_sig = None` invalidation in `update_policy()` and `unignore_pid()`.
+- `gamehub/core/capture/windows.py` & `packaging/gamerewind.spec`: Keep `ensure_cv2_shim()` (with PEP 562 dunder `AttributeError` handling for Shiboken!) called before importing `windows_capture`, keep `psutil` and `cv2` excluded in `gamerewind.spec`, keep `qoffscreen.dll` (CI headless tests) and FFmpeg `QtMultimedia` plugins intact, and keep CI size gate (`< 200 MiB` unpacked, `< 70 MiB` zip).
+- `gamehub/core/sessions/processes.py` & `gamehub/core/capture/windows.py`: `psutil` is strictly banned (`tests/test_packaging.py` + `excludes`). `OpenProcess` is allowed ONLY in `processes.py` with `_QUERY_LIMITED_INFORMATION = 0x1000` on verified non-protected Full-mode targets; `WindowProbe.foreground()` must always gate on `allowed_pids` (`tracker.active_pids()`).
+- `gamehub/core/secrets.py` & `tests/test_packaging.py`: `crypt32` DLL access is strictly restricted to `gamehub/core/secrets.py` for Windows DPAPI encryption of the optional `covers.steamgriddb_api_key`.
+- `gamehub/core/protection/catalog.py` & `protected_games.json`: Keep `strict_load=True`, additive-only `protected_games_override.json`, `title_aliases` exact/prefix matching, and keep `vgk`, `vgtray.exe`, `vgm.exe`, idle `vgc`/`vgc.exe`, and `EAAntiCheatService` out of active blocklists while keeping all Riot Client binaries and protected games strictly enforced.
+- `gamehub/modules/mods/`: Keep case-insensitive `.casefold()` conflict/backup keys, streaming arbitrary-offset PE detection (`_StreamingPeDetector`), `require_child=True` on `remove_item`, relative DB `storage_dir`/`backup_path`, reparse-safe `os.scandir` cleanup, uncached `_assert_not_protected()` on every mutation, and permanent protected-game lock even if `protection_mode='full'`.
+- `packaging/installer.iss`: Keep `DisableDirPage=no`, `UsePreviousAppDir=no`, `PrivilegesRequired=lowest`, `ValidateInstallDir` called in BOTH `NextButtonClick` and `PrepareToInstall`, and `RunValidatedQuietUninstaller` validating `IsLocalDrivePath` + exact parent-dir match before `FileExists`.
 - `gamehub/core/i18n/catalog.py`: Never place Unicode BiDi isolate characters inside `QFileDialog` glob parentheses `(*.exe)` / `(*.zip)` and never reintroduce `&[A-Za-z]` mnemonic ampersands in `.tr(...)` labels.
 
 Last worked on by: Gemini 4 Neon (High), 2026-11-24
@@ -62,7 +65,7 @@ From the PowerShell repository root:
 
 ## Open questions for owner
 
-- Verify all 10 items in the `GameRewind v1.2.0-rc.2` Egyptian Arabic click checklist and reply `"verified"` when ready to cut final `GameRewind v1.2.0`.
+- Verify all 8 items in the `GameRewind v1.2.0-rc.3` Egyptian Arabic click checklist and reply `"verified"` when ready to cut final `GameRewind v1.2.0`.
 
 ## Future ideas
 

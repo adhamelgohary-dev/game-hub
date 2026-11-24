@@ -1,63 +1,56 @@
 # GameRewind v1.2 — Independent Red-Team Security Audit Report
 
-**Date:** 2026-11-24  
-**Product:** GameRewind (`v1.2.0-rc.2`)  
-**Methodology:** Independent 8-agent Red-Team security audit (`docs/reviews/security/a-static-scan.md` through `h-mods-safety.md`), consolidated by the Review Council Judge (`docs/reviews/security/judge-consolidation.md`), remediated across 3 verification rounds until **0 open findings** remained (`docs/reviews/security/round3-final-verification.md`).  
+**Date:** 2026-11-24 (Re-verified for `v1.2.0-rc.3`)  
+**Product:** GameRewind (`v1.2.0-rc.3`)  
+**Methodology:**
+- **M21 Initial Audit (`v1.2.0-rc.2`):** 8-agent Red-Team audit (`docs/reviews/security/a-static-scan.md` through `h-mods-safety.md`) -> 3 verification rounds -> 0 open findings.
+- **rc.3 Fresh-Eyes Re-Check (`v1.2.0-rc.3`):** 4 independent fresh-eyes Red-Team audits after the speed & size optimizations ([C1 Anti-Cheat & Launchers](reviews/security/rc3/c1-anticheat.md), [C2 Network & Websites](reviews/security/rc3/c2-network.md), [C3 Local Safety, Mods & CI](reviews/security/rc3/c3-local-safety.md), [C4 Packaging & Frozen Binary](reviews/security/rc3/c4-packaging.md)) consolidated by the Judge ([judge-consolidation.md](reviews/security/rc3/judge-consolidation.md)) -> all 7 findings closed and regression-tested -> **0 open findings**.
+
 **Final Verdict:** **PASS — 0 Open Findings (0 Critical, 0 High, 0 Medium, 0 Low)**
 
 ---
 
-## 1. Audit Scope & Domain Results
+## 1. Fresh `v1.2.0-rc.3` Audit Scope & Domain Results
 
 | Domain | Independent Report | Final Verdict | Key Guarantees Verified |
 | --- | --- | --- | --- |
-| **(a) Static Scan & Dependencies** | [a-static-scan.md](reviews/security/a-static-scan.md) | **PASS (0 open)** | Zero `ReadProcessMemory`, `WriteProcessMemory`, `CreateRemoteThread`, `SetWindowsHookEx`, `SendInput`, drivers, injection, elevation, or UPX. Removed `psutil` completely (`excludes=['psutil']`, 0 `_psutil_windows.pyd` artifacts, zero `SeDebugPrivilege` at startup). Zero `powershell.exe` spawns (`XboxDetector` uses read-only `winreg`). `SteamGridDB` is off by default, disables HTTP redirects, and allowlists only `steamgriddb.com` CDN hosts. Automated AST gate (`tests/test_packaging.py`) enforces all invariants. |
-| **(b) Process Detection Hygiene** | [b-process-detection.md](reviews/security/b-process-detection.md) | **PASS (0 open)** | `ProtectionGuard` uses passive `CreateToolhelp32Snapshot` basenames and read-only SCM queries only — zero process handles. `WindowProbe` and `CaptureService` check `tracker.active_pids()` first and open zero handles when no Full-mode single-player game is active. `ProcessProbe` uses a single `PROCESS_QUERY_LIMITED_INFORMATION` (`0x1000`) handle with `GetProcessTimes` strictly on matched non-protected Full-mode targets and never opens handles on protected games, anti-cheat exes, launchers, AV, or OS processes. |
-| **(c) Exit Timing & Latency** | [c-timing-latency.md](reviews/security/c-timing-latency.md) | **PASS (0 open)** | 150 ms `ProtectionGuard` interval + `os._exit` emergency shutdown + 200 ms daemon failsafe (bypassing CPython `ThreadPoolExecutor` `atexit` and frozen Qt UI threads). Proven **266 ms** exit even with a 5-second frozen UI thread. See Section 2 for full 40-trial real frozen `GameRewind.exe` benchmarks. |
-| **(d) Order of Events & Contexts** | [d-order-of-events.md](reviews/security/d-order-of-events.md) | **PASS (0 open)** | All 4 orders verified (open before/after, launcher forgotten open, second instance). Non-elevated Toolhelp32 sees elevated/Admin/SYSTEM processes across WTS sessions. Uses `QueryUnbiasedInterruptTime` (pauses during Windows S3/Modern Standby sleep) to prevent false sleep/resume watchdog trips. Pre-launch hotkey/capture suspension and startup TOCTOU re-check verified. Zero blocking `QMessageBox` dialogs during refusal or emergency exit. |
-| **(e) Fail-Closed Behavior** | [e-fail-closed.md](reviews/security/e-fail-closed.md) | **PASS (0 open)** | Missing/corrupt/bool-schema/deeply-nested `protected_games.json`, dead/stalled guard thread, SCM `ACCESS_DENIED`/failure, empty Toolhelp snapshot, and `MemoryError` all exit fail-closed (`rc=2`). `protected_games_override.json` is strictly additive (cannot weaken or hijack bundled protected games even via different entry IDs). `LifecycleCoordinator.is_strict_game()` fails closed (`True`) on `StorageError`. |
-| **(f) Riot Vanguard Edge Case** | [f-vanguard-edge-case.md](reviews/security/f-vanguard-edge-case.md) | **PASS (0 open)** | Evidence-based resolution for always-on Vanguard components (`vgk.sys`, `vgtray.exe`, idle `vgc` service). See Section 3 below. |
-| **(g) Installer & Executable** | [g-installer-exe.md](reviews/security/g-installer-exe.md) | **PASS (0 open)** | Frozen `GameRewind.exe` verified: `asInvoker` (`uiAccess="false"`), full `VERSIONINFO`, zero UPX across all 114 PE files, zero `psutil`, clean Python-free `PATH` `--smoke-test` (`rc=0`). Per-user installer (`PrivilegesRequired=lowest`, `DisableDirPage=no`, `UsePreviousAppDir=no`) enforces `ValidateInstallDir` in both interactive and `/VERYSILENT` modes (blocking UNC, `/`, `..`, drive roots, Desktop directly, data folders, and non-empty unrelated folders) and validates `unins*.exe` inside `InstallLocation` before quiet uninstall. Windows CI runs `MpCmdRun.exe` Defender scan + PE/manifest/UPX verification with all actions pinned to 40-char commit SHAs. |
-| **(h) Translations & Mods Safety** | [h-mods-safety.md](reviews/security/h-mods-safety.md) | **PASS (0 open)** | Permanently impossible on protected/online games (catalog match across Steam/Epic/Riot/Ubisoft/Battle.net/EA/Xbox + depth-4 `install_dir` scan + sibling folder overlap, even if user toggled `protection_mode='full'`). Blocked whenever ANY game or anti-cheat service is running (re-checked per write). Declarative-only manifest rejects scripts, 70+ dangerous extensions, streaming PE (`MZ`+`PE\0\0` at any `e_lfanew` offset), `src`-reuse zip bombs, path traversal, symlinks/junctions, and Windows case-insensitive collisions. Atomic verify-before-replace writes, relative backup paths surviving data-folder moves, and crash-safe `mod_journal` recovery. |
+| **(C1) Anti-Cheat & Launcher Coverage** | [c1-anticheat.md](reviews/security/rc3/c1-anticheat.md) | **PASS (0 open)** | Verified all 43 catalog entries across Epic, Steam, EA app, Xbox/Game Pass, Riot Client, Ubisoft, and Battle.net. Closed EA SPORTS FC Epic/EA/Xbox/Steam/title gaps + added 2026 titles (GTA V / GTA V Enhanced BattlEye, Marvel Rivals, Wuthering Waves, Roblox, Dota 2, Battlefield 6, CoD Battle.net). Verified `K32EnumProcesses` fast PID-diff (0 process handles, fail-closed fallback, 2 s unconditional full audit) + direct guard-thread `os._exit` + unchanged `self_check()` -> `SingleInstance` -> TOCTOU `check_once()` order. Zero `psutil`, zero injection/hooks/memory reads. |
+| **(C2) Network & Websites** | [c2-network.md](reviews/security/rc3/c2-network.md) | **PASS (0 open)** | Confirmed **only one** outbound network path exists: strictly opt-in SteamGridDB (`steamgriddb_enabled=False` by default). Enforced HTTPS-only port 443, allow-listed hosts only (`www.steamgriddb.com`, `cdn.steamgriddb.com`, `cdn2.steamgriddb.com`), no userinfo, no redirects, explicit `ssl.create_default_context()`, 6 s timeout, 256 KB JSON / 8 MB image caps, CRLF key validation, PNG/JPEG/WebP magic validation, and **Windows DPAPI encryption at rest** (`gamehub/core/secrets.py`) for the SteamGridDB API key. Steam covers & cover cache are 100% local/offline. Zero telemetry. |
+| **(C3) Local Safety, Mods & CI** | [c3-local-safety.md](reviews/security/rc3/c3-local-safety.md) | **PASS (0 open)** | `SingleInstance` uses same-user ACL (`UserAccessOption`) and recovers cleanly after direct `os._exit(0)` (regression-tested). Custom-folder per-user installer validates destination in both interactive and `/VERYSILENT` modes and validates quiet uninstallers. Translations & Mods permanently locked on all protected/online games (including uncached `_assert_not_protected()` + 15 s UI cache TTL), rejects executables/scripts/PE headers/zip bombs/path traversal/symlinks. All CI actions pinned to 40-char commit SHAs with `SHA256SUMS.txt`. |
+| **(C4) Packaging & Frozen Binary** | [c4-packaging.md](reviews/security/rc3/c4-packaging.md) | **PASS (0 open)** | After size cuts: `123.24 MiB` unpacked / `50.98 MiB` portable zip (CI limits `< 200 MiB` / `< 70 MiB`). All 85 PE files audited: **0** `psutil`, **0** `cv2`/`opencv`, **0** `opengl32sw.dll`, **0** QML/Quick, **0** stray DLLs, **0** UPX. Embedded `asInvoker` (`uiAccess="false"`) manifest + `VERSIONINFO` + 32 third-party license files intact. Clean Python-free `PATH` `--smoke-test` exits `0` (including WGC+WebP pipeline without OpenCV). Windows Defender `MpCmdRun.exe` scan enforced in CI. |
 
 ---
 
-## 2. Real Frozen Exit Latency Benchmarks (40 Trials on `dist/GameRewind/GameRewind.exe`)
+## 2. Real Frozen Exit Latency Benchmarks (240 Trials on `dist\GameRewind\GameRewind.exe`)
 
-Measured wall-clock milliseconds from spawning a harmless renamed copy of `System32\ping.exe` until `GameRewind.exe` completely disappeared from the Windows process table:
+Measured wall-clock milliseconds from spawning a harmless renamed copy of `System32\ping.exe` until `GameRewind.exe` completely disappeared from the Windows process table (raw trial data: [docs/perf/rc3-results-raw.json](perf/rc3-results-raw.json)):
 
-| Scenario (20 Real Trials Each) | Min | Average | P95 | Max | Anti-Cheat Bootstrap Window | Safety Margin |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Fortnite** (`FortniteLauncher.exe`) | **37.34 ms** | **111.60 ms** | **178.48 ms** | **187.73 ms** | ~2,000–6,000 ms (EAC bootstrap) | **11× – 32× faster** |
-| **Valorant** (`VALORANT.exe`) | **94.02 ms** | **187.37 ms** | **321.24 ms** | **663.31 ms** | ~1,500–4,000 ms (VALORANT bootstrap) | **2.3× – 24× faster** |
-| **Worst-Case Frozen UI Thread** (5 s blocked Qt main thread) | — | **265–266 ms** | — | **266 ms** | 200 ms daemon `os._exit` failsafe | **Guaranteed < 300 ms** |
+| Scenario (40 Real Trials Each) | Min | Average | P95 | Max | Target (`P95 < 200`, `Max < 300`) |
+| --- | --- | --- | --- | --- | --- |
+| **Fortnite** (`FortniteLauncher.exe`) — Normal | 40.89 ms | **80.66 ms** | **149.97 ms** | **166.29 ms** | **PASS** ✅ |
+| **Valorant** (`VALORANT.exe`) — Normal | 37.43 ms | **82.22 ms** | **171.31 ms** | **180.46 ms** | **PASS** ✅ |
+| **EA SPORTS FC** (`FC26.exe`) — Normal | 33.92 ms | **85.23 ms** | **141.14 ms** | **153.84 ms** | **PASS** ✅ |
+| **Fortnite** (`FortniteLauncher.exe`) — Under UI Load | 42.89 ms | **75.30 ms** | **133.45 ms** | **137.37 ms** | **PASS** ✅ |
+| **Valorant** (`VALORANT.exe`) — Under UI Load | 41.74 ms | **81.97 ms** | **154.56 ms** | **163.47 ms** | **PASS** ✅ |
+| **EA SPORTS FC** (`FC26.exe`) — Under UI Load | 39.70 ms | **86.91 ms** | **135.70 ms** | **153.34 ms** | **PASS** ✅ |
+
+*Also verified in `tests/test_performance_regressions.py`: direct guard-thread `os._exit(0)` exits in `< 200 ms` even if the Qt main UI thread is completely frozen for 5 seconds.*
 
 ---
 
 ## 3. Evidence-Based Riot Vanguard Decision (`vgk` / `vgc` / `vgtray`)
 
-Real-PC inspection confirmed:
-- `vgk` (kernel driver) is `StartType = System`, `Status = Running` 24/7 from Windows boot whenever Valorant or League of Legends is installed.
-- `vgtray.exe` runs in the user's system tray at login.
-- `vgc` (user-mode Vanguard service) often remains `Running` after closing Valorant until reboot — and Riot Support's official troubleshooting guide for VAN 1067 / VAN 9003 explicitly instructs players to set `vgc` to `Automatic` (running 24/7 from boot).
-
-**Decision:** Keep `vgk`, `vgtray.exe`, `vgm.exe`, and idle `vgc` / `vgc.exe` **out** of the active-session blocklist (matching the existing `EAAntiCheatService` precedent), while strictly blocking on **every** Riot Client executable (`RiotClientServices.exe`, `RiotClientUx.exe`, `RiotClientUxRender.exe`, `RiotClientCrashHandler.exe`, `Riot Client.exe`, `LeagueClient.exe`, `LeagueClientUx.exe`, `LeagueClientUxRender.exe`) and every Vanguard-protected game executable (`VALORANT.exe`, `VALORANT-Win64-Shipping.exe`, `League of Legends.exe`, `2XKO.exe`, `lion.exe`, `lion-win64-shipping.exe`).
-
-**Why this is both safe and usable:**
-1. GameRewind never injects, hooks, reads memory, runs drivers, or opens handles to any Riot/Vanguard process (zero `psutil`, zero `OpenProcess` on idle/protected processes).
-2. Because Valorant, League of Legends, and 2XKO cannot launch without Riot Client and their launcher-stage executables, GameRewind exits completely in **~110–190 ms** the moment Riot Client or any Riot game starts — long before the game client loads — while remaining 100% usable for single-player games when Riot Client is closed.
-3. If Riot Client is still sitting hidden in the Windows system tray, GameRewind names `"Riot Client"` explicitly and reminds the player to close it from the tray.
+Unchanged from M21 and re-verified by C1:
+- Keep always-on `vgk` (boot driver), `vgtray.exe`, `vgm.exe`, and idle `vgc` / `vgc.exe` **out** of the active-session blocklist (matching `EAAntiCheatService`), while strictly blocking on **every** Riot Client executable (`RiotClientServices.exe`, `RiotClientUx.exe`, `RiotClientUxRender.exe`, `RiotClientCrashHandler.exe`, `Riot Client.exe`, `LeagueClient.exe`, `LeagueClientUx.exe`, `LeagueClientUxRender.exe`) and every Vanguard-protected game executable (`VALORANT.exe`, `VALORANT-Win64-Shipping.exe`, `League of Legends.exe`, `2XKO.exe`, `lion.exe`, `lion-win64-shipping.exe`).
+- GameRewind exits completely in **~82 ms avg (max 180 ms)** the moment Riot Client or any Riot game starts, while remaining 100% usable for single-player games when Riot Client is closed.
 
 ---
 
-## 4. Major Remediation Highlights (Round 1 → Round 3)
+## 4. `v1.2.0-rc.3` Security Remediation Highlights
 
-- **Eliminated `psutil` completely:** Removed `SeDebugPrivilege` token privilege adjustment on import and removed `_psutil_windows.pyd` from the frozen bundle, replacing `create_time()` with single-handle `kernel32.GetProcessTimes` on `PROCESS_QUERY_LIMITED_INFORMATION` strictly for verified Full-mode single-player game PIDs.
-- **Eliminated idle foreground & Xbox handle spraying:** Gated `WindowProbe` and `CaptureService` on `tracker.active_pids()` (0 handles when idle) and stopped `ProcessProbe` from scanning unrelated/system/AV/launcher processes.
-- **Guaranteed sub-300 ms emergency exit:** Added `os._exit` + 200 ms guard-thread failsafe, removed all blocking `QMessageBox` modals on refusal/fail-closed, and halved `ProtectionGuard` interval to 150 ms.
-- **Sleep/Resume immunity:** Switched `ProtectionGuard` heartbeat clock to Windows `QueryUnbiasedInterruptTime`.
-- **Hardened override catalog:** Made `protected_games_override.json` strictly additive and immune to different-ID downgrades.
-- **Hardened custom-folder installer:** Enforced `ValidateInstallDir` in both interactive and `/VERYSILENT` modes and hardened `RunValidatedQuietUninstaller` against UNC/proxy execution.
-- **Hardened Translations & Mods:** Closed Windows case-insensitive collisions, streaming arbitrary-offset PE detection, `src`-reuse zip bombs, symlink-safe recovery cleanup, atomic verify-before-replace writes, and relative backup paths across store moves.
+- **Multi-launcher EA SPORTS FC & 2026 catalog coverage:** Added Epic/EA/Xbox/Steam IDs and normalized title matching (`EA SPORTS FC`, `FC 24/25/26/27`, `GTA V / GTA V Enhanced`, `Marvel Rivals`, `Wuthering Waves`, `Roblox`, `Dota 2`, `Battlefield 6`, `Call of Duty` Battle.net) plus bounded depth-3 Epic executable discovery.
+- **Windows DPAPI encryption for SteamGridDB API key:** Replaced plaintext SQLite storage with user-scoped `crypt32.CryptProtectData` / `CryptUnprotectData` (`gamehub/core/secrets.py`), restricted via AST tests.
+- **Hardened SteamGridDB HTTP client:** Blocked userinfo/non-443 URLs, added explicit `ssl.create_default_context()`, CRLF `api_key` rejection, and PNG/JPEG/WebP magic-byte verification.
+- **UI-thread-independent emergency exit & fast PID-diff guard:** Eliminated the 200 ms `QueuedConnection` bottleneck (`361 ms -> 82 ms` avg exit) while cutting idle CPU by 4× (`5.65% -> 1.43%` of 1 core) using handle-free `K32EnumProcesses`.
 
 *See also: Egyptian Arabic owner summary in [docs/SECURITY-AUDIT-v1.2-AR.md](SECURITY-AUDIT-v1.2-AR.md).*

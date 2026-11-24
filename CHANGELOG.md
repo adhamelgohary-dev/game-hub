@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.2.0-rc.3
+
+### Changed
+- **59% smaller shipped bundle (`302 MiB -> 123 MiB` unpacked, `121 MiB -> 51 MiB` portable `.zip`):** Removed unused OpenCV (`opencv-python` / `cv2`, ~126 MiB) via a minimal in-memory `cv2` stub for `windows_capture`'s unused `save_as_image()` helper, dropped `opengl32sw.dll` (~20 MiB), unused Qt QML/Quick/VirtualKeyboard/OpenGL/SVG DLLs, unused Qt plugins/translations, and Pillow's unused `_avif` codec while retaining `upx=False`, all license notices, and clean-Windows Ogg Vorbis audio playback.
+- Added an automated CI bundle size and forbidden-binary gate in `.github/workflows/windows.yml` failing builds if unpacked size exceeds `200 MiB`, portable `.zip` exceeds `70 MiB`, or any `cv2`/`opencv`/`psutil`/`opengl32sw`/`Qt6Qml`/`Qt6Quick` binary appears.
+
+### Performance
+- **>4× faster, UI-thread-independent anti-cheat exit latency (240 real frozen trials):** Moved emergency `os._exit` directly onto the `protection-guard` daemon thread (eliminating the `QueuedConnection` UI-thread wait and 200 ms fallback timer) with precomputed O(1) trigger maps and `kernel32.K32EnumProcesses` fast PID-diff checks at 80 ms. Frozen `GameRewind.exe` now exits in **75–87 ms average** (`P95 <= 171 ms`, `max <= 180 ms`) for Fortnite, Valorant, and EA SPORTS FC — both normally and under active UI scrolling load.
+- **4.0× lower idle CPU (`5.65% -> 1.43%` of 1 core; `0.119%` total system CPU):** `K32EnumProcesses` skips redundant `CreateToolhelp32Snapshot` scans when no PIDs change while running immediate full scans on any new process and unconditional 2 s full audits + 240 ms read-only SCM checks.
+- **Faster startup & smooth 100-game library:** Lazily initialized `VoicePlayer` (`PySide6.QtMultimedia`), `PIL.Image`, and secondary startup wiring after `window.show()` (keeping `ProtectionGuard.self_check()` strictly first); moved cover thumbnail decoding, cropping, and WebP caching onto a background worker pool with viewport-aware lazy loading (`33%` faster cold frozen startup, `4.0×–4.6×` faster 20/100-game cold library draws, `5.0×` faster Translations & Mods page opening).
+
+### Fixed
+- **EA SPORTS FC & multi-launcher detection:** Added Epic Games Store `epic_app_names`, EA app slugs (`fc-24`/`fc-25`/`fc-26`/`fc-27`), Steam FC 25 Showcase (`3103970`), Xbox `ElectronicArts.EASPORTSFC`, trial/showcase executables, conservative normalized title matching (`title_aliases`), and bounded depth-3 nested executable discovery in `EpicDetector`.
+- **2026 anti-cheat catalog coverage:** Added **Grand Theft Auto V / GTA V Enhanced** (BattlEye), **Marvel Rivals** (NetEase/ACE), **Wuthering Waves** (ACE), **Roblox** (Hyperion), **Dota 2** (VAC), Battlefield 6 binaries/IDs, Call of Duty Battle.net IDs, and Epic/EA/Xbox identifiers across existing online entries.
+- Invalidated `ProtectionGuard` PID-diff state in `unignore_pid()` and added a 15-second TTL to `ModsEngine`'s UI protection cache (keeping all mutating `_assert_not_protected()` checks uncached).
+
+### Security
+- **Fresh 4-domain independent Red-Team re-check (`v1.2.0-rc.3`) — 0 open findings:** Re-verified anti-cheat/launchers, network/websites, local safety/mods/CI, and trimmed frozen packaging (`docs/reviews/security/rc3/` and updated `docs/SECURITY-AUDIT-v1.2.md` / `docs/SECURITY-AUDIT-v1.2-AR.md`).
+- **Windows DPAPI encryption for optional SteamGridDB API key:** Encrypted `covers.steamgriddb_api_key` at rest in SQLite using user-scoped `crypt32.CryptProtectData` / `CryptUnprotectData` (`gamehub/core/secrets.py`), keeping SteamGridDB strictly off by default and offline-safe.
+- **Hardened SteamGridDB HTTP client:** Rejected URL userinfo and non-443 ports, bound explicit `ssl.create_default_context()` alongside disabled redirects, enforced CRLF/ASCII validation on `api_key`, and validated PNG/JPEG/WebP magic headers before returning downloaded image bytes.
+
 ## v1.2.0-rc.2
 
 ### Added
