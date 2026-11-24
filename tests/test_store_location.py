@@ -13,8 +13,10 @@ from gamehub.core.storage.controls import ControlsRepository
 from gamehub.core.storage.db import Database
 from gamehub.core.storage.library import LibraryRepository
 from gamehub.core.storage.location import (
+    MIGRATION_MARKER_NAME,
     StoreLocation,
     bootstrap_path,
+    migrate_legacy_data_root,
     resolve_data_root,
 )
 from gamehub.core.storage.memory import MemoryRepository
@@ -130,3 +132,76 @@ def test_unavailable_custom_store_location_reports_recovery_error(
             check=False,
         )
         assert locator.move(junction) == (False, "location_invalid")
+
+
+def test_migrate_legacy_gamehub_data_root_to_gamerewind(tmp_path: Path) -> None:
+    legacy = tmp_path / "GameHub"
+    new_root = tmp_path / "GameRewind"
+    db = Database(legacy / "gamehub.db")
+    library = LibraryRepository(db)
+    sessions = SessionRepository(db)
+    screenshots = ScreenshotRepository(db, legacy)
+    notes = NoteRepository(db, legacy)
+
+    exe = tmp_path / "Mafia2.exe"
+    exe.touch()
+    game_id = library.add_manual(exe)
+    sid = sessions.open(game_id, 1000)
+    screenshots.append(game_id, sid, _webp_bytes(), 1200, 10)
+    notes.save_voice(sid, _voice_clip(), "hotkey")
+    sessions.finish(sid, 9000, 8, "completed")
+    (legacy / "protected_games_override.json").write_text('{"schema_version": 2, "games": []}', encoding="utf-8")
+
+    # First run migrates DB, media, and override atomically, preserving legacy folder.
+    assert migrate_legacy_data_root(legacy, new_root) is True
+    assert (new_root / "gamehub.db").is_file()
+    assert (new_root / MIGRATION_MARKER_NAME).is_file()
+    assert (new_root / "protected_games_override.json").is_file()
+    assert (legacy / "gamehub.db").is_file()
+
+    migrated_db = Database(new_root / "gamehub.db")
+    migrated_mem = MemoryRepository(migrated_db, new_root)
+    snap = migrated_mem.last_time(game_id)
+    assert snap is not None
+    assert snap.voice_note is not None and snap.voice_note.available is True
+    assert len(snap.screenshots) == 1
+
+    # Second run is an idempotent no-op.
+    assert migrate_legacy_data_root(legacy, new_root) is False
+
+
+def test_migrate_legacy_data_root_preserves_custom_pointer_and_rejects_corrupt(
+    tmp_path: Path,
+) -> None:
+    # 1. Custom store-location.json pointer is preserved without copying media.
+    custom = tmp_path / "D_Drive_Data"
+    Database(custom / "gamehub.db")
+    legacy = tmp_path / "GameHub_Custom"
+    legacy.mkdir()
+    bootstrap_path(legacy).write_text(
+        json.dumps({"version": 1, "data_root": str(custom)}), encoding="utf-8"
+    )
+    new_root = tmp_path / "GameRewind_Custom"
+    assert migrate_legacy_data_root(legacy, new_root) is True
+    assert resolve_data_root(new_root) == (custom, None)
+    assert not (new_root / "gamehub.db").exists()
+
+    # 2. Corrupt legacy DB fails safely without creating gamehub.db in new_root.
+    corrupt_legacy = tmp_path / "GameHub_Corrupt"
+    corrupt_legacy.mkdir()
+    (corrupt_legacy / "gamehub.db").write_bytes(b"not a sqlite db")
+    corrupt_target = tmp_path / "GameRewind_Corrupt"
+    assert migrate_legacy_data_root(corrupt_legacy, corrupt_target) is False
+    assert not (corrupt_target / "gamehub.db").exists()
+
+    # 3. Symlinked / junction legacy folder is refused.
+    if os.name == "nt":
+        junction_legacy = tmp_path / "GameHub_Junction"
+        subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(junction_legacy), str(custom)],
+            capture_output=True,
+            check=False,
+        )
+        junction_target = tmp_path / "GameRewind_Junction"
+        assert migrate_legacy_data_root(junction_legacy, junction_target) is False
+        assert not (junction_target / "gamehub.db").exists()

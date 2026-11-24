@@ -15,13 +15,13 @@ VSVersionInfo(
         StringTable(
           '040904B0',
           [
-            StringStruct('CompanyName', 'Game Hub'),
-            StringStruct('FileDescription', 'Game Hub — Offline Game Memory for Windows'),
+            StringStruct('CompanyName', 'GameRewind'),
+            StringStruct('FileDescription', 'GameRewind — Offline Game Memory for Windows'),
             StringStruct('FileVersion', '1.2.0.0'),
-            StringStruct('InternalName', 'GameHub'),
-            StringStruct('LegalCopyright', 'Copyright (c) 2026 Game Hub Contributors (MIT License)'),
-            StringStruct('OriginalFilename', 'GameHub.exe'),
-            StringStruct('ProductName', 'Game Hub'),
+            StringStruct('InternalName', 'GameRewind'),
+            StringStruct('LegalCopyright', 'Copyright (c) 2026 GameRewind Contributors (MIT License)'),
+            StringStruct('OriginalFilename', 'GameRewind.exe'),
+            StringStruct('ProductName', 'GameRewind'),
             StringStruct('ProductVersion', '1.2.0'),
           ]
         )

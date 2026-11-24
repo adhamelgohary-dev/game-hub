@@ -56,8 +56,8 @@ AR_CATALOG: dict[str, str] = {
     "Current data folder": "مجلد البيانات الحالي",
     "Dark": "داكن",
     "Data folder": "مجلد البيانات",
-    "Data folder verified and updated. Restart Game Hub to use the new location.": (
-        "تم التحقق من مجلد البيانات وتحديثه. أعد تشغيل \u2066Game Hub\u2069 لاستخدام الموقع الجديد."
+    "Data folder verified and updated. Restart GameRewind to use the new location.": (
+        "تم التحقق من مجلد البيانات وتحديثه. أعد تشغيل \u2066GameRewind\u2069 لاستخدام الموقع الجديد."
     ),
     "Details": "التفاصيل",
     "Dismiss": "تجاهل",
@@ -75,56 +75,56 @@ AR_CATALOG: dict[str, str] = {
         "أدخل اختصارًا مثل \u2066Ctrl+Alt+N\u2069 أو اتركه فارغًا للتعطيل."
     ),
     "Epic Games": "\u2066Epic Games\u2069",
-    "Exit Game Hub after launching (ask for note next open)": (
-        "إغلاق \u2066Game Hub\u2069 بعد التشغيل (السؤال عن الملاحظة عند الفتح القادم)"
+    "Exit GameRewind after launching (ask for note next open)": (
+        "إغلاق \u2066GameRewind\u2069 بعد التشغيل (السؤال عن الملاحظة عند الفتح القادم)"
     ),
-    "Exit Game Hub after this game closes": "إغلاق \u2066Game Hub\u2069 بعد إغلاق هذه اللعبة",
-    "Exit Game Hub automatically": "إغلاق \u2066Game Hub\u2069 تلقائيًا",
+    "Exit GameRewind after this game closes": "إغلاق \u2066GameRewind\u2069 بعد إغلاق هذه اللعبة",
+    "Exit GameRewind automatically": "إغلاق \u2066GameRewind\u2069 تلقائيًا",
     "Focus a tracked game window to pin controls, or upload an image from the game page.": (
         "اجعل نافذة لعبة متتبَّعة في المقدمة لتثبيت التحكم، أو ارفع صورة من صفحة اللعبة."
     ),
     "Full": "كامل",
     "Full mode": "الوضع الكامل",
     "Full mode ({count})": "الوضع الكامل ({count})",
-    "Game Hub cannot write to the selected folder.": "لا يستطيع \u2066Game Hub\u2069 الكتابة في المجلد المحدد.",
-    "Game Hub v{version} · MIT License": "\u2066Game Hub v{version}\u2069 · رخصة \u2066MIT\u2069",
-    "Game Hub could not access your controls storage.": "تعذّر على \u2066Game Hub\u2069 الوصول إلى تخزين التحكم.",
-    "Game Hub could not apply this setting.": "تعذّر على \u2066Game Hub\u2069 تطبيق هذا الإعداد.",
-    "Game Hub could not launch this game. Check that its executable or launcher entry is still available.": (
+    "GameRewind cannot write to the selected folder.": "لا يستطيع \u2066GameRewind\u2069 الكتابة في المجلد المحدد.",
+    "GameRewind v{version} · MIT License": "\u2066GameRewind v{version}\u2069 · رخصة \u2066MIT\u2069",
+    "GameRewind could not access your controls storage.": "تعذّر على \u2066GameRewind\u2069 الوصول إلى تخزين التحكم.",
+    "GameRewind could not apply this setting.": "تعذّر على \u2066GameRewind\u2069 تطبيق هذا الإعداد.",
+    "GameRewind could not launch this game. Check that its executable or launcher entry is still available.": (
         "تعذّر تشغيل هذه اللعبة. تأكد من أن ملفها التنفيذي أو إدخال المشغّل ما زال متاحًا."
     ),
-    "Game Hub could not load earlier sessions.": "تعذّر تحميل الجلسات الأقدم.",
-    "Game Hub could not load the Last time card.": "تعذّر تحميل بطاقة آخر مرة.",
-    "Game Hub could not load the screenshots for this game.": "تعذّر تحميل لقطات الشاشة لهذه اللعبة.",
-    "Game Hub could not load this game's history.": "تعذّر تحميل سجل هذه اللعبة.",
-    "Game Hub could not move the data folder. Your previous folder remains active.": (
+    "GameRewind could not load earlier sessions.": "تعذّر تحميل الجلسات الأقدم.",
+    "GameRewind could not load the Last time card.": "تعذّر تحميل بطاقة آخر مرة.",
+    "GameRewind could not load the screenshots for this game.": "تعذّر تحميل لقطات الشاشة لهذه اللعبة.",
+    "GameRewind could not load this game's history.": "تعذّر تحميل سجل هذه اللعبة.",
+    "GameRewind could not move the data folder. Your previous folder remains active.": (
         "تعذّر نقل مجلد البيانات. ما زال مجلدك السابق نشطًا."
     ),
-    "Game Hub could not open the Last time card.": "تعذّر فتح بطاقة آخر مرة.",
-    "Game Hub could not open the data folder.": "تعذّر فتح مجلد البيانات.",
-    "Game Hub could not open your screenshot folder.": "تعذّر فتح مجلد لقطات الشاشة.",
-    "Game Hub could not play this voice note.": "تعذّر تشغيل هذه الملاحظة الصوتية.",
-    "Game Hub could not read or update your library. Try again.": (
+    "GameRewind could not open the Last time card.": "تعذّر فتح بطاقة آخر مرة.",
+    "GameRewind could not open the data folder.": "تعذّر فتح مجلد البيانات.",
+    "GameRewind could not open your screenshot folder.": "تعذّر فتح مجلد لقطات الشاشة.",
+    "GameRewind could not play this voice note.": "تعذّر تشغيل هذه الملاحظة الصوتية.",
+    "GameRewind could not read or update your library. Try again.": (
         "تعذّر قراءة مكتبتك أو تحديثها. حاول مرة أخرى."
     ),
-    "Game Hub could not read your settings.": "تعذّر قراءة إعداداتك.",
-    "Game Hub could not save the note prompt preference.": "تعذّر حفظ تفضيل نافذة الملاحظة.",
-    "Game Hub could not save the pinned controls image. You can upload a local image from the game page.": (
+    "GameRewind could not read your settings.": "تعذّر قراءة إعداداتك.",
+    "GameRewind could not save the note prompt preference.": "تعذّر حفظ تفضيل نافذة الملاحظة.",
+    "GameRewind could not save the pinned controls image. You can upload a local image from the game page.": (
         "تعذّر حفظ صورة التحكم المثبّتة. يمكنك رفع صورة محلية من صفحة اللعبة."
     ),
-    "Game Hub could not save the voice autoplay preference.": "تعذّر حفظ تفضيل التشغيل التلقائي للصوت.",
-    "Game Hub could not save the voice note. Press Ctrl+Alt+N to retry.": (
+    "GameRewind could not save the voice autoplay preference.": "تعذّر حفظ تفضيل التشغيل التلقائي للصوت.",
+    "GameRewind could not save the voice note. Press Ctrl+Alt+N to retry.": (
         "تعذّر حفظ الملاحظة الصوتية. اضغط \u2066Ctrl+Alt+N\u2069 لإعادة المحاولة."
     ),
-    "Game Hub could not save this controls image.": "تعذّر حفظ صورة التحكم هذه.",
-    "Game Hub could not save this controls note.": "تعذّر حفظ ملاحظة التحكم هذه.",
-    "Game Hub could not save this text note.": "تعذّر حفظ هذه الملاحظة النصية.",
-    "Game Hub could not save this voice note.": "تعذّر حفظ هذه الملاحظة الصوتية.",
-    "Game Hub could not save this voice note. You can retry or dismiss it.": (
+    "GameRewind could not save this controls image.": "تعذّر حفظ صورة التحكم هذه.",
+    "GameRewind could not save this controls note.": "تعذّر حفظ ملاحظة التحكم هذه.",
+    "GameRewind could not save this text note.": "تعذّر حفظ هذه الملاحظة النصية.",
+    "GameRewind could not save this voice note.": "تعذّر حفظ هذه الملاحظة الصوتية.",
+    "GameRewind could not save this voice note. You can retry or dismiss it.": (
         "تعذّر حفظ هذه الملاحظة الصوتية. يمكنك إعادة المحاولة أو تجاهلها."
     ),
-    "Game Hub could not save your settings.": "تعذّر حفظ إعداداتك.",
-    "Game Hub could not update this game's protection mode.": (
+    "GameRewind could not save your settings.": "تعذّر حفظ إعداداتك.",
+    "GameRewind could not update this game's protection mode.": (
         "تعذّر تحديث وضع الحماية لهذه اللعبة."
     ),
     "Game library": "مكتبة الألعاب",
@@ -193,9 +193,9 @@ AR_CATALOG: dict[str, str] = {
     "No voice note saved yet.": "لم يتم حفظ ملاحظة صوتية بعد.",
     "Note ({date}): {text}": "ملاحظة ({date}): {text}",
     "Notes and Last time": "الملاحظات وبطاقة آخر مرة",
-    "Offline and anti-cheat safe: all notes and screenshots stay on your PC. Game Hub never injects, hooks, or reads game memory, and defaults protected multiplayer games to Strict mode.": (
+    "Offline and anti-cheat safe: all notes and screenshots stay on your PC. GameRewind never injects, hooks, or reads game memory, and defaults protected multiplayer games to Strict mode.": (
         "يعمل دون إنترنت وآمن مع أنظمة مكافحة الغش: تبقى جميع ملاحظاتك ولقطاتك على جهازك فقط. "
-        "لا يقوم \u2066Game Hub\u2069 أبدًا بالحقن أو الاعتراض أو قراءة ذاكرة اللعبة، ويضبط الألعاب الجماعية المحمية افتراضيًا على الوضع الصارم."
+        "لا يقوم \u2066GameRewind\u2069 أبدًا بالحقن أو الاعتراض أو قراءة ذاكرة اللعبة، ويضبط الألعاب الجماعية المحمية افتراضيًا على الوضع الصارم."
     ),
     "Open Controls and Session Timeline for the selected game.": (
         "افتح التحكم والخط الزمني للجلسات للعبة المحددة."
@@ -304,8 +304,8 @@ AR_CATALOG: dict[str, str] = {
     "Voice note saved.": "تم حفظ الملاحظة الصوتية.",
     "Voice playback is unavailable.": "تشغيل الصوت غير متاح.",
     "Watching for games": "في انتظار تشغيل الألعاب",
-    "When a protected game starts while Game Hub is open": (
-        "عند تشغيل لعبة محمية بينما \u2066Game Hub\u2069 مفتوح"
+    "When a protected game starts while GameRewind is open": (
+        "عند تشغيل لعبة محمية بينما \u2066GameRewind\u2069 مفتوح"
     ),
     "Window capture is unavailable. Upload a local controls image from the game page.": (
         "التقاط النافذة غير متاح. ارفع صورة محلية للتحكم من صفحة اللعبة."
@@ -322,31 +322,31 @@ AR_CATALOG: dict[str, str] = {
     ),
     "Working…": "جارٍ العمل…",
     "Xbox": "\u2066Xbox\u2069",
-    "Zero background: no system tray, no start with Windows, and no background services. Closing the main window exits Game Hub completely.": (
+    "Zero background: no system tray, no start with Windows, and no background services. Closing the main window exits GameRewind completely.": (
         "دون عمل في الخلفية: لا أيقونة في شريط النظام، لا تشغيل تلقائي مع \u2066Windows\u2069، ولا خدمات خلفية. "
-        "إغلاق النافذة الرئيسية ينهي \u2066Game Hub\u2069 بالكامل."
+        "إغلاق النافذة الرئيسية ينهي \u2066GameRewind\u2069 بالكامل."
     ),
     "{count} games · Click any card for Details or press Play": (
         "{count} ألعاب · اضغط على أي بطاقة لعرض التفاصيل أو اضغط تشغيل"
     ),
     "{date} · {duration} · {status}": "{date} · {duration} · {status}",
-    "{game} is running. Game Hub switched to Strict mode; you can close Game Hub anytime.": (
-        "اللعبة {game} قيد التشغيل. تحوّل \u2066Game Hub\u2069 إلى الوضع الصارم؛ يمكنك إغلاق \u2066Game Hub\u2069 في أي وقت."
+    "{game} is running. GameRewind switched to Strict mode; you can close GameRewind anytime.": (
+        "اللعبة {game} قيد التشغيل. تحوّل \u2066GameRewind\u2069 إلى الوضع الصارم؛ يمكنك إغلاق \u2066GameRewind\u2069 في أي وقت."
     ),
     "{hours} h {minutes} min": "{hours} س {minutes} د",
     "{minutes} min": "{minutes} د",
     "{seconds} sec": "{seconds} ث",
     "{source} (not installed)": "{source} (غير مثبّتة)",
     "{source} · Assign executable": "{source} · حدّد الملف التنفيذي",
-    "A protected game or its launcher is running — Game Hub won't run alongside it. Close it first.": (
-        "توجد لعبة محمية أو مشغّلها قيد التشغيل حاليًا — لن يعمل \u2066Game Hub\u2069 بجانبها. أغلقها أولًا."
+    "A protected game or its launcher is running — GameRewind won't run alongside it. Close it first.": (
+        "توجد لعبة محمية أو مشغّلها قيد التشغيل حاليًا — لن يعمل \u2066GameRewind\u2069 بجانبها. أغلقها أولًا."
     ),
-    "Protection could not start — Game Hub will close to keep you safe.": (
-        "تعذّر تشغيل الحماية — سيُغلق \u2066Game Hub\u2069 تلقائيًا للحفاظ على أمانك."
+    "Protection could not start — GameRewind will close to keep you safe.": (
+        "تعذّر تشغيل الحماية — سيُغلق \u2066GameRewind\u2069 تلقائيًا للحفاظ على أمانك."
     ),
     "Protected games": "الألعاب المحمية",
-    "Close Game Hub whenever this launcher is open": (
-        "أغلق \u2066Game Hub\u2069 تلقائيًا عند فتح هذا المشغّل"
+    "Close GameRewind whenever this launcher is open": (
+        "أغلق \u2066GameRewind\u2069 تلقائيًا عند فتح هذا المشغّل"
     ),
     "Riot Client (always on for Vanguard safety)": (
         "\u2066Riot Client\u2069 (مفعّل دائمًا لحماية \u2066Vanguard\u2069)"
@@ -363,15 +363,15 @@ AR_CATALOG: dict[str, str] = {
     "Off for this game": "إيقاف الحماية لهذه اللعبة",
     "Test protection": "اختبار الحماية",
     "Running protection check…": "جارٍ اختبار الحماية…",
-    "Protection OK — Game Hub closed in {ms} ms": (
-        "الحماية تعمل بنجاح — أُغلق \u2066Game Hub\u2069 خلال {ms} مللي ثانية"
+    "Protection OK — GameRewind closed in {ms} ms": (
+        "الحماية تعمل بنجاح — أُغلق \u2066GameRewind\u2069 خلال {ms} مللي ثانية"
     ),
     "Protection test failed. Check that Windows process scanning is available.": (
         "فشل اختبار الحماية. تأكد من أن فحص عمليات \u2066Windows\u2069 متاح."
     ),
     "Turn off anti-cheat protection?": "هل تريد إيقاف حماية مكافحة الغش؟",
-    "This game uses anti-cheat software. Keeping protection on (Strict-exit) ensures Game Hub closes before the game starts for zero ban risk. Turn off protection for {game} anyway?": (
-        "تستخدم هذه اللعبة نظام مكافحة غش. إبقاء الحماية مفعّلة (إغلاق فوري) يضمن إغلاق \u2066Game Hub\u2069 "
+    "This game uses anti-cheat software. Keeping protection on (Strict-exit) ensures GameRewind closes before the game starts for zero ban risk. Turn off protection for {game} anyway?": (
+        "تستخدم هذه اللعبة نظام مكافحة غش. إبقاء الحماية مفعّلة (إغلاق فوري) يضمن إغلاق \u2066GameRewind\u2069 "
         "قبل بدء اللعبة لتجنب أي خطر حظر. هل تريد إيقاف الحماية للعبة {game} على أي حال؟"
     ),
     "{source} · Last played {date} · Total playtime {playtime}": (
@@ -429,14 +429,14 @@ AR_CATALOG: dict[str, str] = {
     "Reset cover": "استعادة الغلاف الأصلي",
     "Choose cover image": "اختر صورة الغلاف",
     "Cover images (*.png *.jpg *.jpeg *.webp)": "صور الأغلفة (*.png *.jpg *.jpeg *.webp)",
-    "Game Hub could not save the selected cover image.": (
-        "تعذّر على \u2066Game Hub\u2069 حفظ صورة الغلاف المختارة."
+    "GameRewind could not save the selected cover image.": (
+        "تعذّر على \u2066GameRewind\u2069 حفظ صورة الغلاف المختارة."
     ),
     "Choose a valid PNG, JPG, or WebP cover image.": (
         "اختر صورة غلاف صالحة بصيغة \u2066PNG\u2069 أو \u2066JPG\u2069 أو \u2066WebP\u2069."
     ),
-    "Game Hub could not reset the cover image.": (
-        "تعذّر على \u2066Game Hub\u2069 استعادة الغلاف الأصلي."
+    "GameRewind could not reset the cover image.": (
+        "تعذّر على \u2066GameRewind\u2069 استعادة الغلاف الأصلي."
     ),
     "General": "عام",
     "Choose English or Arabic. Right-to-left layout switches immediately.": (
@@ -446,8 +446,8 @@ AR_CATALOG: dict[str, str] = {
         "اختر المظهر الداكن أو الفاتح أو طابق مظهر \u2066Windows\u2069 تلقائيًا."
     ),
     "Capture and notes": "اللقطات والملاحظات",
-    "How often Game Hub saves a quiet screenshot while you play a single-player game.": (
-        "كل كم ثانية يحفظ \u2066Game Hub\u2069 لقطة شاشة هادئة أثناء لعب ألعاب القصة الفردية."
+    "How often GameRewind saves a quiet screenshot while you play a single-player game.": (
+        "كل كم ثانية يحفظ \u2066GameRewind\u2069 لقطة شاشة هادئة أثناء لعب ألعاب القصة الفردية."
     ),
     "How many recent screenshots to keep per game before replacing the oldest one.": (
         "عدد أحدث اللقطات المحفوظة لكل لعبة قبل استبدال اللقطة الأقدم."
@@ -467,13 +467,13 @@ AR_CATALOG: dict[str, str] = {
     "Capture the current controls screen and pin it to the game's page.": (
         "التقاط شاشة أزرار التحكم الحالية وتثبيتها في صفحة اللعبة."
     ),
-    "Recommended: Exit Game Hub automatically so zero presence stays next to anti-cheat games.": (
-        "موصى به: إغلاق \u2066Game Hub\u2069 تلقائيًا حتى لا يبقى أي وجود بجانب ألعاب مكافحة الغش."
+    "Recommended: Exit GameRewind automatically so zero presence stays next to anti-cheat games.": (
+        "موصى به: إغلاق \u2066GameRewind\u2069 تلقائيًا حتى لا يبقى أي وجود بجانب ألعاب مكافحة الغش."
     ),
-    "Leave off for launchers where you play single-player story games; protected games still close Game Hub automatically.": (
-        "اتركه مطفأً للمشغّلات التي تلعب عليها ألعاب قصة فردية؛ الألعاب المحمية ستغلق \u2066Game Hub\u2069 تلقائيًا على أي حال."
+    "Leave off for launchers where you play single-player story games; protected games still close GameRewind automatically.": (
+        "اتركه مطفأً للمشغّلات التي تلعب عليها ألعاب قصة فردية؛ الألعاب المحمية ستغلق \u2066GameRewind\u2069 تلقائيًا على أي حال."
     ),
-    "Runs a safe dummy check to verify Game Hub detects protected games in under a second.": (
+    "Runs a safe dummy check to verify GameRewind detects protected games in under a second.": (
         "يشغّل اختبارًا آمنًا للتحقق من اكتشاف الألعاب المحمية والإغلاق في أقل من ثانية."
     ),
     "Library and folders": "المكتبة والمجلدات",
@@ -489,8 +489,8 @@ AR_CATALOG: dict[str, str] = {
     "Fetch missing covers from SteamGridDB (optional, off by default)": (
         "جلب الأغلفة الناقصة من \u2066SteamGridDB\u2069 (اختياري، مطفأ افتراضيًا)"
     ),
-    "This is the only optional internet feature in Game Hub. It sends only game titles using your own API key.": (
-        "هذه هي الميزة الاختيارية الوحيدة التي تستخدم الإنترنت في \u2066Game Hub\u2069، وترسل أسماء الألعاب فقط باستخدام مفتاحك الخاص."
+    "This is the only optional internet feature in GameRewind. It sends only game titles using your own API key.": (
+        "هذه هي الميزة الاختيارية الوحيدة التي تستخدم الإنترنت في \u2066GameRewind\u2069، وترسل أسماء الألعاب فقط باستخدام مفتاحك الخاص."
     ),
     "SteamGridDB API key": "مفتاح \u2066SteamGridDB API\u2069",
     "Stored locally on your PC and never written to logs.": (
@@ -500,11 +500,11 @@ AR_CATALOG: dict[str, str] = {
     "Fetching missing covers…": "جارٍ جلب الأغلفة الناقصة…",
     "Updated {count} missing covers.": "تم تحديث {count} من الأغلفة الناقصة.",
     "No new covers were found.": "لم يتم العثور على أغلفة جديدة.",
-    "Where Game Hub stores your notes, screenshots, custom covers, and local database.": (
-        "المكان الذي يحفظ فيه \u2066Game Hub\u2069 ملاحظاتك ولقطاتك والأغلفة المخصصة وقاعدة البيانات المحلية."
+    "Where GameRewind stores your notes, screenshots, custom covers, and local database.": (
+        "المكان الذي يحفظ فيه \u2066GameRewind\u2069 ملاحظاتك ولقطاتك والأغلفة المخصصة وقاعدة البيانات المحلية."
     ),
-    "Offline and anti-cheat safe: all notes and screenshots stay on your PC. Game Hub never injects, hooks, or reads game memory, and closes automatically before protected multiplayer games start.": (
-        "بدون إنترنت وآمن مع مكافحة الغش: تبقى كل ملاحظاتك ولقطاتك على جهازك. لا يحقن \u2066Game Hub\u2069 الألعاب أو يقرأ ذاكرتها أبدًا، ويُغلق تلقائيًا قبل بدء الألعاب الجماعية المحمية."
+    "Offline and anti-cheat safe: all notes and screenshots stay on your PC. GameRewind never injects, hooks, or reads game memory, and closes automatically before protected multiplayer games start.": (
+        "بدون إنترنت وآمن مع مكافحة الغش: تبقى كل ملاحظاتك ولقطاتك على جهازك. لا يحقن \u2066GameRewind\u2069 الألعاب أو يقرأ ذاكرتها أبدًا، ويُغلق تلقائيًا قبل بدء الألعاب الجماعية المحمية."
     ),
     "Reset to defaults": "إعادة الإعدادات للوضع الافتراضي",
     "Restores settings, shortcuts, launcher toggles, and per-game protection to safe defaults. Your notes and screenshots are kept.": (

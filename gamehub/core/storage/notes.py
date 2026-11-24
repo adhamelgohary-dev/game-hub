@@ -66,12 +66,12 @@ class NoteRepository:
             with self._database.write() as connection:
                 game_id = _session_game(connection, session_id)
                 if not (media.UUID.fullmatch(game_id) and media.UUID.fullmatch(session_id)):
-                    raise StorageError("Game Hub could not validate the note's session.")
+                    raise StorageError("GameRewind could not validate the note's session.")
                 relative = voice_path(game_id, session_id, note_id)
                 media.stage_file(self._media, self._root.joinpath(*relative.parts), data)
                 _insert_note(connection, note_id, session_id, "voice", relative.as_posix(), source)
         except OSError as error:
-            raise StorageError("Game Hub could not save the voice note.") from error
+            raise StorageError("GameRewind could not save the voice note.") from error
         return note_id
 
     def prompt_enabled(self) -> bool:

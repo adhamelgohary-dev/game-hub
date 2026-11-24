@@ -29,7 +29,7 @@ def test_window_has_no_tray_and_closes_cleanly(app: QApplication) -> None:
     window.show()
     try:
         assert window.isVisible()
-        assert window.windowTitle() == "Game Hub"
+        assert window.windowTitle() == "GameRewind"
         assert not hasattr(window, "tray")
         assert not hasattr(window, "tray_menu")
         assert window.statusBar().currentMessage() == "Watching for games"

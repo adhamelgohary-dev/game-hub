@@ -303,7 +303,7 @@ class LastTimeCard(QDialog):
         self._exit_after_play: QCheckBox | None = None
         if allow_launch:
             self._exit_after_play = QCheckBox(
-                self.tr("Exit Game Hub after this game closes"), body
+                self.tr("Exit GameRewind after this game closes"), body
             )
             self._exit_after_play.setChecked(default_exit_after_play)
             body_layout.addWidget(self._exit_after_play)

@@ -94,7 +94,7 @@ class NotesController(QObject):
             self._queue.clear()
 
     def offer_pending_notes(self, running_game_ids: set[str] | frozenset[str] = frozenset()) -> None:
-        """Offer deferred notes saved when Game Hub exited after launching a Strict-mode game."""
+        """Offer deferred notes saved when GameRewind exited after launching a Strict-mode game."""
         if not self._prompts_enabled or self._pending_notes is None:
             return
         try:
@@ -178,7 +178,7 @@ class NotesController(QObject):
             try:
                 future.result()
             except StorageError:
-                self._notify(self.tr("Game Hub could not save the note prompt preference."))
+                self._notify(self.tr("GameRewind could not save the note prompt preference."))
 
         self._submit(lambda: self._notes.set_prompt_enabled(False), saved)
 
@@ -214,7 +214,7 @@ class NotesController(QObject):
         try:
             session_id = self._ensure_session_id(item)
         except StorageError:
-            self._show_error(dialog, self.tr("Game Hub could not save this text note."))
+            self._show_error(dialog, self.tr("GameRewind could not save this text note."))
             return
         self._save_text(dialog, item.game_id, session_id, text)
 
@@ -222,7 +222,7 @@ class NotesController(QObject):
         try:
             session_id = self._ensure_session_id(item)
         except StorageError:
-            self._show_error(dialog, self.tr("Game Hub could not save this voice note."))
+            self._show_error(dialog, self.tr("GameRewind could not save this voice note."))
             return
         self._toggle_from_prompt(dialog, item.game_id, session_id)
 
@@ -234,7 +234,7 @@ class NotesController(QObject):
             try:
                 note_id = future.result()
             except StorageError:
-                self._show_error(dialog, self.tr("Game Hub could not save this text note."))
+                self._show_error(dialog, self.tr("GameRewind could not save this text note."))
                 if self._dialog is dialog:
                     dialog.set_busy(False)
             except ValueError:
@@ -388,7 +388,7 @@ class NotesController(QObject):
             self._retry_voice(voice)
         except ValueError:
             self._finish_voice(voice)
-            self._show_error(dialog, self.tr("Game Hub could not save this voice note."))
+            self._show_error(dialog, self.tr("GameRewind could not save this voice note."))
         else:
             self._finish_voice(voice)
             if self._publish is not None:
@@ -402,11 +402,11 @@ class NotesController(QObject):
         voice.phase = "retry"
         dialog = voice.dialog
         if dialog is None:
-            self._notify(self.tr("Game Hub could not save the voice note. Press Ctrl+Alt+N to retry."))
+            self._notify(self.tr("GameRewind could not save the voice note. Press Ctrl+Alt+N to retry."))
         elif self._dialog is dialog:
             dialog.set_busy(False)
             dialog.set_voice_retry(True)
-            dialog.show_error(self.tr("Game Hub could not save this voice note. You can retry or dismiss it."))
+            dialog.show_error(self.tr("GameRewind could not save this voice note. You can retry or dismiss it."))
         else:
             self._finish_voice(voice)
 

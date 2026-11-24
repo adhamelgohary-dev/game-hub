@@ -1,4 +1,4 @@
-"""Resolve and safely relocate the local Game Hub data store."""
+"""Resolve, migrate, and safely relocate the local GameRewind data store."""
 
 import json
 import logging
@@ -19,14 +19,167 @@ from gamehub.core.storage.db import SCHEMA_VERSION, Database, StorageError
 LOGGER = logging.getLogger(__name__)
 BOOTSTRAP_NAME = "store-location.json"
 BOOTSTRAP_VERSION = 1
+MIGRATION_MARKER_NAME = ".migrated-from-gamehub"
 _MAX_BOOTSTRAP_BYTES = 64 * 1024
 _MAX_MEDIA_BYTES = 16 * 1024 * 1024
+_MAX_MIGRATE_FILE_BYTES = 256 * 1024 * 1024
 
 
 def _is_reparse(info: os.stat_result) -> bool:
     return stat.S_ISLNK(info.st_mode) or bool(
         getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
     )
+
+
+def _copy_safe_tree(source_dir: Path, target_dir: Path) -> None:
+    """Recursively copy regular non-reparse files from source_dir into target_dir."""
+    try:
+        src_info = source_dir.lstat()
+    except FileNotFoundError:
+        return
+    if not stat.S_ISDIR(src_info.st_mode) or _is_reparse(src_info):
+        return
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for entry in source_dir.iterdir():
+        try:
+            info = entry.lstat()
+        except OSError:
+            continue
+        if _is_reparse(info):
+            continue
+        dest = target_dir / entry.name
+        if stat.S_ISDIR(info.st_mode):
+            _copy_safe_tree(entry, dest)
+        elif stat.S_ISREG(info.st_mode) and info.st_size <= _MAX_MIGRATE_FILE_BYTES:
+            shutil.copy2(entry, dest)
+
+
+def _verify_migrated_database(db_path: Path) -> None:
+    with closing(sqlite3.connect(f"{db_path.as_uri()}?mode=ro", uri=True)) as check:
+        check.execute("PRAGMA foreign_keys = ON")
+        version = check.execute("PRAGMA user_version").fetchone()[0]
+        if version < 1 or version > SCHEMA_VERSION:
+            raise StorageError("Legacy database schema version cannot be migrated.")
+        if check.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
+            raise StorageError("Legacy database integrity check failed.")
+        if check.execute("PRAGMA foreign_key_check").fetchone() is not None:
+            raise StorageError("Legacy database foreign-key check failed.")
+
+
+def migrate_legacy_data_root(legacy_root: Path, new_root: Path) -> bool:
+    """Automatically migrate existing %LOCALAPPDATA%\\GameHub data into %LOCALAPPDATA%\\GameRewind.
+
+    Safe, atomic, and idempotent:
+    - No-op if new_root already has gamehub.db or store-location.json.
+    - Preserves custom store-location.json pointers without duplicating media.
+    - Uses sqlite3.backup() + integrity checks + staging inside new_root.
+    - Leaves legacy_root untouched as a non-destructive fallback.
+    """
+    legacy = legacy_root.absolute()
+    target = new_root.absolute()
+    if os.path.normcase(str(legacy)) == os.path.normcase(str(target)):
+        return False
+
+    if (target / "gamehub.db").exists() or (target / BOOTSTRAP_NAME).exists():
+        return False
+
+    try:
+        legacy_info = legacy.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
+    if not stat.S_ISDIR(legacy_info.st_mode) or _is_reparse(legacy_info):
+        return False
+
+    validated_legacy = local_path(legacy)
+    validated_target = local_path(target)
+    if validated_legacy is None or validated_target is None:
+        return False
+
+    legacy_pointer = validated_legacy / BOOTSTRAP_NAME
+    try:
+        pointer_info = legacy_pointer.lstat()
+    except FileNotFoundError:
+        pointer_info = None
+    except OSError:
+        pointer_info = None
+
+    if (
+        pointer_info is not None
+        and stat.S_ISREG(pointer_info.st_mode)
+        and not _is_reparse(pointer_info)
+    ):
+        custom_root, err = resolve_data_root(validated_legacy)
+        if err is None and os.path.normcase(str(custom_root)) != os.path.normcase(
+            str(validated_legacy)
+        ):
+            try:
+                _write_bootstrap(validated_target, custom_root)
+                (validated_target / MIGRATION_MARKER_NAME).write_text(
+                    f"migrated_pointer={custom_root}\n", encoding="utf-8"
+                )
+                return True
+            except (OSError, StorageError):
+                LOGGER.warning("legacy_pointer_migration_failed")
+                return False
+
+    legacy_db = validated_legacy / "gamehub.db"
+    try:
+        db_info = legacy_db.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
+    if not stat.S_ISREG(db_info.st_mode) or _is_reparse(db_info):
+        return False
+
+    try:
+        validated_target.mkdir(parents=True, exist_ok=True)
+        with (
+            media.protect_directory(validated_target),
+            TemporaryDirectory(prefix="gamerewind-migrate-", dir=validated_target) as stage_str,
+        ):
+            stage = Path(stage_str)
+            staged_db = stage / "gamehub.db"
+            with (
+                closing(sqlite3.connect(f"{legacy_db.as_uri()}?mode=ro", uri=True)) as src_conn,
+                closing(sqlite3.connect(staged_db)) as dst_conn,
+            ):
+                src_conn.backup(dst_conn)
+            _verify_migrated_database(staged_db)
+
+            for folder_name in ("media", "mods", "cache"):
+                src_sub = validated_legacy / folder_name
+                if src_sub.exists():
+                    _copy_safe_tree(src_sub, stage / folder_name)
+
+            override_src = validated_legacy / "protected_games_override.json"
+            try:
+                ov_info = override_src.lstat()
+                if stat.S_ISREG(ov_info.st_mode) and not _is_reparse(ov_info):
+                    shutil.copy2(override_src, stage / override_src.name)
+            except OSError:
+                pass
+
+            (validated_target / "logs").mkdir(exist_ok=True)
+            for folder_name in ("media", "mods", "cache"):
+                staged_sub = stage / folder_name
+                dest_sub = validated_target / folder_name
+                if staged_sub.exists() and not dest_sub.exists():
+                    shutil.move(str(staged_sub), str(dest_sub))
+            staged_override = stage / "protected_games_override.json"
+            dest_override = validated_target / "protected_games_override.json"
+            if staged_override.exists() and not dest_override.exists():
+                staged_override.replace(dest_override)
+            staged_db.replace(validated_target / "gamehub.db")
+            (validated_target / MIGRATION_MARKER_NAME).write_text(
+                f"migrated_from={validated_legacy}\n", encoding="utf-8"
+            )
+            return True
+    except (OSError, sqlite3.Error, StorageError):
+        LOGGER.warning("legacy_data_migration_failed")
+        return False
 
 
 def bootstrap_path(default_root: Path) -> Path:
@@ -134,7 +287,7 @@ def _verify_staged_database(db_path: Path) -> None:
 
 
 class StoreLocation:
-    """Inspect and perform verified offline relocation of Game Hub's data root."""
+    """Inspect and perform verified offline relocation of GameRewind's data root."""
 
     def __init__(self, default_root: Path, current_root: Path, database: Database) -> None:
         self._default_root = default_root.absolute()

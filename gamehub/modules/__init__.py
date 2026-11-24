@@ -1,1 +1,1 @@
-"""Feature modules composed by Game Hub."""
+"""Feature modules composed by GameRewind."""

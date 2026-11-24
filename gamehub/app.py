@@ -1,4 +1,4 @@
-"""Start the Game Hub desktop application with zero background footprint."""
+"""Start the GameRewind desktop application with zero background footprint."""
 
 import argparse
 import logging
@@ -76,7 +76,11 @@ from gamehub.core.storage.controls import ControlsRepository
 from gamehub.core.storage.covers import CoverStore
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
-from gamehub.core.storage.location import StoreLocation, resolve_data_root
+from gamehub.core.storage.location import (
+    StoreLocation,
+    migrate_legacy_data_root,
+    resolve_data_root,
+)
 from gamehub.core.storage.memory import MemoryChanged, MemoryRepository
 from gamehub.core.storage.notes import NoteRepository
 from gamehub.core.storage.pending_notes import PendingNoteRepository
@@ -97,12 +101,12 @@ from gamehub.ui.theme import apply_theme, fade_in_widget, load_app_icon
 
 
 class GameHubWindow(QMainWindow):
-    """Main desktop window; closing it exits the Game Hub process completely."""
+    """Main desktop window; closing it exits the GameRewind process completely."""
 
     def __init__(self, app: QApplication) -> None:
         super().__init__()
         self._app = app
-        self.setWindowTitle("Game Hub")
+        self.setWindowTitle("GameRewind")
         self.resize(1120, 740)
 
         icon = load_app_icon(self)
@@ -128,7 +132,7 @@ class GameHubWindow(QMainWindow):
         brand_icon = QLabel(self._sidebar)
         brand_icon.setFixedSize(28, 28)
         brand_icon.setPixmap(icon.pixmap(28, 28))
-        brand_title = QLabel("Game Hub", self._sidebar)
+        brand_title = QLabel("GameRewind", self._sidebar)
         brand_title.setObjectName("cardTitle")
         brand_row.addWidget(brand_icon)
         brand_row.addWidget(brand_title)
@@ -315,6 +319,7 @@ def _run(
     *,
     smoke_test: bool,
     default_root: Path | None = None,
+    legacy_root: Path | None = None,
     play_game_id: str | None = None,
     catalog_path: Path | None = None,
     process_scanner: ProcessScanner | None = None,
@@ -323,8 +328,13 @@ def _run(
     show_guard_dialog=None,
 ) -> int:
     effective_default = default_root if default_root is not None else data_root
+    prefs_root = data_root
+    if not smoke_test and not (prefs_root / "gamehub.db").is_file() and legacy_root is not None:
+        legacy_resolved, legacy_err = resolve_data_root(legacy_root)
+        if legacy_err is None and (legacy_resolved / "gamehub.db").is_file():
+            prefs_root = legacy_resolved
     startup_lang, startup_strict_launchers = (
-        ("en", frozenset()) if smoke_test else _read_startup_guard_prefs(data_root)
+        ("en", frozenset()) if smoke_test else _read_startup_guard_prefs(prefs_root)
     )
     if startup_lang != "en":
         apply_language(app, startup_lang)
@@ -334,16 +344,16 @@ def _run(
             show_guard_dialog(kind, text)
             return
         if kind == "fail_closed":
-            QMessageBox.critical(None, "Game Hub", text)
+            QMessageBox.critical(None, "GameRewind", text)
         else:
-            QMessageBox.information(None, "Game Hub", text)
+            QMessageBox.information(None, "GameRewind", text)
 
-    # Layer 2 (Cases 1 & 4 + Self-Check + Fail-Closed): runs BEFORE SingleInstance and BEFORE
-    # creating any window or writing any data.
+    # Layer 2 (Cases 1 & 4 + Self-Check + Fail-Closed): runs BEFORE SingleInstance, BEFORE
+    # data migration, and BEFORE creating any window or writing any data.
     try:
         catalog = ProtectedGamesCatalog.load(
             bundled_path=catalog_path,
-            override_path=None if smoke_test else (data_root / OVERRIDE_FILENAME),
+            override_path=None if smoke_test else (prefs_root / OVERRIDE_FILENAME),
             strict_load=True,
         )
         protection_guard = ProtectionGuard(
@@ -359,7 +369,7 @@ def _run(
             "fail_closed",
             app.translate(
                 "GameHubWindow",
-                "Protection could not start — Game Hub will close to keep you safe.",
+                "Protection could not start — GameRewind will close to keep you safe.",
             ),
         )
         return 2
@@ -374,10 +384,22 @@ def _run(
             "refused",
             app.translate(
                 "GameHubWindow",
-                "A protected game or its launcher is running — Game Hub won't run alongside it. Close it first.",
+                "A protected game or its launcher is running — GameRewind won't run alongside it. Close it first.",
             ),
         )
         return 0
+
+    if not smoke_test and legacy_root is not None:
+        migrate_legacy_data_root(legacy_root, effective_default)
+        resolved_after, location_error = resolve_data_root(effective_default)
+        if location_error is not None:
+            _notify_guard_block(
+                "fail_closed",
+                "GameRewind could not find its configured data folder. "
+                "Restore the folder or remove store-location.json before starting again.",
+            )
+            return 1
+        data_root = resolved_after
 
     window = GameHubWindow(app)
     instance = SingleInstance(effective_default, window.reveal)
@@ -465,7 +487,7 @@ def _run(
 
         def _handle_change_cover(game_id: str, image_path: str) -> None:
             if cover_store is None:
-                window.notify(window.tr("Game Hub could not save the selected cover image."))
+                window.notify(window.tr("GameRewind could not save the selected cover image."))
                 return
             try:
                 cover_store.import_cover(game_id, Path(image_path))
@@ -483,7 +505,7 @@ def _run(
             try:
                 cover_store.reset_cover(game_id)
             except (OSError, StorageError):
-                window.notify(window.tr("Game Hub could not reset the cover image."))
+                window.notify(window.tr("GameRewind could not reset the cover image."))
                 return
             clear_cover_cache()
             controller.refresh()
@@ -533,7 +555,7 @@ def _run(
                     _notify_guard_block(
                         "fail_closed",
                         window.tr(
-                            "Protection could not start — Game Hub will close to keep you safe."
+                            "Protection could not start — GameRewind will close to keep you safe."
                         ),
                     )
                 window.close()
@@ -595,7 +617,7 @@ def _run(
                     name,
                     title=window.tr("Protected game detected"),
                     body=window.tr(
-                        "{game} is running. Game Hub switched to Strict mode; you can close Game Hub anytime."
+                        "{game} is running. GameRewind switched to Strict mode; you can close GameRewind anytime."
                     ).format(game=name),
                 ),
                 prompts_enabled=lambda: notes_controller.prompts_enabled
@@ -683,12 +705,12 @@ def _run(
             else:
                 window.library.playRequested.connect(
                     lambda _game_id: window.library.show_error(
-                        window.tr("Game Hub could not open the Last time card.")
+                        window.tr("GameRewind could not open the Last time card.")
                     )
                 )
                 window.game_page.playRequested.connect(
                     lambda _game_id: window.game_page.show_error(
-                        window.tr("Game Hub could not open the Last time card.")
+                        window.tr("GameRewind could not open the Last time card.")
                     )
                 )
 
@@ -713,7 +735,7 @@ def _run(
                 def _controls_unavailable(*_args) -> None:
                     window.game_page.set_saving_control_text(False)
                     window.game_page.show_error(
-                        window.tr("Game Hub could not access your controls storage.")
+                        window.tr("GameRewind could not access your controls storage.")
                     )
 
                 window.game_page.uploadControlImageRequested.connect(_controls_unavailable)
@@ -952,7 +974,7 @@ def _wire_game_page(
 
     def open_game(game_id: str) -> None:
         if memory is None:
-            window.library.show_error(window.tr("Game Hub could not load this game's history."))
+            window.library.show_error(window.tr("GameRewind could not load this game's history."))
             return
         try:
             game = library.get_game(game_id)
@@ -961,7 +983,7 @@ def _wire_game_page(
             control_items = controls.list_controls(game_id) if controls is not None else ()
             page = memory.timeline(game_id)
         except (OSError, StorageError):
-            window.library.show_error(window.tr("Game Hub could not load this game's history."))
+            window.library.show_error(window.tr("GameRewind could not load this game's history."))
             return
         if player is not None:
             player.stop()
@@ -973,7 +995,7 @@ def _wire_game_page(
             library.set_protection(game_id, mode, exit_after_launch=exit_after_launch)
         except (StorageError, ValueError):
             window.game_page.show_error(
-                window.tr("Game Hub could not update this game's protection mode.")
+                window.tr("GameRewind could not update this game's protection mode.")
             )
             return
         if on_protection_changed is not None:
@@ -985,7 +1007,7 @@ def _wire_game_page(
         try:
             page = memory.timeline(game_id, cursor=cursor)
         except (OSError, StorageError):
-            window.game_page.show_error(window.tr("Game Hub could not load earlier sessions."))
+            window.game_page.show_error(window.tr("GameRewind could not load earlier sessions."))
             return
         window.game_page.present_timeline(page, append=True)
 
@@ -1032,7 +1054,7 @@ def _wire_game_page(
             return
         if not player.play(clip):
             window.game_page.reset_voice_state()
-            window.game_page.show_error(window.tr("Game Hub could not play this voice note."))
+            window.game_page.show_error(window.tr("GameRewind could not play this voice note."))
 
     window.library.gameOpened.connect(open_game)
     window.game_page.protectionChanged.connect(save_protection)
@@ -1044,7 +1066,7 @@ def _wire_game_page(
         player.failed.connect(
             lambda: (
                 window.game_page.reset_voice_state(),
-                window.game_page.show_error(window.tr("Game Hub could not play this voice note."))
+                window.game_page.show_error(window.tr("GameRewind could not play this voice note."))
                 if window.game_page.game_id is not None
                 else None,
             )
@@ -1205,7 +1227,7 @@ def _wire_settings(
         try:
             current = settings_service.read()
         except StorageError:
-            window.library.show_error(window.tr("Game Hub could not read your settings."))
+            window.library.show_error(window.tr("GameRewind could not read your settings."))
             return
         window.settings_view.load_settings(current, store_location.current())
         window.settings_view.set_protected_games(_load_protected_game_rows())
@@ -1442,7 +1464,7 @@ def _open_last_moments(
     game_id: str,
 ) -> None:
     if screenshots is None:
-        window.library.show_error(window.tr("Game Hub could not open your screenshot folder."))
+        window.library.show_error(window.tr("GameRewind could not open your screenshot folder."))
         return
     try:
         game = library.get_game(game_id)
@@ -1450,7 +1472,7 @@ def _open_last_moments(
             return
         images = screenshots.last_moments(game_id)
     except (OSError, StorageError):
-        window.library.show_error(window.tr("Game Hub could not load the screenshots for this game."))
+        window.library.show_error(window.tr("GameRewind could not load the screenshots for this game."))
         return
     LastMomentsDialog(game.name, images, window, load_image=screenshots.read_image).exec()
 
@@ -1472,7 +1494,7 @@ def _add_file_log(data_root: Path) -> logging.Handler | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Open Game Hub.")
+    parser = argparse.ArgumentParser(description="Open GameRewind.")
     parser.add_argument(
         "--smoke-test",
         action="store_true",
@@ -1482,11 +1504,11 @@ def main(argv: list[str] | None = None) -> int:
         "--play",
         dest="play_game_id",
         default=None,
-        help="Open the Last time card for a game and exit Game Hub after the game finishes.",
+        help="Open the Last time card for a game and exit GameRewind after the game finishes.",
     )
     args = parser.parse_args(argv)
-    app = QApplication(["Game Hub"])
-    app.setApplicationName("Game Hub")
+    app = QApplication(["GameRewind"])
+    app.setApplicationName("GameRewind")
     app.setApplicationVersion(__version__)
 
     if args.smoke_test:
@@ -1494,13 +1516,14 @@ def main(argv: list[str] | None = None) -> int:
             return _run(app, Path(temp_dir), smoke_test=True)
 
     local_data = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericDataLocation)
-    default_root = Path(local_data) / "GameHub"
+    default_root = Path(local_data) / "GameRewind"
+    legacy_root = Path(local_data) / "GameHub"
     resolved_root, location_error = resolve_data_root(default_root)
     if location_error is not None:
         QMessageBox.critical(
             None,
-            "Game Hub",
-            "Game Hub could not find its configured data folder. "
+            "GameRewind",
+            "GameRewind could not find its configured data folder. "
             "Restore the folder or remove store-location.json before starting again.",
         )
         return 1
@@ -1510,11 +1533,12 @@ def main(argv: list[str] | None = None) -> int:
             resolved_root,
             smoke_test=False,
             default_root=default_root,
+            legacy_root=legacy_root,
             play_game_id=args.play_game_id,
         )
     except (OSError, RuntimeError, StorageError):
         QMessageBox.critical(
-            None, "Game Hub", "Game Hub could not start. Check that your local data folder is available."
+            None, "GameRewind", "GameRewind could not start. Check that your local data folder is available."
         )
         return 1
 

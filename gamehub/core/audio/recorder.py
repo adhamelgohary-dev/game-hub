@@ -85,7 +85,7 @@ class AudioRecorder:
         except RecordingError:
             raise
         except (ImportError, OSError, RuntimeError, ValueError, sounddevice.PortAudioError):
-            raise RecordingError("Game Hub could not finish the voice note. You can try again or save a text note.") from None
+            raise RecordingError("GameRewind could not finish the voice note. You can try again or save a text note.") from None
         finally:
             self._reset()
 

@@ -1,6 +1,6 @@
-# Contributing to Game Hub
+# Contributing to GameRewind
 
-Thank you for helping improve Game Hub!
+Thank you for helping improve GameRewind!
 
 ## Ground Rules
 

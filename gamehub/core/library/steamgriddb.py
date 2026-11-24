@@ -1,6 +1,6 @@
 """Strictly opt-in (off by default) SteamGridDB cover art fetcher.
 
-This is the ONLY module in Game Hub allowed to make outbound HTTPS requests,
+This is the ONLY module in GameRewind allowed to make outbound HTTPS requests,
 and it does nothing unless both ``enabled=True`` and a non-empty user-supplied
 ``api_key`` are explicitly provided. The API key is never logged.
 """
@@ -64,7 +64,7 @@ def fetch_steamgriddb_cover(
     headers = {
         "Authorization": f"Bearer {key}",
         "Accept": "application/json",
-        "User-Agent": "GameHub/1.2",
+        "User-Agent": "GameRewind/1.2",
     }
 
     try:
@@ -92,7 +92,7 @@ def fetch_steamgriddb_cover(
         if image_url is None:
             return None
 
-        image_headers = {"User-Agent": "GameHub/1.2"}
+        image_headers = {"User-Agent": "GameRewind/1.2"}
         return getter(image_url, image_headers, _MAX_IMAGE_BYTES)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError):
         return None

@@ -62,9 +62,9 @@ jobs:
             Invoke-WebRequest -Uri "https://raw.githubusercontent.com/python/cpython/v$($python[1])/LICENSE" `
               -OutFile $env:GAMEHUB_CPYTHON_LICENSE -TimeoutSec 30
           }
-          python -m PyInstaller --noconfirm --clean packaging/gamehub.spec
+          python -m PyInstaller --noconfirm --clean packaging/gamerewind.spec
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed ($LASTEXITCODE)." }
-          Compress-Archive -LiteralPath dist/GameHub -DestinationPath "dist/GameHub-Portable-$tag.zip"
+          Compress-Archive -LiteralPath dist/GameRewind -DestinationPath "dist/GameRewind-Portable-$tag.zip"
       - name: Build the per-user installer
         run: |
           $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
@@ -73,16 +73,16 @@ jobs:
           }
           $tag = $env:GITHUB_REF_NAME
           $version = $tag.TrimStart('v')
-          $setupBase = "GameHub-Setup-$tag"
+          $setupBase = "GameRewind-Setup-$tag"
           & $compiler "/DAppVersion=$version" "/DOutputFilename=$setupBase" 'packaging/installer.iss'
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)." }
-      - name: Smoke test the extracted portable package, install, upgrade, and uninstall
+      - name: Smoke test portable, fresh custom folder, legacy upgrade, folder change, and uninstall
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
           $tag = $env:GITHUB_REF_NAME
-          function Test-GameHub($applicationDir) {
-            $exe = Join-Path $applicationDir 'GameHub.exe'
+          function Test-GameRewind($applicationDir) {
+            $exe = Join-Path $applicationDir 'GameRewind.exe'
             foreach ($rel in @(
               '_internal/third-party/THIRD_PARTY_NOTICES.txt',
               '_internal/third-party/Qt/LGPL-3.0.txt',
@@ -103,7 +103,7 @@ jobs:
               Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
               $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' `
                 -WorkingDirectory $env:RUNNER_TEMP -WindowStyle Hidden -Wait -PassThru
-              if ($process.ExitCode -ne 0) { throw "Game Hub smoke test failed ($($process.ExitCode))." }
+              if ($process.ExitCode -ne 0) { throw "GameRewind smoke test failed ($($process.ExitCode))." }
             } finally {
               $env:PATH = $savedPath
               if ($null -ne $savedPythonHome) { $env:PYTHONHOME = $savedPythonHome }
@@ -111,53 +111,80 @@ jobs:
             }
           }
 
-          $portable = Join-Path $env:RUNNER_TEMP 'Game Hub Portable'
-          Expand-Archive -LiteralPath "dist/GameHub-Portable-$tag.zip" -DestinationPath $portable
-          Test-GameHub (Join-Path $portable 'GameHub')
+          # 1. Portable package smoke test
+          $portable = Join-Path $env:RUNNER_TEMP 'GameRewind Portable'
+          Expand-Archive -LiteralPath "dist/GameRewind-Portable-$tag.zip" -DestinationPath $portable
+          Test-GameRewind (Join-Path $portable 'GameRewind')
 
-          # Seed a synthetic v1.0 legacy Run key and confirm installer upgrade deletes it.
+          # 2. Seed synthetic legacy Game Hub Run key, Uninstall key, Start Menu dir, and %LOCALAPPDATA%\GameHub data
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
           New-Item -Path $runKey -Force | Out-Null
           Set-ItemProperty -Path $runKey -Name 'GameHub' -Value '"C:\Legacy\GameHub.exe"'
 
-          $installed = Join-Path $env:RUNNER_TEMP 'Game Hub Installed'
-          $setup = (Resolve-Path -LiteralPath "dist/GameHub-Setup-$tag.exe").Path
-          $installerArgs = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /DIR="{0}"' -f $installed
-          $process = Start-Process -FilePath $setup -ArgumentList $installerArgs `
+          $legacyUninstKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{BCE7FA2A-7A55-487B-9BC4-2EA83958BF9A}_is1'
+          New-Item -Path $legacyUninstKey -Force | Out-Null
+          Set-ItemProperty -Path $legacyUninstKey -Name 'DisplayName' -Value 'Game Hub'
+
+          $legacyStartMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Game Hub'
+          New-Item -ItemType Directory -Path $legacyStartMenu -Force | Out-Null
+          Set-Content -LiteralPath (Join-Path $legacyStartMenu 'legacy.txt') -Value 'old' -Encoding utf8
+
+          $legacyData = Join-Path $env:LOCALAPPDATA 'GameHub'
+          New-Item -ItemType Directory -Path $legacyData -Force | Out-Null
+          $legacyCanary = Join-Path $legacyData 'legacy-canary.txt'
+          Set-Content -LiteralPath $legacyCanary -Value 'preserve-me' -Encoding utf8
+
+          # 3. Fresh install to custom folder A (with desktop shortcut task)
+          $customDirA = Join-Path $env:RUNNER_TEMP 'CustomFolderA\GameRewind'
+          $setup = (Resolve-Path -LiteralPath "dist/GameRewind-Setup-$tag.exe").Path
+          $installArgsA = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /TASKS="desktopicon" /DIR="{0}"' -f $customDirA
+          $process = Start-Process -FilePath $setup -ArgumentList $installArgsA `
             -WindowStyle Hidden -Wait -PassThru
-          if ($process.ExitCode -ne 0) { throw "Game Hub installation failed ($($process.ExitCode))." }
-          Test-GameHub $installed
+          if ($process.ExitCode -ne 0) { throw "GameRewind fresh install failed ($($process.ExitCode))." }
+          Test-GameRewind $customDirA
 
           $remainingRun = (Get-ItemProperty -Path $runKey -Name 'GameHub' -ErrorAction SilentlyContinue).GameHub
-          if ($null -ne $remainingRun) {
-            throw 'Legacy HKCU Run\GameHub entry was not removed during install/upgrade.'
-          }
+          if ($null -ne $remainingRun) { throw 'Legacy HKCU Run\GameHub entry was not removed.' }
+          if (Test-Path -LiteralPath $legacyUninstKey) { throw 'Legacy Game Hub uninstall key was not removed.' }
+          if (Test-Path -LiteralPath $legacyStartMenu) { throw 'Legacy Game Hub Start Menu folder was not removed.' }
+          if (!(Test-Path -LiteralPath $legacyCanary -PathType Leaf)) { throw 'Legacy GameHub user data was unexpectedly removed.' }
 
-          $userData = Join-Path $env:LOCALAPPDATA 'GameHub'
+          $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GameRewind.lnk'
+          if (!(Test-Path -LiteralPath $desktopShortcut -PathType Leaf)) { throw 'Desktop shortcut task did not create GameRewind.lnk.' }
+
+          # 4. Upgrade to a DIFFERENT custom folder B and confirm old folder A is cleaned up
+          $userData = Join-Path $env:LOCALAPPDATA 'GameRewind'
           New-Item -ItemType Directory -Path $userData -Force | Out-Null
           $canary = Join-Path $userData 'upgrade-canary.txt'
           Set-Content -LiteralPath $canary -Value 'preserve-me' -Encoding utf8
 
-          $upgrade = Start-Process -FilePath $setup -ArgumentList $installerArgs `
+          $customDirB = Join-Path $env:RUNNER_TEMP 'CustomFolderB\GameRewind'
+          $installArgsB = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /DIR="{0}"' -f $customDirB
+          $upgrade = Start-Process -FilePath $setup -ArgumentList $installArgsB `
             -WindowStyle Hidden -Wait -PassThru
-          if ($upgrade.ExitCode -ne 0) { throw "Game Hub upgrade failed ($($upgrade.ExitCode))." }
-          Test-GameHub $installed
+          if ($upgrade.ExitCode -ne 0) { throw "GameRewind folder-change upgrade failed ($($upgrade.ExitCode))." }
+          Test-GameRewind $customDirB
+          if (Test-Path -LiteralPath (Join-Path $customDirA 'GameRewind.exe')) {
+            throw 'Previous GameRewind.exe remained in CustomFolderA after upgrading to CustomFolderB.'
+          }
 
-          $uninstaller = Join-Path $installed 'unins000.exe'
+          # 5. Uninstall from custom folder B and confirm clean removal + user data preservation
+          $uninstaller = Join-Path $customDirB 'unins000.exe'
           if (!(Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
             throw "Uninstaller missing after installation: $uninstaller"
           }
           $remove = Start-Process -FilePath $uninstaller `
             -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' `
             -WindowStyle Hidden -Wait -PassThru
-          if ($remove.ExitCode -ne 0) { throw "Game Hub uninstall failed ($($remove.ExitCode))." }
-          if (Test-Path -LiteralPath (Join-Path $installed 'GameHub.exe')) {
-            throw 'GameHub.exe still exists after uninstall.'
+          if ($remove.ExitCode -ne 0) { throw "GameRewind uninstall failed ($($remove.ExitCode))." }
+          if (Test-Path -LiteralPath (Join-Path $customDirB 'GameRewind.exe')) {
+            throw 'GameRewind.exe still exists after uninstall.'
           }
           if (!(Test-Path -LiteralPath $canary -PathType Leaf)) {
             throw 'User data was unexpectedly removed during upgrade or uninstall.'
           }
           Remove-Item -LiteralPath $canary -Force
+          Remove-Item -LiteralPath $legacyCanary -Force
 
       # SignPath Foundation free open-source code signing (disabled until approved; enable via vars.SIGNPATH_ENABLED == 'true').
       - name: Upload unsigned installer for SignPath
@@ -166,7 +193,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unsigned-installer-${{ github.ref_name }}
-          path: dist/GameHub-Setup-${{ github.ref_name }}.exe
+          path: dist/GameRewind-Setup-${{ github.ref_name }}.exe
           retention-days: 1
 
       - name: Sign installer via SignPath Foundation
@@ -175,7 +202,7 @@ jobs:
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
-          project-slug: game-hub
+          project-slug: game-rewind
           signing-policy-slug: release
           github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
           wait-for-completion: true
@@ -187,12 +214,12 @@ jobs:
           $tag = $env:GITHUB_REF_NAME
           $signed = Get-ChildItem -LiteralPath 'dist/signed' -Filter '*.exe' | Select-Object -First 1
           if ($null -eq $signed) { throw 'SignPath did not return a signed installer.' }
-          Move-Item -LiteralPath $signed.FullName -Destination "dist/GameHub-Setup-$tag.exe" -Force
+          Move-Item -LiteralPath $signed.FullName -Destination "dist/GameRewind-Setup-$tag.exe" -Force
 
       - name: Generate SHA256SUMS.txt
         run: |
           $tag = $env:GITHUB_REF_NAME
-          $files = @("dist/GameHub-Setup-$tag.exe", "dist/GameHub-Portable-$tag.zip")
+          $files = @("dist/GameRewind-Setup-$tag.exe", "dist/GameRewind-Portable-$tag.zip")
           $lines = foreach ($f in $files) {
             $hash = (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $(Split-Path -Leaf $f)"
@@ -213,12 +240,12 @@ jobs:
           if (!$match.Success -or [string]::IsNullOrWhiteSpace($match.Groups[1].Value)) {
             throw "CHANGELOG.md needs a nonempty ## $tag section."
           }
-          $notesPath = Join-Path $env:RUNNER_TEMP 'game-hub-release-notes.md'
+          $notesPath = Join-Path $env:RUNNER_TEMP 'gamerewind-release-notes.md'
           Set-Content -LiteralPath $notesPath -Value $match.Groups[1].Value.Trim() -Encoding utf8
-          $title = "Game Hub $tag"
+          $title = "GameRewind $tag"
           $assets = @(
-            "dist/GameHub-Setup-$tag.exe",
-            "dist/GameHub-Portable-$tag.zip",
+            "dist/GameRewind-Setup-$tag.exe",
+            "dist/GameRewind-Portable-$tag.zip",
             "dist/SHA256SUMS.txt"
           )
           $existing = gh release view $tag --repo $repo --json name,isDraft,assets 2>$null
@@ -236,7 +263,7 @@ jobs:
                   throw "The published release is missing a required asset: $asset"
                 }
               }
-              Write-Host "Game Hub $tag is already published with all Windows assets."
+              Write-Host "GameRewind $tag is already published with all Windows assets."
               exit 0
             }
             if ($release.name -ne $title) { throw "An unrelated draft exists for $tag." }

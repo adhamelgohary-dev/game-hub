@@ -1,8 +1,8 @@
-# Game Hub
+# GameRewind
 
 Pick up any Windows PC game after a break with the voice/text notes, recent screenshots, playtime, and pinned controls you saved last time — **100% offline, zero background processes, and anti-cheat safe**.
 
-![Game Hub Library (Dark)](docs/screenshots/library-dark-en.png)
+![GameRewind Library (Dark)](docs/screenshots/library-dark-en.png)
 
 | Game page | Light theme | Arabic RTL |
 | --- | --- | --- |
@@ -10,12 +10,12 @@ Pick up any Windows PC game after a break with the voice/text notes, recent scre
 
 ## Features
 
-- **Zero background footprint:** No system tray icon, no "start with Windows" registry entry, and no background services. Closing the main window exits Game Hub completely.
+- **Zero background footprint:** No system tray icon, no "start with Windows" registry entry, and no background services. Closing the main window exits GameRewind completely.
 - **Anti-cheat safe by design:** Ships an updatable catalog (`gamehub/core/protection/protected_games.json`) of 38+ protected games (Valorant, League of Legends, Fortnite, Apex Legends, Call of Duty, Rainbow Six Siege, PUBG, Rust, EA SPORTS FC, CS2, Deadlock, Elden Ring, Armored Core VI, and more).
   - **Strict mode** (default for protected games): zero periodic screenshots, zero in-game hotkeys, zero topmost overlays, zero in-game mic access, and zero `OpenProcess` handles on protected games — just the Last-time card before launch and optional note after exit (or on next open).
-  - **Forgetful-case safeguard:** If Game Hub is left open and you launch a protected game directly, passive basename-only detection exits Game Hub automatically by default (configurable to Strict mode or a passive Windows notification).
+  - **Forgetful-case safeguard:** If GameRewind is left open and you launch a protected game directly, passive basename-only detection exits GameRewind automatically by default (configurable to Strict mode or a passive Windows notification).
 - **Local game library:** Auto-detects Steam, Epic Games Store, and supported Xbox/Game Pass installations, plus manual `.exe` add. [Launcher detection & limits](docs/launcher-detection.md)
-- **"Last time" memory card & Play-through flow:** Click **Play** to review your last voice note (with optional auto-play), latest text note, last-moments screenshot carousel, playtime, and pinned controls before launching. Game Hub minimizes during play and offers a quick voice/text note prompt when the game closes.
+- **"Last time" memory card & Play-through flow:** Click **Play** to review your last voice note (with optional auto-play), latest text note, last-moments screenshot carousel, playtime, and pinned controls before launching. GameRewind minimizes during play and offers a quick voice/text note prompt when the game closes.
 - **Foreground-only screenshots (Full mode):** Captures only the verified foreground game window via Windows Graphics Capture (`draw_border=False` on supported Windows 11 builds) into a configurable ring buffer (default 10 shots, every 30 s).
 - **Controls card & Session timeline:** Pin controls screenshots (`Ctrl+Alt+C` in Full mode or local image upload), write strategy reminders, and browse every past session chronologically.
 - **Bilingual English & Arabic (RTL):** Switch languages live in **Settings** with full right-to-left mirroring.
@@ -24,13 +24,13 @@ Pick up any Windows PC game after a break with the voice/text notes, recent scre
 
 Requires **Windows 10 (version 1809+)** or **Windows 11** on 64-bit (x64). No Python installation is needed.
 
-1. Open [GitHub Releases](https://github.com/adhamelgohary-dev/game-hub/releases) and select the latest `vX.Y.Z` release.
-2. Download **`GameHub-Setup-vX.Y.Z.exe`** from **Assets** (and optionally verify its hash in `SHA256SUMS.txt`).
-3. Double-click the installer (per-user install, no administrator privileges required), then launch **Game Hub** from the Start menu.
+1. Open [GitHub Releases](https://github.com/adhamelgohary-dev/game-rewind/releases) and select the latest `vX.Y.Z` release.
+2. Download **`GameRewind-Setup-vX.Y.Z.exe`** from **Assets** (and optionally verify its hash in `SHA256SUMS.txt`).
+3. Double-click the installer (per-user install, no administrator privileges required), then launch **GameRewind** from the Start menu.
 
-For a portable install, download **`GameHub-Portable-vX.Y.Z.zip`**, extract the entire folder, and run **`GameHub.exe`** (keep `_internal` alongside it).
+For a portable install, download **`GameRewind-Portable-vX.Y.Z.zip`**, extract the entire folder, and run **`GameRewind.exe`** (keep `_internal` alongside it).
 
-Upgrading over v1.0 automatically removes the legacy Windows startup (`Run`) entry while preserving all your data in `%LOCALAPPDATA%\GameHub\`.
+Upgrading over v1.0 automatically removes the legacy Windows startup (`Run`) entry while preserving all your data in `%LOCALAPPDATA%\GameRewind\`.
 
 ## Default shortcuts (Full mode only)
 
@@ -100,13 +100,13 @@ Read [docs/design/README.md](docs/design/README.md), [PROGRESS.md](PROGRESS.md),
 
 ## العربية
 
-يساعدك **Game Hub** على العودة لأي لعبة بعد فترة انقطاع عن طريق عرض آخر ملاحظاتك الصوتية والنصية وآخر لقطات الشاشة وبطاقة أزرار التحكم قبل التشغيل — **بدون إنترنت، وبلا أي عمليات في الخلفية، وبأمان تام مع أنظمة مكافحة الغش**.
+يساعدك **GameRewind** على العودة لأي لعبة بعد فترة انقطاع عن طريق عرض آخر ملاحظاتك الصوتية والنصية وآخر لقطات الشاشة وبطاقة أزرار التحكم قبل التشغيل — **بدون إنترنت، وبلا أي عمليات في الخلفية، وبأمان تام مع أنظمة مكافحة الغش**.
 
-![واجهة Game Hub بالعربية](docs/design/mockups/library-dark-ar-rtl.png)
+![واجهة GameRewind بالعربية](docs/design/mockups/library-dark-ar-rtl.png)
 
 - **بلا خلفية:** لا توجد أيقونة في شريط المهام أو تشغيل تلقائي مع ويندوز؛ إغلاق النافذة يغلق البرنامج تماماً.
-- **حماية لمكافحة الغش:** الألعاب المحمية مثل Valorant وFortnite وApex Legends وCall of Duty وCS2 تعمل افتراضياً بالوضع الصارم أو يغلق Game Hub نفسه تلقائياً عند تشغيلها.
-- **التثبيت:** افتح صفحة [الإصدارات](https://github.com/adhamelgohary-dev/game-hub/releases) ونزّل `GameHub-Setup-vX.Y.Z.exe` وشغّله بنقرتين، ويمكنك تحويل الواجهة للعربية من **الإعدادات**.
+- **حماية لمكافحة الغش:** الألعاب المحمية مثل Valorant وFortnite وApex Legends وCall of Duty وCS2 تعمل افتراضياً بالوضع الصارم أو يغلق GameRewind نفسه تلقائياً عند تشغيلها.
+- **التثبيت:** افتح صفحة [الإصدارات](https://github.com/adhamelgohary-dev/game-rewind/releases) ونزّل `GameRewind-Setup-vX.Y.Z.exe` وشغّله بنقرتين، ويمكنك تحويل الواجهة للعربية من **الإعدادات**.
 
 اقرأ [دليل المستخدم الكامل بالعربية](docs/USER-GUIDE-AR.md).
 

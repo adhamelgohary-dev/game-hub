@@ -78,11 +78,11 @@ class LifecycleCoordinator:
         )
 
     def on_play_launched(self, game_id: str, *, exit_after_play: bool) -> bool:
-        """Handle a Play launch. Returns True if Game Hub exited immediately.
+        """Handle a Play launch. Returns True if GameRewind exited immediately.
 
         Layer 5 (Zero-Presence): any protected / strict game ALWAYS saves a deferred
-        pending note and exits Game Hub immediately after the official launcher starts
-        so Game Hub is never running alongside a protected game or its anti-cheat.
+        pending note and exits GameRewind immediately after the official launcher starts
+        so GameRewind is never running alongside a protected game or its anti-cheat.
         """
         strict = self.is_strict_game(game_id)
         if strict:
@@ -127,7 +127,7 @@ class LifecycleCoordinator:
         self._restore_window()
 
     def on_protected_detected(self, event: ProtectedGameDetected) -> None:
-        """Handle the forgetful case: a protected game started outside Game Hub."""
+        """Handle the forgetful case: a protected game started outside GameRewind."""
         if event.game_id is not None and (
             event.game_id in self._play_launched_games
             or event.game_id in self._active_strict_games

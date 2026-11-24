@@ -199,3 +199,9 @@ Shipping a multi-pillar release safely combines automated static invariants (`te
 Read [CHANGELOG.md](CHANGELOG.md), [M18-review.md](docs/reviews/M18-review.md), [11-v1.2-plan.md](docs/design/11-v1.2-plan.md), and [12-mods-and-arabizations.md](docs/design/12-mods-and-arabizations.md).
 
 Try it yourself. Run `Get-FileHash "$env:USERPROFILE\Desktop\GameHub-Setup-v1.2.0-rc.1.exe" -Algorithm SHA256` and confirm it matches `SHA256SUMS.txt` on the `v1.2.0-rc.1` GitHub pre-release.
+
+
+## M19a — Rename to GameRewind, Automatic Data Migration & Custom-Folder Installer
+When you rename a desktop application that real players already have installed, the hardest part is not changing the window title — it is making the upgrade invisible and lossless. `migrate_legacy_data_root()` runs strictly after the zero-presence anti-cheat check passes, backs up `%LOCALAPPDATA%\GameHub\gamehub.db` through SQLite's online backup API into a staged directory under `%LOCALAPPDATA%\GameRewind`, checks `PRAGMA quick_check` and `PRAGMA foreign_key_check`, copies media/overrides safely (skipping symlinks/junctions), or carries over `store-location.json` if the player already relocated their store. On the installer side, setting `DisableDirPage=no` and `UsePreviousAppDir=no` with a Pascal `[Code]` writability probe lets players pick any writable folder (including Desktop or another drive) without ever requesting administrator privileges, while `PrepareToInstall` quietly runs any legacy Game Hub uninstaller so old Start Menu shortcuts and duplicate Add/Remove entries disappear cleanly without touching user data.
+
+Try it yourself. Run `.\.venv\Scripts\python.exe -m pytest tests/test_store_location.py tests/test_packaging.py -q` to verify both automatic legacy data migration and all GameRewind packaging invariants.

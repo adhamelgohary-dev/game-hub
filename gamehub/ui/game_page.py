@@ -186,7 +186,7 @@ class GamePage(QWidget):
         self._protection_combo.addItem("", "full")
         self._protection_combo.currentIndexChanged.connect(self._emit_protection)
         self._exit_after_launch = QCheckBox(
-            self.tr("Exit Game Hub after launching (ask for note next open)"),
+            self.tr("Exit GameRewind after launching (ask for note next open)"),
             self._protection_card,
         )
         self._exit_after_launch.toggled.connect(self._emit_protection)
@@ -273,7 +273,7 @@ class GamePage(QWidget):
         self._protection_combo.setItemText(1, self.tr("Strict mode"))
         self._protection_combo.setItemText(2, self.tr("Full mode"))
         self._exit_after_launch.setText(
-            self.tr("Exit Game Hub after launching (ask for note next open)")
+            self.tr("Exit GameRewind after launching (ask for note next open)")
         )
 
     def _sync_protection_controls(self, game: GameSummary) -> None:
@@ -302,7 +302,7 @@ class GamePage(QWidget):
                 self.tr("Turn off anti-cheat protection?"),
                 self.tr(
                     "This game uses anti-cheat software. Keeping protection on (Strict-exit) "
-                    "ensures Game Hub closes before the game starts for zero ban risk. "
+                    "ensures GameRewind closes before the game starts for zero ban risk. "
                     "Turn off protection for {game} anyway?"
                 ).format(game=self._game.name),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

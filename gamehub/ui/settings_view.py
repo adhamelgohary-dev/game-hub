@@ -474,7 +474,7 @@ class SettingsView(QWidget):
         self._test_protection_btn.setEnabled(True)
         if ok:
             self._test_protection_result.setText(
-                self.tr("Protection OK — Game Hub closed in {ms} ms").format(ms=elapsed_ms)
+                self.tr("Protection OK — GameRewind closed in {ms} ms").format(ms=elapsed_ms)
             )
         else:
             self._test_protection_result.setText(
@@ -554,7 +554,7 @@ class SettingsView(QWidget):
                         self.tr("Turn off anti-cheat protection?"),
                         self.tr(
                             "This game uses anti-cheat software. Keeping protection on (Strict-exit) "
-                            "ensures Game Hub closes before the game starts for zero ban risk. "
+                            "ensures GameRewind closes before the game starts for zero ban risk. "
                             "Turn off protection for {game} anyway?"
                         ).format(game=gname),
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -649,7 +649,7 @@ class SettingsView(QWidget):
         self._capture_group.setTitle(self.tr("Capture and notes"))
         self._interval_label.setText(self.tr("Capture interval (seconds)"))
         self._interval_hint.setText(
-            self.tr("How often Game Hub saves a quiet screenshot while you play a single-player game.")
+            self.tr("How often GameRewind saves a quiet screenshot while you play a single-player game.")
         )
         self._buffer_label.setText(self.tr("Screenshot ring size"))
         self._buffer_hint.setText(
@@ -686,22 +686,22 @@ class SettingsView(QWidget):
         # 3. Protected games
         self._protection_group.setTitle(self.tr("Protected games"))
         self._external_behavior_label.setText(
-            self.tr("When a protected game starts while Game Hub is open")
+            self.tr("When a protected game starts while GameRewind is open")
         )
         self._external_behavior_hint.setText(
             self.tr(
-                "Recommended: Exit Game Hub automatically so zero presence stays next to anti-cheat games."
+                "Recommended: Exit GameRewind automatically so zero presence stays next to anti-cheat games."
             )
         )
-        self._external_behavior.setItemText(0, self.tr("Exit Game Hub automatically"))
+        self._external_behavior.setItemText(0, self.tr("Exit GameRewind automatically"))
         self._external_behavior.setItemText(1, self.tr("Switch to Strict mode"))
         self._external_behavior.setItemText(2, self.tr("Ask me (Windows notification)"))
         self._launchers_heading.setText(
-            self.tr("Close Game Hub whenever this launcher is open")
+            self.tr("Close GameRewind whenever this launcher is open")
         )
         self._launchers_hint.setText(
             self.tr(
-                "Leave off for launchers where you play single-player story games; protected games still close Game Hub automatically."
+                "Leave off for launchers where you play single-player story games; protected games still close GameRewind automatically."
             )
         )
         self._strict_riot.setText(self.tr("Riot Client (always on for Vanguard safety)"))
@@ -717,7 +717,7 @@ class SettingsView(QWidget):
         )
         self._test_protection_btn.setText(self.tr("Test protection"))
         self._test_protection_hint.setText(
-            self.tr("Runs a safe dummy check to verify Game Hub detects protected games in under a second.")
+            self.tr("Runs a safe dummy check to verify GameRewind detects protected games in under a second.")
         )
         self._rebuild_protected_games_list()
         if self._last_test_result is not None:
@@ -738,7 +738,7 @@ class SettingsView(QWidget):
         )
         self._sgdb_hint.setText(
             self.tr(
-                "This is the only optional internet feature in Game Hub. It sends only game titles using your own API key."
+                "This is the only optional internet feature in GameRewind. It sends only game titles using your own API key."
             )
         )
         self._sgdb_key_label.setText(self.tr("SteamGridDB API key"))
@@ -751,7 +751,7 @@ class SettingsView(QWidget):
 
         self._data_folder_heading.setText(self.tr("Data folder"))
         self._data_folder_hint.setText(
-            self.tr("Where Game Hub stores your notes, screenshots, custom covers, and local database.")
+            self.tr("Where GameRewind stores your notes, screenshots, custom covers, and local database.")
         )
         self._data_path_label.setAccessibleName(self.tr("Current data folder"))
         self._open_folder.setText(self.tr("Open folder"))
@@ -762,18 +762,18 @@ class SettingsView(QWidget):
         self._about_zero_bg.setText(
             self.tr(
                 "Zero background: no system tray, no start with Windows, and no background "
-                "services. Closing the main window exits Game Hub completely."
+                "services. Closing the main window exits GameRewind completely."
             )
         )
         self._about_anticheat.setText(
             self.tr(
                 "Offline and anti-cheat safe: all notes and screenshots stay on your PC. "
-                "Game Hub never injects, hooks, or reads game memory, and closes automatically "
+                "GameRewind never injects, hooks, or reads game memory, and closes automatically "
                 "before protected multiplayer games start."
             )
         )
         self._about_version.setText(
-            self.tr("Game Hub v{version} · MIT License").format(version=__version__)
+            self.tr("GameRewind v{version} · MIT License").format(version=__version__)
         )
         self._reset_defaults_btn.setText(self.tr("Reset to defaults"))
         self._reset_defaults_hint.setText(
@@ -848,7 +848,7 @@ class SettingsView(QWidget):
             "settings_saved": self.tr("Settings saved."),
             "settings_reset": self.tr("Settings restored to defaults."),
             "location_moved_restart": self.tr(
-                "Data folder verified and updated. Restart Game Hub to use the new location."
+                "Data folder verified and updated. Restart GameRewind to use the new location."
             ),
             "invalid_language": self.tr("Select English or Arabic."),
             "invalid_theme": self.tr("Select Dark, Light, or System."),
@@ -864,16 +864,16 @@ class SettingsView(QWidget):
                 "Windows rejected this shortcut because another app uses it. The previous shortcut remains active."
             ),
             "hotkeys_unavailable": self.tr("Global shortcuts are currently unavailable."),
-            "storage_unavailable": self.tr("Game Hub could not save your settings."),
+            "storage_unavailable": self.tr("GameRewind could not save your settings."),
             "location_invalid": self.tr("Choose a local folder on a fixed drive without symlinks."),
             "location_same": self.tr("This folder is already your active data folder."),
             "location_nested": self.tr("Choose a folder outside the current data folder."),
             "location_not_directory": self.tr("The selected path is not a folder."),
             "location_not_empty": self.tr("Choose an empty folder for the moved data store."),
-            "location_unwritable": self.tr("Game Hub cannot write to the selected folder."),
+            "location_unwritable": self.tr("GameRewind cannot write to the selected folder."),
             "location_move_failed": self.tr(
-                "Game Hub could not move the data folder. Your previous folder remains active."
+                "GameRewind could not move the data folder. Your previous folder remains active."
             ),
-            "open_folder_failed": self.tr("Game Hub could not open the data folder."),
+            "open_folder_failed": self.tr("GameRewind could not open the data folder."),
         }
-        return messages.get(code, self.tr("Game Hub could not apply this setting."))
+        return messages.get(code, self.tr("GameRewind could not apply this setting."))

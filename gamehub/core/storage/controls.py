@@ -81,16 +81,16 @@ def encode_uploaded_image(source: Path) -> bytes:
         ) from error
 
     if not is_bounded_webp(encoded):
-        raise ValueError("Game Hub could not encode this image.")
+        raise ValueError("GameRewind could not encode this image.")
     return encoded
 
 
 def _require_game(connection: sqlite3.Connection, game_id: str) -> None:
     if not media.UUID.fullmatch(game_id):
-        raise StorageError("Game Hub could not validate this game.")
+        raise StorageError("GameRewind could not validate this game.")
     row = connection.execute("SELECT 1 FROM games WHERE id = ? AND hidden = 0", (game_id,)).fetchone()
     if row is None:
-        raise StorageError("Game Hub could not find this game.")
+        raise StorageError("GameRewind could not find this game.")
 
 
 class ControlsRepository:
@@ -117,7 +117,7 @@ class ControlsRepository:
                     (control_id, game_id, relative.as_posix(), created_at),
                 )
         except OSError as error:
-            raise StorageError("Game Hub could not save this controls image.") from error
+            raise StorageError("GameRewind could not save this controls image.") from error
         return control_id
 
     def import_image(self, game_id: str, source: Path) -> str:

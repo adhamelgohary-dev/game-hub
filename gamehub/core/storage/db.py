@@ -207,7 +207,7 @@ class Database:
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
         except OSError as error:
-            raise StorageError("Game Hub could not open its data folder.") from error
+            raise StorageError("GameRewind could not open its data folder.") from error
 
         with self._connection("rwc") as connection:
             version = connection.execute("PRAGMA user_version").fetchone()[0]
@@ -223,7 +223,7 @@ class Database:
                 if needs_rebuild:
                     connection.execute("PRAGMA foreign_keys = ON")
             if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
-                raise StorageError("Game Hub found inconsistent records in its database.")
+                raise StorageError("GameRewind found inconsistent records in its database.")
 
     @contextmanager
     def _connection(self, mode: str) -> Iterator[sqlite3.Connection]:
@@ -234,7 +234,7 @@ class Database:
                 connection.execute("PRAGMA foreign_keys = ON")
                 yield connection
         except sqlite3.Error as error:
-            raise StorageError("Game Hub could not access its database.") from error
+            raise StorageError("GameRewind could not access its database.") from error
 
     @staticmethod
     @contextmanager
@@ -252,16 +252,16 @@ class Database:
     def _initialize(self, connection: sqlite3.Connection) -> None:
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version > SCHEMA_VERSION:
-            raise StorageError("This database requires a newer version of Game Hub.")
+            raise StorageError("This database requires a newer version of GameRewind.")
         if version < 0:
-            raise StorageError("Game Hub found an unrecognized database schema.")
+            raise StorageError("GameRewind found an unrecognized database schema.")
         if connection.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
-            raise StorageError("Game Hub could not verify its database.")
+            raise StorageError("GameRewind could not verify its database.")
         if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
-            raise StorageError("Game Hub found inconsistent records in its database.")
+            raise StorageError("GameRewind found inconsistent records in its database.")
 
         if version == 0 and connection.execute("SELECT 1 FROM sqlite_schema LIMIT 1").fetchone() is not None:
-            raise StorageError("Game Hub found an unrecognized database schema.")
+            raise StorageError("GameRewind found an unrecognized database schema.")
         if 0 < version < SCHEMA_VERSION:
             self._backup(version)
 
@@ -289,7 +289,7 @@ class Database:
                     source.backup(destination)
                 staged.replace(backup)
         except OSError as error:
-            raise StorageError("Game Hub could not back up its database before upgrading.") from error
+            raise StorageError("GameRewind could not back up its database before upgrading.") from error
 
     @contextmanager
     def read(self) -> Iterator[sqlite3.Connection]:

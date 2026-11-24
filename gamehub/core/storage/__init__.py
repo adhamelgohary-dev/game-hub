@@ -1,1 +1,1 @@
-"""Local SQLite storage for Game Hub."""
+"""Local SQLite storage for GameRewind."""

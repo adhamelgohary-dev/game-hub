@@ -31,7 +31,7 @@ class SingleInstance:
             raise RuntimeError("Could not start the local activation service.")
 
         if self._lock.error() != QLockFile.LockError.LockFailedError:
-            raise OSError("Could not lock the local Game Hub data folder.")
+            raise OSError("Could not lock the local GameRewind data folder.")
 
         # Another process may have the lock but still be opening its local server.
         deadline = monotonic() + 1
@@ -42,7 +42,7 @@ class SingleInstance:
                 client.disconnectFromServer()
                 return False
             sleep(0.025)
-        raise RuntimeError("The running Game Hub instance did not respond.")
+        raise RuntimeError("The running GameRewind instance did not respond.")
 
     def _accept_activation(self) -> None:
         while self._server.hasPendingConnections():

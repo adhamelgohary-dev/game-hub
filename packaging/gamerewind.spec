@@ -58,8 +58,8 @@ analysis = Analysis(
             str(root / 'gamehub' / 'core' / 'protection' / 'protected_games.json'),
             'gamehub/core/protection',
         ),
-        (str(root / 'packaging' / 'assets' / 'GameHub.png'), 'assets'),
-        (str(root / 'packaging' / 'assets' / 'GameHub.ico'), 'assets'),
+        (str(root / 'packaging' / 'assets' / 'GameRewind.png'), 'assets'),
+        (str(root / 'packaging' / 'assets' / 'GameRewind.ico'), 'assets'),
     ],
 )
 # The app declares a Windows x64 target and uses the Windows default input.
@@ -76,17 +76,17 @@ exe = EXE(
     analysis.scripts,
     [],
     exclude_binaries=True,
-    name='GameHub',
+    name='GameRewind',
     console=False,
     upx=False,
-    icon=str(root / 'packaging' / 'assets' / 'GameHub.ico'),
+    icon=str(root / 'packaging' / 'assets' / 'GameRewind.ico'),
     version=str(root / 'packaging' / 'version_info.txt'),
-    manifest=str(root / 'packaging' / 'GameHub.manifest'),
+    manifest=str(root / 'packaging' / 'GameRewind.manifest'),
 )
 collect = COLLECT(
     exe,
     analysis.binaries,
     analysis.datas,
-    name='GameHub',
+    name='GameRewind',
     upx=False,
 )

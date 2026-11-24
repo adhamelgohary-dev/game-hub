@@ -160,7 +160,7 @@ class LastTimeController(QObject):
             self._autoplay = autoplay
         except (OSError, StorageError):
             LOGGER.warning("last_time_load_unavailable")
-            self._notify(self.tr("Game Hub could not load the Last time card."))
+            self._notify(self.tr("GameRewind could not load the Last time card."))
             return False
 
         if data is None:
@@ -227,7 +227,7 @@ class LastTimeController(QObject):
             card.show_voice_error(self.tr("This voice note is unavailable."))
             return
         if not self._player.play(clip):
-            card.show_voice_error(self.tr("Game Hub could not play this voice note."))
+            card.show_voice_error(self.tr("GameRewind could not play this voice note."))
 
     def _playing_changed(self, playing: bool) -> None:
         if self._card is not None:
@@ -235,7 +235,7 @@ class LastTimeController(QObject):
 
     def _playback_failed(self) -> None:
         if self._card is not None:
-            self._card.show_voice_error(self.tr("Game Hub could not play this voice note."))
+            self._card.show_voice_error(self.tr("GameRewind could not play this voice note."))
 
     def _set_autoplay(self, card: LastTimeCard, enabled: bool) -> None:
         if self._closed:
@@ -250,7 +250,7 @@ class LastTimeController(QObject):
                 future.result()
             except StorageError:
                 self._autoplay = previous
-                message = self.tr("Game Hub could not save the voice autoplay preference.")
+                message = self.tr("GameRewind could not save the voice autoplay preference.")
                 if self._card is card:
                     card.set_autoplay_checked(previous)
                     card.show_error(message)
@@ -299,7 +299,7 @@ class LastTimeController(QObject):
             )
         if diagnostic in {"launch_invalid_target", "launch_unavailable"}:
             return self.tr(
-                "Game Hub could not launch this game. Check that its executable or launcher entry is still available."
+                "GameRewind could not launch this game. Check that its executable or launcher entry is still available."
             )
         return self.tr(
             "Windows could not start this game. You can try again or start it from its launcher."

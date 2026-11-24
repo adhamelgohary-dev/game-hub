@@ -75,7 +75,7 @@ class ControlsController(QObject):
                 )
             except StorageError:
                 self.errorOccurred.emit(
-                    game_id, self.tr("Game Hub could not save this controls image.")
+                    game_id, self.tr("GameRewind could not save this controls image.")
                 )
             else:
                 self._publish(MemoryChanged(game_id, None, "control_image", control_id))
@@ -100,7 +100,7 @@ class ControlsController(QObject):
                 )
             except StorageError:
                 self.errorOccurred.emit(
-                    game_id, self.tr("Game Hub could not save this controls note.")
+                    game_id, self.tr("GameRewind could not save this controls note.")
                 )
             else:
                 self._publish(MemoryChanged(game_id, None, "control_text", control_id))
@@ -127,7 +127,7 @@ class ControlsController(QObject):
                 LOGGER.warning("controls_pin_save_failed")
                 self._notify(
                     self.tr(
-                        "Game Hub could not save the pinned controls image. "
+                        "GameRewind could not save the pinned controls image. "
                         "You can upload a local image from the game page."
                     )
                 )

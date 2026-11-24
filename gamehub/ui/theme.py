@@ -375,11 +375,11 @@ def app_icon_path() -> Path | None:
     if getattr(sys, "frozen", False):
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
-            candidates.append(Path(meipass) / "assets" / "GameHub.png")
-            candidates.append(Path(meipass) / "assets" / "GameHub.ico")
+            candidates.append(Path(meipass) / "assets" / "GameRewind.png")
+            candidates.append(Path(meipass) / "assets" / "GameRewind.ico")
     repo_assets = Path(__file__).resolve().parents[2] / "packaging" / "assets"
-    candidates.append(repo_assets / "GameHub.png")
-    candidates.append(repo_assets / "GameHub.ico")
+    candidates.append(repo_assets / "GameRewind.png")
+    candidates.append(repo_assets / "GameRewind.ico")
     for path in candidates:
         if path.is_file():
             return path

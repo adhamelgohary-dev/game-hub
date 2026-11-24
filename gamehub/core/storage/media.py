@@ -60,7 +60,7 @@ _BACKUP_SEMANTICS = 0x0200_0000
 def validate_root(root: Path, database_path: Path) -> Path:
     root = root.absolute()
     if root != database_path.parent or local_path(root) is None:
-        raise StorageError("Game Hub could not validate the media data folder.")
+        raise StorageError("GameRewind could not validate the media data folder.")
     return root
 
 
@@ -163,7 +163,7 @@ def read_file(path: Path, max_bytes: int, *, prefix_bytes: int | None = None) ->
 def stage_file(media: Path, path: Path, data: bytes) -> None:
     """Write and flush a new staging file, then promote it on the same volume."""
     if not path.is_relative_to(media) or ".." in path.parts:
-        raise StorageError("Game Hub found an invalid media location.")
+        raise StorageError("GameRewind found an invalid media location.")
     with protect_directory(path.parent, create_from=media):
         staged = path.with_suffix(f"{path.suffix}.tmp")
         with staged.open("xb") as output:

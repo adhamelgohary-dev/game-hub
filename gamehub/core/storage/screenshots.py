@@ -68,7 +68,7 @@ class ScreenshotRepository:
                 ).fetchall()
                 connection.executemany("DELETE FROM screenshots WHERE id = ?", ((row["id"],) for row in evicted))
         except OSError as error:
-            raise StorageError("Game Hub could not save the screenshot.") from error
+            raise StorageError("GameRewind could not save the screenshot.") from error
 
         for row in evicted:
             old = _relative(game_id, session_id, row["id"])

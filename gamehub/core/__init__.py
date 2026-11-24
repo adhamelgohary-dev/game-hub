@@ -1,1 +1,1 @@
-"""Services shared by the Game Hub modules."""
+"""Services shared by the GameRewind modules."""

@@ -131,7 +131,7 @@ class LibraryController(QObject):
         except (OSError, StorageError):
             if not quiet:
                 self._view.show_error(
-                    self.tr("Game Hub could not read or update your library. Try again.")
+                    self.tr("GameRewind could not read or update your library. Try again.")
                 )
             return
         self._view.present_games(result.games)

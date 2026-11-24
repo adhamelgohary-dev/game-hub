@@ -1,6 +1,6 @@
-Game Hub third-party notices
+GameRewind third-party notices
 
-The Game Hub application source is licensed under the MIT License (see LICENSE).
+The GameRewind application source is licensed under the MIT License (see LICENSE).
 The components below retain their own licenses. Their license texts are
 included alongside this notice.
 

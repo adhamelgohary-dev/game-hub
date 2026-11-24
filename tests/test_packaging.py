@@ -70,18 +70,18 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
     assert "https://www.steamgriddb.com/api/v2" in sgdb_src
     assert 'if not enabled or not key or not query:' in sgdb_src
 
-    manifest = Path("packaging/GameHub.manifest").read_text(encoding="utf-8")
+    manifest = Path("packaging/GameRewind.manifest").read_text(encoding="utf-8")
     assert "asInvoker" in manifest
     assert "requireAdministrator" not in manifest
     assert "highestAvailable" not in manifest
-    spec = Path("packaging/gamehub.spec").read_text(encoding="utf-8")
+    spec = Path("packaging/gamerewind.spec").read_text(encoding="utf-8")
     assert "upx=False" in spec
     assert "upx=True" not in spec
 
 
 def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     root = Path(".")
-    spec_text = (root / "packaging" / "gamehub.spec").read_text(encoding="utf-8")
+    spec_text = (root / "packaging" / "gamerewind.spec").read_text(encoding="utf-8")
     installer_text = (root / "packaging" / "installer.iss").read_text(encoding="utf-8")
     notices_text = (root / "packaging" / "THIRD_PARTY_NOTICES.txt").read_text(encoding="utf-8")
 
@@ -90,23 +90,29 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
         assert path.is_file() and path.stat().st_size > 100, f"Missing license {path}"
         assert license_file in spec_text
 
-    # Every pinned runtime dependency must be collected for notices in gamehub.spec.
+    # Every pinned runtime dependency must be collected for notices in gamerewind.spec.
     for line in (root / "requirements.txt").read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
         package = stripped.split("==")[0]
-        assert f"'{package}'" in spec_text, f"Missing {package!r} in packaging/gamehub.spec"
+        assert f"'{package}'" in spec_text, f"Missing {package!r} in packaging/gamerewind.spec"
 
-    assert __version__ == "1.2.0-rc.1"
+    assert __version__
     assert "PrivilegesRequired=lowest" in installer_text
-    assert "GameHub-Setup" in installer_text
+    assert "DisableDirPage=no" in installer_text
+    assert "UsePreviousAppDir=no" in installer_text
+    assert "DefaultDirName={localappdata}\\Programs\\GameRewind" in installer_text
+    assert "GameRewind-Setup" in installer_text
+    assert 'Name: "desktopicon"' in installer_text
+    assert "IsDirWritable" in installer_text
+    assert "LegacyGameHubUninstallKey" in installer_text
     assert "Flags: deletevalue uninsdeletevalue dontcreatekey" in installer_text
     assert "ValueType: none" in installer_text
     assert "[InstallDelete]" in installer_text
     assert "protected_games.json" in spec_text
     assert "version_info.txt" in spec_text
-    assert "GameHub.manifest" in spec_text
+    assert "GameRewind.manifest" in spec_text
     assert "FFmpeg" in notices_text
     assert "PySide6 Addons" in notices_text
     assert "MIT License" in notices_text
@@ -116,11 +122,11 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert (root / "CONTRIBUTING.md").is_file()
     assert (root / "docs" / "SIGNPATH-APPLICATION.md").is_file()
     assert (root / "packaging" / "version_info.txt").is_file()
-    assert (root / "packaging" / "GameHub.manifest").is_file()
-    for asset in ("GameHub.ico", "GameHub.png", "wizard-sidebar.bmp", "wizard-header.bmp"):
+    assert (root / "packaging" / "GameRewind.manifest").is_file()
+    for asset in ("GameRewind.ico", "GameRewind.png", "wizard-sidebar.bmp", "wizard-header.bmp"):
         assert (root / "packaging" / "assets" / asset).is_file(), f"Missing asset {asset}"
-    assert "GameHub.ico" in spec_text and "GameHub.png" in spec_text
-    assert "SetupIconFile=assets\\GameHub.ico" in installer_text
+    assert "GameRewind.ico" in spec_text and "GameRewind.png" in spec_text
+    assert "SetupIconFile=assets\\GameRewind.ico" in installer_text
     assert "WizardImageFile=assets\\wizard-sidebar.bmp" in installer_text
     assert "WizardSmallImageFile=assets\\wizard-header.bmp" in installer_text
     assert (root / "docs" / "USER-GUIDE-AR.md").is_file()
@@ -128,3 +134,5 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
     assert "SIGNPATH_ENABLED" in workflow_text
     assert "SHA256SUMS.txt" in workflow_text
     assert "tags: ['v*']" in workflow_text
+    assert "GameRewind-Setup-" in workflow_text
+    assert "GameRewind-Portable-" in workflow_text

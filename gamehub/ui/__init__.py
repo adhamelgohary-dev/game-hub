@@ -1,1 +1,1 @@
-"""Qt user interface for Game Hub."""
+"""Qt user interface for GameRewind."""

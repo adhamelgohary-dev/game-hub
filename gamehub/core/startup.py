@@ -9,7 +9,7 @@ if os.name == "nt":
 
 LOGGER = logging.getLogger(__name__)
 _RUN_SUBKEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-_VALUE_NAME = "GameHub"
+_VALUE_NAMES = ("GameHub", "GameRewind")
 
 
 def _delete_windows_run() -> None:
@@ -19,7 +19,11 @@ def _delete_windows_run() -> None:
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, _RUN_SUBKEY, 0, winreg.KEY_SET_VALUE
         ) as key:
-            winreg.DeleteValue(key, _VALUE_NAME)
+            for value_name in _VALUE_NAMES:
+                try:
+                    winreg.DeleteValue(key, value_name)
+                except FileNotFoundError:
+                    continue
     except FileNotFoundError:
         return
 
