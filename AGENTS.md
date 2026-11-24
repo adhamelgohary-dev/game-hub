@@ -1,6 +1,6 @@
-# Game Hub working rules
+# GameRewind working rules
 
-- Follow PROMPT.md and STRUCTURE.txt. On resume, pull the verified private remote without rewriting history, then read HANDOFF.md, PROGRESS.md, DECISIONS.md and the design index. Run the full existing test suite and build first; fix any baseline failure with small, safe steps before starting new work. Follow the exact next step.
+- Follow PROMPT.md and STRUCTURE.txt. On resume, run `git pull` on the verified PUBLIC remote (`adhamelgohary-dev/game-rewind`, keep it public) without rewriting history, then read `AGENTS.md`, `HANDOFF.md`, `PROGRESS.md`, `DECISIONS.md`, `docs/design/README.md` (plus task-relevant design files), and `docs/SECURITY-AUDIT-v1.2.md`. Run the full existing test suite, `ruff check .`, and a PyInstaller build before changing anything; fix any baseline failure with small, safe steps before starting new work. Follow the exact next step.
 - Route work to the build roles in the design plan (simulate roles one at a time with labeled outputs if sub-agents cannot be spawned). Design comes before implementation. Update the relevant design file and DECISIONS.md before changing the design in code.
 - Respect previous work: follow `docs/design/` and existing patterns; do not rewrite, refactor, rename, restructure, or delete existing code unless the current task requires it (and record why in DECISIONS.md). Note anomalies under Open questions in HANDOFF.md with the smallest safe fix.
 - Use the four Review Council roles (Advocate, Critic, Neutral Analyst, Judge) on the overall plan and at each milestone gate. Record the Judge's verdict in docs/reviews and address required changes within two re-review rounds.
