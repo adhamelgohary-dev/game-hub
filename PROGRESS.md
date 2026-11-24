@@ -20,29 +20,26 @@
 - ✅ Owner Gate 1 — Approved UI mockups (with 5 refinements) and `m0–m8` release cleanup plan [simple]
 - ✅ M11 — Fluent UI redesign (Dark/Light + Arabic RTL + covers + icon + installer branding) (Part D) [complex]
 - ✅ M12b — Release cleanup (`v1.0.0` at `m8`, deleted `m0–m8` releases), publish `v1.1.0-rc.1` pre-release, copy installer to Desktop & deliver 10-item Egyptian Arabic checklist (Parts F & G) [complex]
-- ✅ M12c — `v1.1.0-rc.2` pre-release polish: verify EAC Strict defaults (Elden Ring, Armored Core VI, Elden Ring Nightreign, Lords of the Fallen, Space Marine 2; Dark Souls III stays Full), remove visible button mnemonic underlines, update Arabic catalog & screenshots, publish `v1.1.0-rc.2` & copy installer to Desktop [simple]
-- 🔄 Owner Gate 2 — Waiting for owner to run the 10-item RC2 Windows test checklist and reply `"verified"` [simple]
-- ⬜ M13 — Publish final `v1.1.0` after owner replies `"verified"` (Part G) [simple]
+- ✅ M12c — `v1.1.0-rc.2` pre-release polish [simple]
 
-## v1.2 ("GameRewind — Zero-Presence Anti-Cheat + All Launchers + Fitting Covers + Plain Settings + Translations & Mods") — Replaces unverified `v1.1.0-rc.2`
+## v1.2 ("GameRewind — Zero-Presence Anti-Cheat + All Launchers + Fitting Covers + Plain Settings + Simplified Translations & Mods")
 - ✅ D-v1.2 — Anti-cheat research v2, v1.2 design, Part 6 Mods design & mockups, Rename conflict check, Council APPROVE [complex]
 - ✅ M14 — Part 1: Zero-Presence Anti-Cheat Protocol (Layers 1–7 + Settings Protected Games UI) [complex]
 - ✅ M15 — Part 2: Fix Epic & Steam, add Riot/GOG/EA/Ubisoft/Battle.net/itch/Xbox detectors, Scan Folders, plain scan warnings [complex]
 - ✅ M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
 - ✅ M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
-- ✅ M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
-- ✅ Owner Gate (v1.2 RC1) — Owner approved `"GameRewind"` rename, custom-folder installer, and simplified Part 6 Translations & Mods [simple]
-- ✅ D-v1.2-rc2 — Design finalized for GameRewind rename, custom-folder installer, and simplified Mods (`0b3d922`) [complex]
-- ✅ M19a — Rename app/binaries/installer/repo to `GameRewind` (`adhamelgohary-dev/game-rewind`), auto legacy data migration, custom-folder installer (`79ad967`, tagged `m19a`) [complex]
-- ✅ M20 — Part 6: Simplified Translations & Mods with On/Off list, one-click Restore Original, plain conflict chooser, crash-safe journal, Schema v7 (`15eb93c`, tagged `m20`) [complex]
-- ✅ M20b (`v1.2.0-rc.2` Security Hardening & Pre-Release) — Remediated all Round 1 Red-Team findings R1–R7, uninstalled `psutil`, verified `226 passed` + `ruff` clean + clean PyInstaller frozen & portable smoke tests + `156–188 ms` dummy-process guard trials, passed `docs/reviews/M20b-v1.2.0-rc.2-review.md`, and prepared `v1.2.0-rc.2` pre-release [complex]
-- 🔄 Owner Gate (v1.2 RC2) — Waiting for owner to test `GameRewind-Setup-v1.2.0-rc.2.exe` and reply `"verified"` [simple]
-- ⬜ M21 — Publish final `GameRewind v1.2.0` after owner replies `"verified"` [simple]
+- ✅ M18 — Package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
+- ✅ D-v1.2-rc2 — Owner-approved GameRewind rename, custom-folder installer, and simplified Translations & Mods design + 3 updated PNG mockups [complex]
+- ✅ M19a — Rename app, exe, installer, portable zip, data folder (`%LOCALAPPDATA%\GameRewind` with automatic `%LOCALAPPDATA%\GameHub` migration), docs, and GitHub repo (`adhamelgohary-dev/game-rewind`); custom-folder per-user installer (`DisableDirPage=no`, `UsePreviousAppDir=no`, writable validation, desktop shortcut, legacy Game Hub cleanup) [complex]
+- ✅ M20 — Simplified Translations & Mods (Schema v7, crash-safe journal, declarative-only manifest validator, sidebar page + per-game tab, On/Off switches, "Restore the original game", plain two-button conflict chooser, permanent lock on protected/online games, sample pack fixture) [complex]
+- ✅ M21 — Independent 8-agent Red-Team Security Re-Audit (`docs/reviews/security/a–h` + Judge consolidation + 3 rounds → **0 open findings**; removed `psutil` completely, fixed idle Vanguard `vgc` lockout, 200 ms `os._exit` failsafe, `QueryUnbiasedInterruptTime` sleep immunity, hardened Mods/Installer/Xbox/SteamGridDB, `docs/SECURITY-AUDIT-v1.2.md` & `docs/SECURITY-AUDIT-v1.2-AR.md`) [complex]
+- ✅ M22 — Publish `GameRewind v1.2.0-rc.2` pre-release via Windows CI, verify SHA-256 & installer/upgrade/folder-change/uninstall checks, copy `GameRewind-Setup-v1.2.0-rc.2.exe` + `Sample-Translation-Pack.zip` to Desktop [simple]
+- 🔄 Owner Gate (v1.2-rc.2) — Waiting for owner to run the 10-item Egyptian Arabic click checklist on `GameRewind-Setup-v1.2.0-rc.2.exe` and reply `"verified"` [simple]
+- ⬜ M23 — Bump version to `1.2.0` and publish final `GameRewind v1.2.0` after owner replies `"verified"` [simple]
 
-**Current task** — Paused cleanly on green `main` at **Owner Gate (v1.2 RC2)** awaiting owner verification of `GameRewind v1.2.0-rc.2` before publishing final `v1.2.0`.
+**Current task** — Paused cleanly on green `main` at **Owner Gate (v1.2-rc.2)** awaiting owner verification of `GameRewind-Setup-v1.2.0-rc.2.exe` on Desktop.
 
 **Last completed**
-- **M20 (`15eb93c`, tag `m20`):** Implemented simplified Translations & Mods (`gamehub/modules/mods/`, `gamehub/ui/mods_view.py`, SQLite Schema v7 with `gamehub.db-v6.bak`).
-- **M20b (`v1.2.0-rc.2` Security Hardening & Pre-Release):** Closed all Round 1 Red-Team groups R1–R7 (zero `psutil` + `GetProcessTimes`, Vanguard `vgc` exclusion + 2XKO/Ubisoft/Battle.net/EA IDs, non-blocking `<250 ms` emergency exit, `QueryUnbiasedInterruptTime` watchdog + additive overrides + startup custom-strict, hardened Mods PE/casefold/relative-backup checks, hardened Inno Setup + SHA-pinned CI + registry-only Xbox + redirect-free SteamGridDB), passed `226 passed`, `ruff` clean, clean PyInstaller frozen & portable smoke tests, `docs/reviews/M20b-v1.2.0-rc.2-review.md` APPROVE, and published `GameRewind v1.2.0-rc.2`.
+- **M21 & M22 (`GameRewind v1.2.0-rc.2` Pre-Release):** Passed 8-agent Red-Team security audit with **0 open findings** across all 8 domains (`docs/SECURITY-AUDIT-v1.2.md`), verified `226 passed`, `ruff` clean, zero `psutil`, frozen Python-free `PATH` `--smoke-test` exit `0`, 40-trial frozen latency benchmarks (Fortnite avg `111.6 ms`, Valorant avg `187.4 ms`), and published `GameRewind v1.2.0-rc.2` with verified assets on Desktop.
 
-**Tests** — 226 tests passing (`pytest -q`) without `psutil`, `ruff check .` clean, frozen & portable Python-free `PATH` smoke tests passing (`exit 0`), 20 real dummy-process trials `156–188 ms`, Windows CI release gate passing.
+**Tests** — 226 tests, `ruff check .`, local PyInstaller frozen smoke test, and Windows CI release workflow passing.
