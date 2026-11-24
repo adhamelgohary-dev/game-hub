@@ -500,6 +500,7 @@ class ProtectionGuard:
     def unignore_pid(self, pid: int) -> None:
         with self._config_lock:
             self._ignored_pids.discard(int(pid))
+            self._last_pid_sig = None
 
     def self_check(self) -> ProtectionTrigger | None:
         """Run mandatory startup self-test before showing any window.

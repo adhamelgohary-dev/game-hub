@@ -12,6 +12,7 @@ import stat
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 from threading import Lock
+from time import monotonic
 from uuid import uuid4
 
 from gamehub.core.library.models import GameSummary
@@ -186,7 +187,7 @@ class ModsEngine:
         self._scanner = process_scanner if process_scanner is not None else ToolhelpProcessScanner()
         self._service_probe = service_probe if service_probe is not None else WindowsServiceProbe()
         self._op_lock = Lock()
-        self._protected_cache: dict[tuple[str, str, str, int], tuple[bool, str]] = {}
+        self._protected_cache: dict[tuple[str, str, str, int], tuple[float, bool, str]] = {}
 
     def invalidate_protection_cache(self) -> None:
         self._protected_cache.clear()
@@ -197,12 +198,13 @@ class ModsEngine:
         """Return (True, reason) for ANY protected/online/strict game (even if user overrode mode).
 
         Checks:
-        1. Catalog match on source/source_id + registered target basenames.
+        1. Catalog match on source/source_id + registered target basenames + normalized title.
         2. Deep bounded scan of game.install_dir for ANY protected exe basename.
         3. Path overlap with any protected game's install_dir in the library.
         4. Explicit strict protection mode.
         """
         cache_key: tuple[str, str, str, int] | None = None
+        now = monotonic()
         if use_cache:
             dir_str = str(game.install_dir) if game.install_dir is not None else ""
             dir_mtime = 0
@@ -213,14 +215,14 @@ class ModsEngine:
                     dir_mtime = -1
             cache_key = (game.id, game.protection_mode, dir_str, dir_mtime)
             cached = self._protected_cache.get(cache_key)
-            if cached is not None:
-                return cached
+            if cached is not None and (now - cached[0]) <= 15.0:
+                return cached[1], cached[2]
 
         result = self._compute_game_protected(game)
         if cache_key is not None:
             if len(self._protected_cache) > 512:
                 self._protected_cache.clear()
-            self._protected_cache[cache_key] = result
+            self._protected_cache[cache_key] = (now, result[0], result[1])
         return result
 
     def _compute_game_protected(self, game: GameSummary) -> tuple[bool, str]:
@@ -228,13 +230,17 @@ class ModsEngine:
         exes = set(basenames_by_game.get(game.id, ()))
         if game.install_dir is not None:
             exes.update(_scan_dir_exes(game.install_dir))
-        matched = self._catalog.match_game(game.source, game.source_id, exes)
+        matched = self._catalog.match_game(
+            game.source, game.source_id, exes, game_name=game.name
+        )
         if matched is not None:
             return True, matched.anti_cheat
         if game.protection_mode == "strict":
             return True, "Strict mode"
         if (
-            self._catalog.effective_mode(game.protection_mode, game.source, game.source_id, exes)
+            self._catalog.effective_mode(
+                game.protection_mode, game.source, game.source_id, exes, game_name=game.name
+            )
             == "strict"
         ):
             return True, "Protected game"
@@ -244,7 +250,9 @@ class ModsEngine:
                 if other.id == game.id or other.install_dir is None:
                     continue
                 other_exes = basenames_by_game.get(other.id, ())
-                other_match = self._catalog.match_game(other.source, other.source_id, other_exes)
+                other_match = self._catalog.match_game(
+                    other.source, other.source_id, other_exes, game_name=other.name
+                )
                 if (other_match is not None or other.protection_mode == "strict") and _paths_overlap(
                     game.install_dir, other.install_dir
                 ):

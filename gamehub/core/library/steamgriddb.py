@@ -8,6 +8,7 @@ and it does nothing unless both ``enabled=True`` and a non-empty user-supplied
 from __future__ import annotations
 
 import json
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -19,6 +20,7 @@ _ALLOWED_CDN_HOSTS: frozenset[str] = frozenset({"cdn.steamgriddb.com", "cdn2.ste
 _REQUEST_TIMEOUT_SEC = 6.0
 _MAX_JSON_BYTES = 256 * 1024
 _MAX_IMAGE_BYTES = 8 * 1024 * 1024
+_MAX_API_KEY_LEN = 128
 _LANDSCAPE_DIMS = "460x215,920x430"
 
 
@@ -32,13 +34,34 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
 def _validate_https_host(url: str, allowed_hosts: frozenset[str]) -> None:
     parsed = urllib.parse.urlparse(url)
     host = (parsed.hostname or "").lower()
-    if parsed.scheme != "https" or host not in allowed_hosts:
+    if (
+        parsed.scheme != "https"
+        or host not in allowed_hosts
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port not in (None, 443)
+    ):
         raise ValueError(f"Disallowed HTTPS host: {host!r}")
+
+
+def _is_valid_image_magic(data: bytes) -> bool:
+    """Verify downloaded cover bytes begin with PNG, JPEG, or WebP magic headers."""
+    if len(data) < 12:
+        return False
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return True
+    if data.startswith(b"\xff\xd8\xff"):
+        return True
+    return data[:4] == b"RIFF" and data[8:12] == b"WEBP"
 
 
 def _default_get_bytes(url: str, headers: dict[str, str], max_bytes: int) -> bytes:
     _validate_https_host(url, _ALLOWED_API_HOSTS | _ALLOWED_CDN_HOSTS)
-    opener = urllib.request.build_opener(_NoRedirectHandler())
+    tls_context = ssl.create_default_context()
+    opener = urllib.request.build_opener(
+        _NoRedirectHandler(),
+        urllib.request.HTTPSHandler(context=tls_context),
+    )
     req = urllib.request.Request(url, headers=headers, method="GET")
     with opener.open(req, timeout=_REQUEST_TIMEOUT_SEC) as resp:
         data = resp.read(max_bytes + 1)
@@ -58,9 +81,11 @@ def _extract_grid_url(payload: object) -> str | None:
             continue
         url = item.get("url")
         if isinstance(url, str):
-            parsed = urllib.parse.urlparse(url)
-            if parsed.scheme == "https" and (parsed.hostname or "").lower() in _ALLOWED_CDN_HOSTS:
+            try:
+                _validate_https_host(url, _ALLOWED_CDN_HOSTS)
                 return url
+            except ValueError:
+                continue
     return None
 
 
@@ -75,6 +100,8 @@ def fetch_steamgriddb_cover(
     key = api_key.strip()
     query = game_name.strip()
     if not enabled or not key or not query:
+        return None
+    if len(key) > _MAX_API_KEY_LEN or not key.isascii() or "\n" in key or "\r" in key:
         return None
 
     getter = http_get if http_get is not None else _default_get_bytes
@@ -93,7 +120,7 @@ def fetch_steamgriddb_cover(
         if not isinstance(matches, list) or not matches or not isinstance(matches[0], dict):
             return None
         sgdb_id = matches[0].get("id")
-        if not isinstance(sgdb_id, int):
+        if type(sgdb_id) is not int or sgdb_id <= 0:
             return None
 
         # Prefer wide landscape grids matching the 16:9 library card proportion.
@@ -110,6 +137,9 @@ def fetch_steamgriddb_cover(
             return None
 
         image_headers = {"User-Agent": "GameRewind/1.2"}
-        return getter(image_url, image_headers, _MAX_IMAGE_BYTES)
+        raw_image = getter(image_url, image_headers, _MAX_IMAGE_BYTES)
+        if not _is_valid_image_magic(raw_image):
+            return None
+        return raw_image
     except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError):
         return None

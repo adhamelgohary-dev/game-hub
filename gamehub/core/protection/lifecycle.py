@@ -73,7 +73,9 @@ class LifecycleCoordinator:
         except StorageError:
             return True
         return (
-            self._catalog.effective_mode(game.protection_mode, game.source, game.source_id, exes)
+            self._catalog.effective_mode(
+                game.protection_mode, game.source, game.source_id, exes, game_name=game.name
+            )
             == "strict"
         )
 

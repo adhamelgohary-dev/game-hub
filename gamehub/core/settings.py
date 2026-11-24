@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from gamehub.core.hotkeys.windows import canonical_shortcut
+from gamehub.core.secrets import protect_secret, unprotect_secret
 from gamehub.core.storage.db import Database, StorageError
 
 LOGGER = logging.getLogger(__name__)
@@ -206,6 +207,8 @@ class SettingsService:
             except ValueError:
                 LOGGER.warning("invalid_setting key=%s", key)
                 continue
+            if key == "covers.steamgriddb_api_key" and isinstance(parsed, str):
+                parsed = unprotect_secret(parsed)
             ok, validated, _ = _validate_value(key, parsed)
             if ok:
                 values[key] = validated
@@ -324,7 +327,17 @@ class SettingsService:
                 connection.executemany(
                     "INSERT INTO settings (key, value) VALUES (?, ?) "
                     "ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-                    [(key, json.dumps(validated_patch[key])) for key in changed_keys],
+                    [
+                        (
+                            key,
+                            json.dumps(
+                                protect_secret(str(validated_patch[key]))
+                                if key == "covers.steamgriddb_api_key"
+                                else validated_patch[key]
+                            ),
+                        )
+                        for key in changed_keys
+                    ],
                 )
         except StorageError:
             rollback_hotkeys()

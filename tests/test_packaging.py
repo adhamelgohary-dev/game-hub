@@ -27,6 +27,7 @@ FORBIDDEN_DYNAMIC_BUILTINS = {
 ALLOWED_CTYPES_DLLS = {
     "advapi32",
     "combase",
+    "crypt32",
     "dwmapi",
     "kernel32",
     "ole32",
@@ -139,6 +140,8 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
                     assert dll_name in ALLOWED_CTYPES_DLLS, (
                         f"Non-allowlisted DLL {name_node.value!r} loaded in {path}"
                     )
+                    if dll_name == "crypt32" and rel != "gamehub/core/secrets.py":
+                        raise AssertionError(f"crypt32 restricted to gamehub/core/secrets.py: {path}")
 
         for symbol in FORBIDDEN_NATIVE_SYMBOLS:
             assert symbol not in source, f"Forbidden Win32 API {symbol!r} in {path}"

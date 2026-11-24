@@ -110,9 +110,15 @@ class SessionWatcher:
                 if not game.installed:
                     continue
                 target_exes = basenames_by_game.get(game.id, ())
-                matched = self._catalog.match_game(game.source, game.source_id, target_exes)
+                matched = self._catalog.match_game(
+                    game.source, game.source_id, target_exes, game_name=game.name
+                )
                 mode = self._catalog.effective_mode(
-                    game.protection_mode, game.source, game.source_id, target_exes
+                    game.protection_mode,
+                    game.source,
+                    game.source_id,
+                    target_exes,
+                    game_name=game.name,
                 )
                 combined_exes = set(target_exes)
                 if matched is not None:

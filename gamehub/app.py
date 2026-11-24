@@ -358,7 +358,7 @@ def _disabled_catalog_entries(
             if game.protection_mode != "full":
                 continue
             exes = basenames_by_game.get(game.id, ())
-            matched = catalog.match_game(game.source, game.source_id, exes)
+            matched = catalog.match_game(game.source, game.source_id, exes, game_name=game.name)
             if matched is not None:
                 disabled.add(matched.id)
     except StorageError:
@@ -377,7 +377,7 @@ def _custom_strict_exes(
             if game.protection_mode != "strict":
                 continue
             exes = basenames_by_game.get(game.id, ())
-            if catalog.match_game(game.source, game.source_id, exes) is not None:
+            if catalog.match_game(game.source, game.source_id, exes, game_name=game.name) is not None:
                 continue
             for exe in exes:
                 pairs.append((exe, game.name))
@@ -1264,7 +1264,10 @@ def _wire_game_page(
             exes = library.list_target_basenames().get(game.id, ())
         except StorageError:
             exes = ()
-        return catalog.effective_mode("auto", game.source, game.source_id, exes) == "strict"
+        return (
+            catalog.effective_mode("auto", game.source, game.source_id, exes, game_name=game.name)
+            == "strict"
+        )
 
     def open_game(game_id: str) -> None:
         if memory is None:
@@ -1511,7 +1514,7 @@ def _wire_settings(
                 if not game.installed:
                     continue
                 matched = catalog.match_game(
-                    game.source, game.source_id, basenames.get(game.id, ())
+                    game.source, game.source_id, basenames.get(game.id, ()), game_name=game.name
                 )
                 if matched is not None or game.protection_mode == "strict":
                     anti_cheat = matched.anti_cheat if matched is not None else "Strict"

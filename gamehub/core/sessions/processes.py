@@ -71,6 +71,11 @@ DEFAULT_NEVER_OPEN_EXES: frozenset[str] = frozenset(
         "steamwebhelper.exe",
         "gamelaunchhelper.exe",
         "gta5.exe",
+        "gta5_enhanced.exe",
+        "gta5_be.exe",
+        "gta5_enhanced_be.exe",
+        "sguard64.exe",
+        "sguardsvc64.exe",
         "robloxplayerbeta.exe",
     }
 )

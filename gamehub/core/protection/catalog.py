@@ -3,6 +3,7 @@
 import json
 import logging
 import ntpath
+import re
 import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -14,6 +15,12 @@ from gamehub.core.library.models import GameSource
 LOGGER = logging.getLogger(__name__)
 BUNDLED_CATALOG_PATH = Path(__file__).resolve().with_name("protected_games.json")
 OVERRIDE_FILENAME = "protected_games_override.json"
+_TITLE_NORM_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _norm_title(text: str) -> str:
+    cleaned = text.replace("™", "").replace("®", "").replace("©", "").replace("'", "")
+    return _TITLE_NORM_RE.sub(" ", cleaned.casefold()).strip()
 
 DEFAULT_ALWAYS_STRICT_LAUNCHERS: dict[str, tuple[str, ...]] = {
     "riot": (
@@ -107,6 +114,7 @@ class ProtectedGameEntry:
     battlenet_ids: tuple[str, ...] = ()
     ea_ids: tuple[str, ...] = ()
     xbox_package_prefixes: tuple[str, ...] = ()
+    title_aliases: tuple[str, ...] = ()
     launcher_stage_exes: tuple[str, ...] = ()
     anti_cheat_exes: tuple[str, ...] = ()
     game_exes: tuple[str, ...] = ()
@@ -205,6 +213,17 @@ def _parse_file(path: Path) -> _ParsedCatalogFile:
                 ea_ids=_norm_str_tuple(item.get("ea_ids", ()), fold=True),
                 xbox_package_prefixes=_norm_str_tuple(
                     item.get("xbox_package_prefixes", ()), fold=True
+                ),
+                title_aliases=tuple(
+                    dict.fromkeys(
+                        norm
+                        for raw_alias in (
+                            item.get("title_aliases", ())
+                            if isinstance(item.get("title_aliases", ()), (list, tuple))
+                            else ()
+                        )
+                        if (norm := _norm_title(str(raw_alias)))
+                    )
                 ),
                 launcher_stage_exes=launcher_stage,
                 anti_cheat_exes=anti_cheat_exes,
@@ -326,6 +345,9 @@ class ProtectedGamesCatalog:
             xbox_package_prefixes=tuple(
                 dict.fromkeys((*base.xbox_package_prefixes, *override.xbox_package_prefixes))
             ),
+            title_aliases=tuple(
+                dict.fromkeys((*base.title_aliases, *override.title_aliases))
+            ),
             launcher_stage_exes=tuple(
                 dict.fromkeys((*base.launcher_stage_exes, *override.launcher_stage_exes))
             ),
@@ -398,6 +420,7 @@ class ProtectedGamesCatalog:
                             battlenet_ids=entry.battlenet_ids,
                             ea_ids=entry.ea_ids,
                             xbox_package_prefixes=entry.xbox_package_prefixes,
+                            title_aliases=entry.title_aliases,
                             launcher_stage_exes=entry.launcher_stage_exes,
                             anti_cheat_exes=entry.anti_cheat_exes,
                             game_exes=entry.game_exes,
@@ -479,6 +502,8 @@ class ProtectedGamesCatalog:
         source: GameSource,
         source_id: str,
         exe_names: Iterable[str] = (),
+        *,
+        game_name: str = "",
     ) -> ProtectedGameEntry | None:
         if source == GameSource.STEAM and source_id:
             found = self._by_steam.get(source_id.strip())
@@ -517,6 +542,14 @@ class ProtectedGamesCatalog:
             found = self.match_exe_name(exe)
             if found is not None:
                 return found
+
+        if game_name:
+            norm_name = _norm_title(game_name)
+            if norm_name:
+                for entry in self._entries:
+                    for alias in entry.title_aliases:
+                        if norm_name == alias or norm_name.startswith(f"{alias} "):
+                            return entry
         return None
 
     def effective_mode(
@@ -525,12 +558,14 @@ class ProtectedGamesCatalog:
         source: GameSource,
         source_id: str,
         exe_names: Iterable[str] = (),
+        *,
+        game_name: str = "",
     ) -> Literal["strict", "full"]:
         if protection_mode == "strict":
             return "strict"
         if protection_mode == "full":
             return "full"
-        matched = self.match_game(source, source_id, exe_names)
+        matched = self.match_game(source, source_id, exe_names, game_name=game_name)
         if matched is not None and matched.default_mode == "strict":
             return "strict"
         return "full"

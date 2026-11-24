@@ -242,6 +242,45 @@ def _pick_exe_in_dir(install_dir: Path, display_icon: str = "") -> Path | None:
                 candidates.append(safe)
         if len(candidates) == 1:
             return candidates[0]
+        if not candidates:
+            # Bounded depth-3 fallback for Unreal (Binaries/Win64/*.exe) or EA/nested layouts.
+            nested: list[Path] = []
+            stack: list[tuple[Path, int]] = [(install_dir, 0)]
+            scanned = 0
+            while stack and scanned < 512:
+                cur, depth = stack.pop()
+                try:
+                    with os.scandir(cur) as it:
+                        for entry in it:
+                            scanned += 1
+                            if scanned > 512:
+                                break
+                            try:
+                                if entry.is_symlink():
+                                    continue
+                                if entry.is_dir(follow_symlinks=False):
+                                    if depth < 3:
+                                        stack.append((Path(entry.path), depth + 1))
+                                elif entry.is_file(follow_symlinks=False):
+                                    name_low = entry.name.casefold()
+                                    if not name_low.endswith(".exe"):
+                                        continue
+                                    stem = Path(entry.name).stem.casefold()
+                                    if stem.startswith(_HELPER_PREFIXES):
+                                        continue
+                                    rel = Path(entry.path).relative_to(install_dir)
+                                    safe = contained_file(install_dir, str(rel))
+                                    if safe is not None:
+                                        nested.append(safe)
+                            except OSError:
+                                continue
+                except OSError:
+                    continue
+            if len(nested) == 1:
+                return nested[0]
+            if nested:
+                nested.sort(key=lambda p: p.stat().st_size, reverse=True)
+                return nested[0]
     except OSError:
         return None
     return None
