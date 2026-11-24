@@ -108,60 +108,93 @@ def _single_executable(directory: Path) -> Path | None:
     return candidates[0] if candidates else None
 
 
-_COVER_CANDIDATES = (
+_WIDE_COVER_CANDIDATES = (
     "header.jpg",
-    "library_capsule.jpg",
-    "library_600x900.jpg",
+    "library_header.jpg",
     "library_hero.jpg",
     "header.png",
+    "library_header.png",
+    "library_hero.png",
+)
+_VERTICAL_COVER_CANDIDATES = (
+    "library_capsule.jpg",
+    "library_600x900.jpg",
+    "library_capsule.png",
     "library_600x900.png",
 )
 
 
+def _search_cover_names(
+    cache_dir: Path,
+    app_id: str,
+    app_dir: Path | None,
+    hashed_dirs: list[Path],
+    candidates: tuple[str, ...],
+) -> Path | None:
+    # 1. Flat layout: librarycache/<appid>_<name>
+    for name in candidates:
+        found = contained_file(cache_dir, f"{app_id}_{name}")
+        if found is not None:
+            return found
+    if app_dir is None:
+        return None
+    # 2. Direct per-AppID folder: librarycache/<appid>/<name>
+    for name in candidates:
+        found = contained_file(app_dir, name)
+        if found is not None:
+            return found
+    # 3. Hashed subdirectories: librarycache/<appid>/<hash>/<name>
+    for sub in hashed_dirs:
+        for name in candidates:
+            found = contained_file(sub, name)
+            if found is not None:
+                return found
+    return None
+
+
 def _find_cover(steam_home: Path, app_id: str) -> Path | None:
-    """Locate Steam's locally cached cover art for an AppID without making network calls."""
+    """Locate Steam's locally cached cover art (landscape-first) without network calls."""
     cache_dir = local_path(steam_home / "appcache" / "librarycache")
     if cache_dir is None or not cache_dir.is_dir():
         return None
 
-    # 1. Flat layout: librarycache/<appid>_header.jpg, <appid>_library_600x900.jpg, ...
-    for name in _COVER_CANDIDATES:
-        candidate = contained_file(cache_dir, f"{app_id}_{name}")
-        if candidate is not None:
-            return candidate
-
-    # 2. Modern Steam per-AppID folder layout: librarycache/<appid>/header.jpg or hashed subdir
     app_dir = local_path(cache_dir / app_id)
-    if app_dir is None or not app_dir.is_dir():
-        return None
+    if app_dir is not None and not app_dir.is_dir():
+        app_dir = None
 
-    for name in _COVER_CANDIDATES:
-        candidate = contained_file(app_dir, name)
-        if candidate is not None:
-            return candidate
-
-    # Check one level of hashed subdirectories used by recent Steam clients.
+    hashed_dirs: list[Path] = []
     fallback: Path | None = None
-    try:
-        for index, child in enumerate(app_dir.iterdir()):
-            if index >= 64:
-                break
-            if child.is_dir():
-                for name in _COVER_CANDIDATES:
-                    candidate = contained_file(child, name)
-                    if candidate is not None:
-                        return candidate
-            elif (
-                fallback is None
-                and child.suffix.casefold() in {".jpg", ".jpeg", ".png", ".webp"}
-                and "blur" not in child.stem.casefold()
-                and child.stem.casefold() != "logo"
-            ):
-                safe = contained_file(app_dir, child.name)
-                if safe is not None:
-                    fallback = safe
-    except OSError:
-        return fallback
+    if app_dir is not None:
+        try:
+            for index, child in enumerate(app_dir.iterdir()):
+                if index >= 64:
+                    break
+                if child.is_dir():
+                    hashed_dirs.append(child)
+                elif (
+                    fallback is None
+                    and child.suffix.casefold() in {".jpg", ".jpeg", ".png", ".webp"}
+                    and "blur" not in child.stem.casefold()
+                    and child.stem.casefold() != "logo"
+                ):
+                    safe = contained_file(app_dir, child.name)
+                    if safe is not None:
+                        fallback = safe
+        except OSError:
+            pass
+
+    # Pass 1: Landscape / wide assets first across flat, nested, and hashed layouts.
+    wide = _search_cover_names(cache_dir, app_id, app_dir, hashed_dirs, _WIDE_COVER_CANDIDATES)
+    if wide is not None:
+        return wide
+
+    # Pass 2: Fall back to vertical capsule assets only when no wide cover exists.
+    vertical = _search_cover_names(
+        cache_dir, app_id, app_dir, hashed_dirs, _VERTICAL_COVER_CANDIDATES
+    )
+    if vertical is not None:
+        return vertical
+
     return fallback
 
 

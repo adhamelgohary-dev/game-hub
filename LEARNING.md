@@ -172,3 +172,12 @@ Validating detectors against a real Windows PC revealed two subtle environment b
 Read [epic.py](gamehub/core/library/epic.py), [steam.py](gamehub/core/library/steam.py), [riot.py](gamehub/core/library/riot.py), [folder_scanner.py](gamehub/core/library/folder_scanner.py), [scan_folders_dialog.py](gamehub/ui/scan_folders_dialog.py), and [test_v12_detectors_and_scan_folders.py](tests/test_v12_detectors_and_scan_folders.py).
 
 Try it yourself. Click **Scan folder…** in the Library header on any folder containing games and helpers (`unins000.exe`, `vc_redist.x64.exe`), untick one item, save, and rescan to see the unticked item stay remembered.
+
+
+## M16 — Landscape-first cover discovery, zero-stretch cropping, and WebP thumbnail caching
+
+Setting `QLabel.setScaledContents(True)` on responsive grid cards stretches images whenever a card grows wider than its initial pixmap. Replacing it with a resize-aware `CoverLabel` that re-crops with `KeepAspectRatioByExpanding` and backing `load_cover_pixmap` with an atomic on-disk WebP cache under `<data_root>/cache/covers/` eliminates distortion at every window width while keeping redraws instant. Searching wide assets (`header.jpg`, `library_header.jpg`, `library_hero.jpg`) across flat, per-AppID, and hashed Steam `librarycache` directories before falling back to vertical capsules improved real-PC landscape cover coverage to 26/26 Steam titles.
+
+Read [steam.py](gamehub/core/library/steam.py), [covers.py](gamehub/ui/covers.py), [storage/covers.py](gamehub/core/storage/covers.py), [steamgriddb.py](gamehub/core/library/steamgriddb.py), and [test_v12_covers.py](tests/test_v12_covers.py).
+
+Try it yourself. Click the `⋯` button on any game card → **Change cover…**, pick a local PNG/JPG/WebP image, refresh the library, and confirm your custom cover stays preserved (`custom_cover = 1`) until you choose **Reset cover**.

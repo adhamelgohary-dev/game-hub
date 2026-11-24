@@ -72,6 +72,7 @@ from gamehub.core.sessions.watcher import SessionWatcher
 from gamehub.core.settings import SettingsChanged, SettingsService, SettingsSnapshot
 from gamehub.core.startup import remove_legacy_startup_entry
 from gamehub.core.storage.controls import ControlsRepository
+from gamehub.core.storage.covers import CoverStore
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
 from gamehub.core.storage.location import StoreLocation, resolve_data_root
@@ -84,6 +85,7 @@ from gamehub.modules.memory.controls_controller import ControlsController
 from gamehub.modules.memory.last_time_controller import LastTimeController
 from gamehub.modules.memory.notes_controller import NotesController
 from gamehub.single_instance import SingleInstance
+from gamehub.ui.covers import clear_cover_cache, set_cover_cache_dir
 from gamehub.ui.game_page import GamePage
 from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
@@ -396,9 +398,15 @@ def _run(
             return 0
 
         log_handler = _add_file_log(data_root)
+        set_cover_cache_dir(data_root / "cache" / "covers")
         database = Database(data_root / "gamehub.db")
         events = EventBus(window)
         library = LibraryRepository(database)
+        cover_store: CoverStore | None = None
+        try:
+            cover_store = CoverStore(database, data_root)
+        except (OSError, StorageError):
+            logging.getLogger("gamehub").warning("cover_storage_unavailable")
         detectors = (
             ()
             if smoke_test
@@ -453,6 +461,38 @@ def _run(
                 controller.apply_scan_folder(folder, dialog.choices())
 
         window.library.scanFolderRequested.connect(_handle_scan_folder)
+
+        def _handle_change_cover(game_id: str, image_path: str) -> None:
+            if cover_store is None:
+                window.notify(window.tr("Game Hub could not save the selected cover image."))
+                return
+            try:
+                cover_store.import_cover(game_id, Path(image_path))
+            except (OSError, ValueError, StorageError):
+                window.notify(window.tr("Choose a valid PNG, JPG, or WebP cover image."))
+                return
+            clear_cover_cache()
+            window.library.present_games(service.current().games)
+            if window.is_game_page_open(game_id):
+                events.publish(LibraryChanged((game_id,)))
+
+        def _handle_reset_cover(game_id: str) -> None:
+            if cover_store is None:
+                return
+            try:
+                cover_store.reset_cover(game_id)
+            except (OSError, StorageError):
+                window.notify(window.tr("Game Hub could not reset the cover image."))
+                return
+            clear_cover_cache()
+            controller.refresh()
+            if window.is_game_page_open(game_id):
+                events.publish(LibraryChanged((game_id,)))
+
+        window.library.changeCoverRequested.connect(_handle_change_cover)
+        window.library.resetCoverRequested.connect(_handle_reset_cover)
+        window.game_page.changeCoverRequested.connect(_handle_change_cover)
+        window.game_page.resetCoverRequested.connect(_handle_reset_cover)
         window.library.lastMomentsRequested.connect(
             lambda game_id: _open_last_moments(window, library, screenshots, game_id)
         )

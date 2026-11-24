@@ -28,15 +28,15 @@
 - ✅ D-v1.2 — Anti-cheat research v2, v1.2 design, Part 6 Mods design & mockups, Rename conflict check, Council APPROVE [complex]
 - ✅ M14 — Part 1: Zero-Presence Anti-Cheat Protocol (Layers 1–7 + Settings Protected Games UI) [complex]
 - ✅ M15 — Part 2: Fix Epic & Steam, add Riot/GOG/EA/Ubisoft/Battle.net/itch/Xbox detectors, Scan Folders, plain scan warnings [complex]
-- 🔄 M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
-- ⬜ M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
+- ✅ M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
+- 🔄 M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
 - ⬜ M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
 - ⬜ M19 — Execute owner-chosen Rename variant & publish final `v1.2.0` after owner replies `"verified"` [simple]
 - ⬜ M20 — Part 6: Mods & Arabizations implementation (blocked until owner approves `docs/design/12-mods-and-arabizations.md` + mockups) [complex]
 
-**Current task** — Starting **M16 (Part 3 — Cover Art That Fits)** after `M15` Council APPROVE (`204 passed`).
+**Current task** — Starting **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide)** after `M16` Council APPROVE (`208 passed`).
 
 **Last completed**
-- **M15 (Part 2 — Find All Games):** Fixed Epic (`HKCU\...\Uninstall\EpicGames-*` + `LauncherInstalled.dat`), fixed Steam offline/non-fixed drive handling (`GetDriveTypeW` `{1,2,4,5}`), added Riot/GOG/EA/Ubisoft/Battle.net/itch detectors, Xbox cover extraction, depth-bounded symlink-safe **Scan Folders** (`ScanFolderDialog` + persistent choices), and plain-language partial scan banners with Retry/Learn more. Verified live on PC: Steam (26, complete), Epic (3, complete), Riot (1, complete), EA (2, complete). Passed `docs/reviews/M15-review.md`.
+- **M16 (Part 3 — Cover Art That Fits):** Updated Steam `_find_cover()` to search wide landscape assets first across flat, nested, and hashed layouts (**26/26** live Steam games on PC now load wide landscape art), replaced stretched `QLabel` covers with resize-aware zero-stretch `CoverLabel`, added atomic `<data_root>/cache/covers/` WebP thumbnail cache + full-title typographic placeholders, added managed `CoverStore` + **"⋯ → Change cover…"** / **"Reset cover"** on every card and Game page, and added strictly opt-in `steamgriddb.py`. Passed `docs/reviews/M16-review.md`.
 
-**Tests** — 204 tests and `ruff check .` passing.
+**Tests** — 208 tests and `ruff check .` passing.

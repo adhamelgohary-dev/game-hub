@@ -72,6 +72,8 @@ class GamePage(QWidget):
     playVoiceNoteRequested = Signal(object)
     stopVoiceNoteRequested = Signal()
     protectionChanged = Signal(str, str, bool)
+    changeCoverRequested = Signal(str, str)
+    resetCoverRequested = Signal(str)
 
     def __init__(
         self,
@@ -112,7 +114,7 @@ class GamePage(QWidget):
         hero_layout.setSpacing(16)
 
         self._cover = QLabel(self._hero_card)
-        self._cover.setFixedSize(148, 86)
+        self._cover.setFixedSize(160, 90)
         self._cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hero_layout.addWidget(self._cover)
 
@@ -152,10 +154,16 @@ class GamePage(QWidget):
         self._overflow.setCursor(Qt.CursorShape.PointingHandCursor)
         self._overflow.setAccessibleName(self.tr("More game options"))
         self._overflow_menu = QMenu(self._overflow)
+        self._action_change_cover = QAction(self.tr("Change cover…"), self._overflow_menu)
+        self._action_change_cover.triggered.connect(self._pick_cover)
+        self._action_reset_cover = QAction(self.tr("Reset cover"), self._overflow_menu)
+        self._action_reset_cover.triggered.connect(self._request_reset_cover)
         self._action_change_exe = QAction(self.tr("Change executable…"), self._overflow_menu)
         self._action_change_exe.triggered.connect(self._pick_executable)
         self._action_last_moments = QAction(self.tr("Last moments…"), self._overflow_menu)
         self._action_last_moments.triggered.connect(self._request_last_moments)
+        self._overflow_menu.addAction(self._action_change_cover)
+        self._overflow_menu.addAction(self._action_reset_cover)
         self._overflow_menu.addAction(self._action_change_exe)
         self._overflow_menu.addAction(self._action_last_moments)
         self._overflow.setMenu(self._overflow_menu)
@@ -241,7 +249,8 @@ class GamePage(QWidget):
             self.set_saving_control_text(False)
             self.reset_voice_state()
         self._title.setText(game.name)
-        self._cover.setPixmap(load_cover_pixmap(game.cover_path, game.name, 148, 86, radius=9))
+        self._cover.setPixmap(load_cover_pixmap(game.cover_path, game.name, 160, 90, radius=9))
+        self._action_reset_cover.setVisible(game.custom_cover)
         self._action_change_exe.setVisible(game.source != GameSource.MANUAL)
         self._action_change_exe.setEnabled(game.source != GameSource.MANUAL)
         self._update_summary(game)
@@ -419,6 +428,8 @@ class GamePage(QWidget):
         self._back.setText(self.tr("Back to Library"))
         self._play.setText(self.tr("Play…"))
         self._overflow.setAccessibleName(self.tr("More game options"))
+        self._action_change_cover.setText(self.tr("Change cover…"))
+        self._action_reset_cover.setText(self.tr("Reset cover"))
         self._action_change_exe.setText(self.tr("Change executable…"))
         self._action_last_moments.setText(self.tr("Last moments…"))
         self._tabs.setTabText(0, self.tr("Controls"))
@@ -768,6 +779,24 @@ class GamePage(QWidget):
         if path:
             self.clear_error()
             self.assignExecutableRequested.emit(self._game.id, path)
+
+    def _pick_cover(self) -> None:
+        if self._game is None:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Choose cover image"),
+            "",
+            self.tr("Cover images (*.png *.jpg *.jpeg *.webp)"),
+        )
+        if path:
+            self.clear_error()
+            self.changeCoverRequested.emit(self._game.id, path)
+
+    def _request_reset_cover(self) -> None:
+        if self._game is not None:
+            self.clear_error()
+            self.resetCoverRequested.emit(self._game.id)
 
     def _request_last_moments(self) -> None:
         if self._game is not None:

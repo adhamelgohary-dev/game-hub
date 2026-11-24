@@ -6,15 +6,15 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Execute **M16 (Part 3 — Cover Art That Fits)** `[complex]` per [docs/design/11-v1.2-plan.md](docs/design/11-v1.2-plan.md):
-1. Update `steam.py` `_find_cover()` to search landscape/wide assets first (`header.jpg`, `library_header.jpg`, `library_hero.jpg`) across both flat and nested `librarycache/<appid>/` layouts before falling back to vertical capsules.
-2. Upgrade `gamehub/ui/covers.py` with disk WebP thumbnail caching under `<data_root>/cache/covers/` keyed by source path + mtime + size + dimensions, zero-stretch center-cropping, and clean typographic placeholders with full game name.
-3. Implement optional off-by-default SteamGridDB fetcher (`gamehub/core/library/steamgriddb.py`) gated on both `covers.steamgriddb_enabled` and user-supplied `covers.steamgriddb_api_key` (never logged), plus **"⋯ → Change cover…"** on every game card and Game page saving to `<data_root>/media/<game_id>/cover.webp` (`custom_cover = 1`).
-4. Proceed to **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide)** and **M18 (`v1.2.0-rc.1` build, verification, Desktop copy & Council review)**.
+Execute **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide)** `[complex]` per [docs/design/11-v1.2-plan.md](docs/design/11-v1.2-plan.md):
+1. Reorganize `gamehub/ui/settings_view.py` into 5 clear groups with a one-line plain-language explanation under every setting in EN & AR: **General**, **Capture & notes**, **Protected games**, **Library & folders** (Scan folders manager + optional SteamGridDB toggle/API key/consent note + Fetch missing covers + Data folder open/move), and **Privacy & about** (**Reset to defaults** button with confirmation).
+2. Wire Scan Folders list/add/rescan/remove, optional SteamGridDB settings + on-demand fetch missing covers, and Reset to defaults (`SettingsService.reset_to_defaults()` + `library.reset_protection_defaults()` + reload UI/hotkeys/guard) in `gamehub/app.py`.
+3. Update `docs/USER-GUIDE-AR.md` for v1.2 (Zero-background, Zero-Presence Anti-Cheat, All Launchers, Covers) and add a clear Egyptian Arabic **"شرح الإعدادات"** section.
+4. Proceed to **M18 (`v1.2.0-rc.1` build, full verification, screenshots, Desktop installer copy, pre-release publish & Council review)**.
 
 ## In progress
 
-Implementing **v1.2** on `main` (replacing unverified `v1.1.0-rc.2`). Completed and Council-approved: `D-v1.2`, `M14` (Part 1 Zero-Presence Anti-Cheat Protocol, tagged `m14`), and `M15` (Part 2 All-Launcher Discovery + Scan Folders + Plain Warnings, tagged `m15`). Repository is **PUBLIC** (`adhamelgohary-dev/game-hub`).
+Implementing **v1.2** on `main` (replacing unverified `v1.1.0-rc.2`). Completed and Council-approved: `D-v1.2`, `M14` (`m14`), `M15` (`m15`), and `M16` (`m16`). Repository is **PUBLIC** (`adhamelgohary-dev/game-hub`).
 
 ## Fragile spots
 

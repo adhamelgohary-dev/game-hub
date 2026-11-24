@@ -38,26 +38,37 @@ FORBIDDEN_NATIVE_SYMBOLS = (
 )
 
 
+OPT_IN_NETWORK_ALLOWED = {
+    "gamehub/core/library/steamgriddb.py": {"urllib"},
+}
+
+
 def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
     for path in sorted(Path("gamehub").rglob("*.py")):
+        rel = path.as_posix()
+        allowed_net = OPT_IN_NETWORK_ALLOWED.get(rel, set())
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source)
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     root = alias.name.split(".")[0]
-                    assert root not in FORBIDDEN_NETWORK_MODULES, (
+                    assert root not in FORBIDDEN_NETWORK_MODULES or root in allowed_net, (
                         f"Forbidden network import {alias.name!r} in {path}"
                     )
             elif isinstance(node, ast.ImportFrom) and node.module:
                 root = node.module.split(".")[0]
-                assert root not in FORBIDDEN_NETWORK_MODULES, (
+                assert root not in FORBIDDEN_NETWORK_MODULES or root in allowed_net, (
                     f"Forbidden network import {node.module!r} in {path}"
                 )
         for symbol in FORBIDDEN_NATIVE_SYMBOLS:
             assert symbol not in source, f"Forbidden Win32 API {symbol!r} in {path}"
-        if path.as_posix() != "gamehub/core/sessions/processes.py":
+        if rel != "gamehub/core/sessions/processes.py":
             assert "OpenProcess" not in source, f"Forbidden OpenProcess outside processes.py in {path}"
+
+    sgdb_src = Path("gamehub/core/library/steamgriddb.py").read_text(encoding="utf-8")
+    assert "https://www.steamgriddb.com/api/v2" in sgdb_src
+    assert 'if not enabled or not key or not query:' in sgdb_src
 
     manifest = Path("packaging/GameHub.manifest").read_text(encoding="utf-8")
     assert "asInvoker" in manifest

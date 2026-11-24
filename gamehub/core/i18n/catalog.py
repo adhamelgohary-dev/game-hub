@@ -425,4 +425,17 @@ AR_CATALOG: dict[str, str] = {
     "If a game is on an external drive, reconnect the drive and press Retry. You can also use Scan folder or Add game to add games directly.": (
         "إذا كانت اللعبة على قرص خارجي، أعد توصيل القرص واضغط «إعادة المحاولة». يمكنك أيضًا استخدام «مسح مجلد» أو «إضافة لعبة» لإضافة الألعاب مباشرة."
     ),
+    "Change cover…": "تغيير الغلاف…",
+    "Reset cover": "استعادة الغلاف الأصلي",
+    "Choose cover image": "اختر صورة الغلاف",
+    "Cover images (*.png *.jpg *.jpeg *.webp)": "صور الأغلفة (*.png *.jpg *.jpeg *.webp)",
+    "Game Hub could not save the selected cover image.": (
+        "تعذّر على \u2066Game Hub\u2069 حفظ صورة الغلاف المختارة."
+    ),
+    "Choose a valid PNG, JPG, or WebP cover image.": (
+        "اختر صورة غلاف صالحة بصيغة \u2066PNG\u2069 أو \u2066JPG\u2069 أو \u2066WebP\u2069."
+    ),
+    "Game Hub could not reset the cover image.": (
+        "تعذّر على \u2066Game Hub\u2069 استعادة الغلاف الأصلي."
+    ),
 }

@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from html import escape
 
 from PySide6.QtCore import QDateTime, QLocale, Qt, Signal
-from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent
+from PySide6.QtGui import QAction, QKeyEvent, QMouseEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -12,26 +12,28 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from gamehub.core.library.models import GameSource, GameSummary
-from gamehub.ui.covers import load_cover_pixmap
+from gamehub.ui.covers import CoverLabel
 
 
 class GameCard(QFrame):
-    """Clickable game cover card with Play and Details actions."""
+    """Clickable game cover card with Play, Details, and Change cover actions."""
 
     clicked = Signal(str)
     selected = Signal(str)
     playRequested = Signal(str)
     detailsRequested = Signal(str)
+    changeCoverRequested = Signal(str)
+    resetCoverRequested = Signal(str)
 
     def __init__(
         self,
@@ -45,6 +47,9 @@ class GameCard(QFrame):
         full_text: str,
         play_text: str,
         details_text: str,
+        change_cover_text: str,
+        reset_cover_text: str,
+        more_options_text: str,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -59,12 +64,14 @@ class GameCard(QFrame):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        self._cover = QLabel(self)
-        self._cover.setFixedHeight(132)
-        self._cover.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
-        self._cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._cover.setScaledContents(True)
-        self._cover.setPixmap(load_cover_pixmap(game.cover_path, game.name, 264, 132, radius=9))
+        self._cover = CoverLabel(
+            game.cover_path,
+            game.name,
+            initial_width=280,
+            fixed_height=150,
+            radius=9,
+            parent=self,
+        )
         layout.addWidget(self._cover)
 
         meta_top = QHBoxLayout()
@@ -95,7 +102,7 @@ class GameCard(QFrame):
         layout.addStretch()
 
         actions = QHBoxLayout()
-        actions.setSpacing(8)
+        actions.setSpacing(6)
         self._play_btn = QPushButton(play_text, self)
         self._play_btn.setObjectName("primaryButton")
         self._play_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -103,8 +110,23 @@ class GameCard(QFrame):
         self._details_btn = QPushButton(details_text, self)
         self._details_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._details_btn.clicked.connect(self._on_details)
+        self._more_btn = QPushButton("⋯", self)
+        self._more_btn.setObjectName("overflowButton")
+        self._more_btn.setFixedWidth(34)
+        self._more_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._more_btn.setAccessibleName(more_options_text)
+        self._more_menu = QMenu(self._more_btn)
+        self._action_change_cover = QAction(change_cover_text, self._more_menu)
+        self._action_change_cover.triggered.connect(self._on_change_cover)
+        self._more_menu.addAction(self._action_change_cover)
+        if game.custom_cover:
+            self._action_reset_cover = QAction(reset_cover_text, self._more_menu)
+            self._action_reset_cover.triggered.connect(self._on_reset_cover)
+            self._more_menu.addAction(self._action_reset_cover)
+        self._more_btn.setMenu(self._more_menu)
         actions.addWidget(self._play_btn, 1)
         actions.addWidget(self._details_btn, 1)
+        actions.addWidget(self._more_btn)
         layout.addLayout(actions)
 
     def set_selected(self, value: bool) -> None:
@@ -115,6 +137,7 @@ class GameCard(QFrame):
     def set_busy(self, busy: bool) -> None:
         self._play_btn.setEnabled(not busy)
         self._details_btn.setEnabled(not busy)
+        self._more_btn.setEnabled(not busy)
 
     def _on_play(self) -> None:
         self.selected.emit(self.game_id)
@@ -123,6 +146,14 @@ class GameCard(QFrame):
     def _on_details(self) -> None:
         self.selected.emit(self.game_id)
         self.detailsRequested.emit(self.game_id)
+
+    def _on_change_cover(self) -> None:
+        self.selected.emit(self.game_id)
+        self.changeCoverRequested.emit(self.game_id)
+
+    def _on_reset_cover(self) -> None:
+        self.selected.emit(self.game_id)
+        self.resetCoverRequested.emit(self.game_id)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -146,6 +177,8 @@ class LibraryView(QWidget):
     addRequested = Signal(str)
     scanFolderRequested = Signal(str)
     assignRequested = Signal(str, str)
+    changeCoverRequested = Signal(str, str)
+    resetCoverRequested = Signal(str)
     lastMomentsRequested = Signal(str)
     playRequested = Signal(str)
     gameOpened = Signal(str)
@@ -418,6 +451,9 @@ class LibraryView(QWidget):
         full_text = self.tr("Full")
         play_text = self.tr("Play")
         details_text = self.tr("Details")
+        change_cover_text = self.tr("Change cover…")
+        reset_cover_text = self.tr("Reset cover")
+        more_options_text = self.tr("More game options")
 
         for game, is_strict in filtered:
             source = sources[game.source]
@@ -437,6 +473,9 @@ class LibraryView(QWidget):
                 full_text=full_text,
                 play_text=play_text,
                 details_text=details_text,
+                change_cover_text=change_cover_text,
+                reset_cover_text=reset_cover_text,
+                more_options_text=more_options_text,
                 parent=self._grid_container,
             )
             card.set_selected(game.id == self._selected_id)
@@ -445,6 +484,8 @@ class LibraryView(QWidget):
             card.clicked.connect(self._emit_open)
             card.detailsRequested.connect(self._emit_open)
             card.playRequested.connect(self._emit_play)
+            card.changeCoverRequested.connect(self._pick_cover)
+            card.resetCoverRequested.connect(self.resetCoverRequested)
             self._cards.append(card)
 
         self._relayout_cards()
@@ -491,3 +532,15 @@ class LibraryView(QWidget):
         folder = QFileDialog.getExistingDirectory(self, self.tr("Choose a folder to scan"))
         if folder:
             self.scanFolderRequested.emit(folder)
+
+    def _pick_cover(self, game_id: str) -> None:
+        if self._busy:
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self.tr("Choose cover image"),
+            "",
+            self.tr("Cover images (*.png *.jpg *.jpeg *.webp)"),
+        )
+        if path:
+            self.changeCoverRequested.emit(game_id, path)
