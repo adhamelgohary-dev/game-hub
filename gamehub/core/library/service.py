@@ -1,5 +1,7 @@
 """Coordinate independent game detectors and persistence."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -18,9 +20,16 @@ LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
+class ScanIssue:
+    source: GameSource
+    reason_code: str
+
+
+@dataclass(frozen=True, slots=True)
 class LibrarySnapshot:
     games: tuple[GameSummary, ...]
     partial_sources: tuple[GameSource, ...] = ()
+    scan_issues: tuple[ScanIssue, ...] = ()
 
 
 class LibraryService:
@@ -35,7 +44,8 @@ class LibraryService:
         self._publish = publish
 
     def refresh(self) -> LibrarySnapshot:
-        partial_sources = []
+        partial_sources: list[GameSource] = []
+        scan_issues: list[ScanIssue] = []
         for detector in self._detectors:
             try:
                 batch = detector.discover()
@@ -46,7 +56,16 @@ class LibraryService:
             self._notify(self._repository.reconcile(detector.source, batch))
             if batch.state == "partial":
                 partial_sources.append(detector.source)
-        return LibrarySnapshot(self._repository.list_games(), tuple(partial_sources))
+                if batch.diagnostics:
+                    for code in batch.diagnostics:
+                        scan_issues.append(ScanIssue(detector.source, code))
+                else:
+                    scan_issues.append(ScanIssue(detector.source, "launcher_scan_failed"))
+        return LibrarySnapshot(
+            self._repository.list_games(),
+            tuple(partial_sources),
+            tuple(scan_issues),
+        )
 
     def current(self) -> LibrarySnapshot:
         return LibrarySnapshot(self._repository.list_games())
@@ -57,6 +76,28 @@ class LibraryService:
 
     def assign_target(self, game_id: str, executable: Path) -> LibrarySnapshot:
         self._notify((self._repository.assign_target(game_id, executable),))
+        return self.current()
+
+    def apply_scan_folder(
+        self,
+        folder: Path,
+        choices: list[tuple[Path, str, str | None]],
+    ) -> LibrarySnapshot:
+        safe = self._repository.add_scan_folder(folder)
+        if choices:
+            self._repository.save_scan_choices(safe, choices)
+        return self.refresh_source(GameSource.FOLDER)
+
+    def remove_scan_folder(self, folder: Path) -> LibrarySnapshot:
+        self._repository.remove_scan_folder(folder)
+        return self.refresh_source(GameSource.FOLDER)
+
+    def refresh_source(self, source: GameSource) -> LibrarySnapshot:
+        for detector in self._detectors:
+            if detector.source == source:
+                batch = detector.discover()
+                self._notify(self._repository.reconcile(source, batch))
+                break
         return self.current()
 
     def _notify(self, game_ids: tuple[str, ...]) -> None:

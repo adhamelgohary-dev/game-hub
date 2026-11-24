@@ -27,16 +27,16 @@
 ## v1.2 ("Zero-Presence Anti-Cheat + All Launchers + Fitting Covers + Plain Settings") — Replaces unverified `v1.1.0-rc.2`
 - ✅ D-v1.2 — Anti-cheat research v2, v1.2 design, Part 6 Mods design & mockups, Rename conflict check, Council APPROVE [complex]
 - ✅ M14 — Part 1: Zero-Presence Anti-Cheat Protocol (Layers 1–7 + Settings Protected Games UI) [complex]
-- 🔄 M15 — Part 2: Fix Epic & Steam, add Riot/GOG/EA/Ubisoft/Battle.net/itch/Xbox detectors, Scan Folders, plain scan warnings [complex]
-- ⬜ M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
+- ✅ M15 — Part 2: Fix Epic & Steam, add Riot/GOG/EA/Ubisoft/Battle.net/itch/Xbox detectors, Scan Folders, plain scan warnings [complex]
+- 🔄 M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
 - ⬜ M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
 - ⬜ M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
 - ⬜ M19 — Execute owner-chosen Rename variant & publish final `v1.2.0` after owner replies `"verified"` [simple]
 - ⬜ M20 — Part 6: Mods & Arabizations implementation (blocked until owner approves `docs/design/12-mods-and-arabizations.md` + mockups) [complex]
 
-**Current task** — Starting **M15 (Part 2 — Find All Games)** after `M14` Council APPROVE (`197 passed`).
+**Current task** — Starting **M16 (Part 3 — Cover Art That Fits)** after `M15` Council APPROVE (`204 passed`).
 
 **Last completed**
-- Verified EAC Strict defaults (`protected_games.json` + frozen `sys._MEIPASS` resolution) for Elden Ring, Armored Core VI, Elden Ring Nightreign, Lords of the Fallen, and Space Marine 2 (and confirmed Dark Souls III stays Full), removed all `&` mnemonic underlines across UI surfaces with full Arabic parity, regenerated all 4 `docs/screenshots/*.png`, passed `docs/reviews/M12c-rc2-review.md`, and published `v1.1.0-rc.2`.
+- **M15 (Part 2 — Find All Games):** Fixed Epic (`HKCU\...\Uninstall\EpicGames-*` + `LauncherInstalled.dat`), fixed Steam offline/non-fixed drive handling (`GetDriveTypeW` `{1,2,4,5}`), added Riot/GOG/EA/Ubisoft/Battle.net/itch detectors, Xbox cover extraction, depth-bounded symlink-safe **Scan Folders** (`ScanFolderDialog` + persistent choices), and plain-language partial scan banners with Retry/Learn more. Verified live on PC: Steam (26, complete), Epic (3, complete), Riot (1, complete), EA (2, complete). Passed `docs/reviews/M15-review.md`.
 
-**Tests** — 184 tests, Ruff, local PyInstaller smoke test, and Windows CI release workflow all passing.
+**Tests** — 204 tests and `ruff check .` passing.

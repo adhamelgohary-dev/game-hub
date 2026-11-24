@@ -260,6 +260,21 @@ class LibraryRepository:
                     grouped[row["game_id"]].add(base)
         return {game_id: tuple(sorted(names)) for game_id, names in grouped.items()}
 
+    def list_known_exe_keys(self, *, exclude_source: GameSource | None = None) -> set[str]:
+        with self._database.read() as connection:
+            if exclude_source is None:
+                rows = connection.execute(
+                    "SELECT match_key FROM game_targets WHERE kind = 'exe_path'"
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT t.match_key FROM game_targets t "
+                    "JOIN games g ON g.id = t.game_id "
+                    "WHERE t.kind = 'exe_path' AND g.source <> ?",
+                    (exclude_source.value,),
+                ).fetchall()
+            return {os.path.normcase(row["match_key"]) for row in rows}
+
     def set_custom_cover(self, game_id: str, cover_path: Path | None, *, custom: bool = True) -> None:
         with self._database.write() as connection:
             connection.execute(

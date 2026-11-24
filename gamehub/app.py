@@ -36,11 +36,18 @@ from gamehub.core.hotkeys.windows import (
     GlobalHotkeys,
 )
 from gamehub.core.i18n import apply_language
+from gamehub.core.library.battlenet import BattleNetDetector
+from gamehub.core.library.ea import EaDetector
 from gamehub.core.library.epic import EpicDetector
+from gamehub.core.library.folder_scanner import FolderDetector, scan_folder_candidates
+from gamehub.core.library.gog import GogDetector
+from gamehub.core.library.itch import ItchDetector
 from gamehub.core.library.launcher import LaunchCoordinator, WindowsLauncher
-from gamehub.core.library.models import LibraryChanged
+from gamehub.core.library.models import GameSource, LibraryChanged
+from gamehub.core.library.riot import RiotDetector
 from gamehub.core.library.service import LibraryService
 from gamehub.core.library.steam import SteamDetector
+from gamehub.core.library.ubisoft import UbisoftDetector
 from gamehub.core.library.xbox import XboxDetector
 from gamehub.core.notifications.windows import WindowsNotifier
 from gamehub.core.protection.catalog import (
@@ -81,6 +88,7 @@ from gamehub.ui.game_page import GamePage
 from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
 from gamehub.ui.library_view import LibraryView
+from gamehub.ui.scan_folders_dialog import ScanFolderDialog
 from gamehub.ui.settings_view import SettingsView
 from gamehub.ui.theme import apply_theme, fade_in_widget, load_app_icon
 
@@ -389,9 +397,24 @@ def _run(
 
         log_handler = _add_file_log(data_root)
         database = Database(data_root / "gamehub.db")
-        detectors = () if smoke_test else (SteamDetector(), EpicDetector(), XboxDetector())
         events = EventBus(window)
         library = LibraryRepository(database)
+        detectors = (
+            ()
+            if smoke_test
+            else (
+                SteamDetector(),
+                EpicDetector(),
+                RiotDetector(),
+                GogDetector(),
+                EaDetector(),
+                UbisoftDetector(),
+                BattleNetDetector(),
+                ItchDetector(),
+                XboxDetector(),
+                FolderDetector(library),
+            )
+        )
         screenshots = _open_screenshot_store(database, data_root)
         controls = _open_controls_store(database, data_root)
         memory = _open_memory_store(database, data_root)
@@ -403,6 +426,33 @@ def _run(
         service = LibraryService(library, detectors, events.publish)
         window.library.present_games(service.current().games)
         controller = LibraryController(window.library, service)
+
+        def _handle_scan_folder(folder_str: str, *, include_ignored: bool = False) -> None:
+            folder = Path(folder_str)
+            try:
+                candidates = scan_folder_candidates(
+                    folder,
+                    existing_choices=library.list_scan_choices(folder),
+                    known_exe_keys=library.list_known_exe_keys(exclude_source=GameSource.FOLDER),
+                    include_ignored=include_ignored,
+                )
+            except (OSError, ValueError):
+                window.library.show_error(
+                    window.tr("Choose an accessible local folder to scan for games.")
+                )
+                return
+            if not candidates:
+                QMessageBox.information(
+                    window,
+                    window.tr("Scan folder"),
+                    window.tr("No new game executables were found in that folder."),
+                )
+                return
+            dialog = ScanFolderDialog(folder, candidates, parent=window)
+            if dialog.exec() == ScanFolderDialog.DialogCode.Accepted:
+                controller.apply_scan_folder(folder, dialog.choices())
+
+        window.library.scanFolderRequested.connect(_handle_scan_folder)
         window.library.lastMomentsRequested.connect(
             lambda game_id: _open_last_moments(window, library, screenshots, game_id)
         )

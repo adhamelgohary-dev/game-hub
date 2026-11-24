@@ -377,4 +377,52 @@ AR_CATALOG: dict[str, str] = {
     "{source} · Last played {date} · Total playtime {playtime}": (
         "{source} · آخر لعب {date} · إجمالي وقت اللعب {playtime}"
     ),
+    "Riot Games": "\u2066Riot Games\u2069",
+    "GOG": "\u2066GOG\u2069",
+    "itch.io": "\u2066itch.io\u2069",
+    "Scanned folder": "مجلد ممسوح",
+    "Scan folder…": "مسح مجلد…",
+    "Scan folder": "مسح مجلد",
+    "Choose a folder to scan": "اختر مجلدًا لمسح الألعاب",
+    "Choose an accessible local folder to scan for games.": (
+        "اختر مجلدًا محليًا يمكن الوصول إليه لمسح الألعاب."
+    ),
+    "No new game executables were found in that folder.": (
+        "لم يتم العثور على ملفات تشغيل ألعاب جديدة في هذا المجلد."
+    ),
+    "Review games in folder": "مراجعة الألعاب في المجلد",
+    "Tick the games you want to add from {folder}. Unticked items are remembered and skipped next time. You can rename any title directly in the table.": (
+        "ضع علامة أمام الألعاب التي تريد إضافتها من {folder}. سيتم تذكر العناصر غير المحددة وتخطيها في المرات القادمة. يمكنك تعديل اسم أي لعبة مباشرة في الجدول."
+    ),
+    "Game title": "اسم اللعبة",
+    "Executable": "ملف التشغيل",
+    "Select all": "تحديد الكل",
+    "Clear selection": "إلغاء التحديد",
+    "Save selection": "حفظ الاختيار",
+    "Cancel": "إلغاء",
+    "Retry": "إعادة المحاولة",
+    "Learn more": "معرفة المزيد",
+    "Library scan details": "تفاصيل فحص المكتبة",
+    "{launcher}: some game folders could not be read.": (
+        "{launcher}: تعذّرت قراءة بعض مجلدات الألعاب."
+    ),
+    "{launcher}: some game entries could not be read.": (
+        "{launcher}: تعذّرت قراءة بعض بيانات الألعاب."
+    ),
+    "{launcher}: its local library database could not be read.": (
+        "{launcher}: تعذّرت قراءة قاعدة بيانات المكتبة المحلية."
+    ),
+    "{launcher}: installed app records could not be read.": (
+        "{launcher}: تعذّرت قراءة سجلات الألعاب المثبتة."
+    ),
+    "{launcher}: too many items to scan at once.": (
+        "{launcher}: عدد العناصر كبير جدًا للفحص دفعة واحدة."
+    ),
+    "{launcher}: could only be scanned partially.": (
+        "{launcher}: تم الفحص جزئيًا فقط."
+    ),
+    "({count} more)": "({count} أخرى)",
+    "If a game is on an external drive, reconnect the drive and press Retry. You can also use Scan folder or Add game to add games directly.": (
+        "إذا كانت اللعبة على قرص خارجي، أعد توصيل القرص واضغط «إعادة المحاولة». يمكنك أيضًا استخدام «مسح مجلد» أو «إضافة لعبة» لإضافة الألعاب مباشرة."
+    ),
 }

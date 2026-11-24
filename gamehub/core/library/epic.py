@@ -97,6 +97,7 @@ class EpicDetector:
         manifest_dir: Path | None = None,
         *,
         registry_provider: Callable[[], Iterable[EpicRegistryEntry]] | None = None,
+        launcher_installed_path: Path | None = None,
     ) -> None:
         program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
         self._explicit_manifest_dir = manifest_dir is not None
@@ -105,6 +106,14 @@ class EpicDetector:
             if manifest_dir is not None
             else program_data / "Epic" / "EpicGamesLauncher" / "Data" / "Manifests"
         )
+        if launcher_installed_path is not None:
+            self._launcher_installed: Path | None = launcher_installed_path
+        elif not self._explicit_manifest_dir:
+            self._launcher_installed = (
+                program_data / "Epic" / "UnrealEngineLauncher" / "LauncherInstalled.dat"
+            )
+        else:
+            self._launcher_installed = None
         # Only query live HKCU registry by default when not given a synthetic test manifest_dir.
         if registry_provider is not None:
             self._registry_provider: Callable[[], Iterable[EpicRegistryEntry]] | None = (
@@ -162,7 +171,24 @@ class EpicDetector:
             except OSError:
                 diagnostics.add("epic_registry_unreadable")
 
-        if not manifest_available and not registry_found and not games and not diagnostics:
+        dat_found = False
+        if self._launcher_installed is not None:
+            dat_file = local_path(self._launcher_installed)
+            if dat_file is not None and dat_file.is_file():
+                try:
+                    for game in _read_launcher_installed(dat_file):
+                        dat_found = True
+                        games.setdefault(game.source_id, game)
+                except (OSError, ValueError, TypeError):
+                    diagnostics.add("epic_manifest_unreadable")
+
+        if (
+            not manifest_available
+            and not registry_found
+            and not dat_found
+            and not games
+            and not diagnostics
+        ):
             return DiscoveryBatch((), "unavailable", ())
 
         state = "partial" if diagnostics else "complete"
@@ -319,3 +345,47 @@ def _read_manifest(manifest: Path) -> DetectedGame | None:
     return DetectedGame(
         GameSource.EPIC, app_name, display_name.strip(), install_dir, cover_path, launch, targets
     )
+
+
+def _read_launcher_installed(dat_path: Path) -> list[DetectedGame]:
+    with dat_path.open("rb") as infile:
+        content = infile.read(_MAX_MANIFEST_BYTES + 1)
+    if len(content) > _MAX_MANIFEST_BYTES:
+        raise ValueError("Oversized LauncherInstalled.dat")
+    payload = json.loads(content)
+    items = payload.get("InstallationList") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return []
+    found: list[DetectedGame] = []
+    for item in items[:_MAX_DIRECTORY_ENTRIES]:
+        if not isinstance(item, dict):
+            continue
+        app_name = _identifier(item.get("AppName"))
+        location = item.get("InstallLocation")
+        if app_name is None or not isinstance(location, str):
+            continue
+        install_dir = local_path(location)
+        if install_dir is None or not install_dir.is_dir():
+            continue
+        ns = _identifier(item.get("NamespaceId"))
+        cat = _identifier(item.get("ItemId"))
+        artifact = f"{ns}%3A{cat}%3A{app_name}" if ns and cat else app_name
+        launch = LaunchTarget(
+            "epic_uri", f"com.epicgames.launcher://apps/{artifact}?action=launch&silent=true"
+        )
+        exe = _pick_exe_in_dir(install_dir)
+        targets = (GameTarget("exe_path", os.path.normcase(str(exe))),) if exe is not None else ()
+        cover_path = _find_epic_cover(install_dir)
+        display_name = install_dir.name.strip() or app_name
+        found.append(
+            DetectedGame(
+                GameSource.EPIC,
+                app_name,
+                display_name,
+                install_dir,
+                cover_path,
+                launch,
+                targets,
+            )
+        )
+    return found

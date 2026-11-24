@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -143,6 +144,7 @@ class GameCard(QFrame):
 class LibraryView(QWidget):
     refreshRequested = Signal()
     addRequested = Signal(str)
+    scanFolderRequested = Signal(str)
     assignRequested = Signal(str, str)
     lastMomentsRequested = Signal(str)
     playRequested = Signal(str)
@@ -157,6 +159,7 @@ class LibraryView(QWidget):
         self._filter_mode = "all"
         self._cards: list[GameCard] = []
         self._columns = 3
+        self._warning_details = ""
         self._is_strict_game: Callable[[GameSummary], bool] = (
             lambda game: game.protection_mode == "strict"
         )
@@ -179,6 +182,8 @@ class LibraryView(QWidget):
 
         self._refresh = QPushButton(self.tr("Refresh"), self)
         self._refresh.clicked.connect(self.refreshRequested)
+        self._scan_folder = QPushButton(self.tr("Scan folder…"), self)
+        self._scan_folder.clicked.connect(self._pick_folder)
         self._add = QPushButton(self.tr("Add game…"), self)
         self._add.setObjectName("primaryButton")
         self._add.clicked.connect(self._pick_game)
@@ -189,6 +194,7 @@ class LibraryView(QWidget):
         header.addStretch()
         header.addWidget(self._search)
         header.addWidget(self._refresh)
+        header.addWidget(self._scan_folder)
         header.addWidget(self._add)
 
         # Filter chips row
@@ -219,11 +225,25 @@ class LibraryView(QWidget):
         self._progress.setObjectName("mutedText")
         self._progress.hide()
 
-        self._error = QLabel(self)
+        self._error_banner = QFrame(self)
+        self._error_banner.setObjectName("libraryError")
+        err_layout = QHBoxLayout(self._error_banner)
+        err_layout.setContentsMargins(10, 6, 10, 6)
+        err_layout.setSpacing(8)
+        self._error = QLabel(self._error_banner)
         self._error.setObjectName("libraryError")
         self._error.setTextFormat(Qt.TextFormat.PlainText)
         self._error.setWordWrap(True)
-        self._error.hide()
+        self._retry_btn = QPushButton(self.tr("Retry"), self._error_banner)
+        self._retry_btn.clicked.connect(self.refreshRequested)
+        self._retry_btn.hide()
+        self._learn_more_btn = QPushButton(self.tr("Learn more"), self._error_banner)
+        self._learn_more_btn.clicked.connect(self._show_warning_details)
+        self._learn_more_btn.hide()
+        err_layout.addWidget(self._error, 1)
+        err_layout.addWidget(self._retry_btn)
+        err_layout.addWidget(self._learn_more_btn)
+        self._error_banner.hide()
 
         self._empty = QLabel(self.tr("No games in your library. Refresh or add a game."), self)
         self._empty.setObjectName("mutedText")
@@ -253,7 +273,7 @@ class LibraryView(QWidget):
         layout.addLayout(header)
         layout.addLayout(filters)
         layout.addWidget(self._progress)
-        layout.addWidget(self._error)
+        layout.addWidget(self._error_banner)
         layout.addWidget(self._content, stretch=1)
         self.retranslate_ui()
 
@@ -265,7 +285,10 @@ class LibraryView(QWidget):
         self._title.setText(self.tr("Library"))
         self._search.setPlaceholderText(self.tr("Search games…"))
         self._refresh.setText(self.tr("Refresh"))
+        self._scan_folder.setText(self.tr("Scan folder…"))
         self._add.setText(self.tr("Add game…"))
+        self._retry_btn.setText(self.tr("Retry"))
+        self._learn_more_btn.setText(self.tr("Learn more"))
         self._progress.setText(self.tr("Updating library…"))
         self._rebuild_grid()
 
@@ -280,13 +303,32 @@ class LibraryView(QWidget):
         self._busy = busy
         self._progress.setVisible(busy)
         self._refresh.setEnabled(not busy)
+        self._scan_folder.setEnabled(not busy)
         self._add.setEnabled(not busy)
+        self._retry_btn.setEnabled(not busy)
         for card in self._cards:
             card.set_busy(busy)
 
     def show_error(self, message: str) -> None:
+        self._warning_details = ""
         self._error.setText(message)
-        self._error.setVisible(bool(message))
+        self._retry_btn.hide()
+        self._learn_more_btn.hide()
+        self._error_banner.setVisible(bool(message))
+
+    def show_scan_warning(self, message: str, details: str = "") -> None:
+        self._warning_details = details
+        self._error.setText(message)
+        visible = bool(message)
+        self._retry_btn.setVisible(visible)
+        self._learn_more_btn.setVisible(visible and bool(details))
+        self._error_banner.setVisible(visible)
+
+    def _show_warning_details(self) -> None:
+        if self._warning_details:
+            QMessageBox.information(
+                self, self.tr("Library scan details"), self._warning_details
+            )
 
     def clear_error(self) -> None:
         self.show_error("")
@@ -362,7 +404,14 @@ class LibraryView(QWidget):
         sources = {
             GameSource.STEAM: self.tr("Steam"),
             GameSource.EPIC: self.tr("Epic Games"),
+            GameSource.RIOT: self.tr("Riot Games"),
+            GameSource.GOG: self.tr("GOG"),
+            GameSource.EA: self.tr("EA app"),
+            GameSource.UBISOFT: self.tr("Ubisoft Connect"),
+            GameSource.BATTLENET: self.tr("Battle.net"),
+            GameSource.ITCH: self.tr("itch.io"),
             GameSource.XBOX: self.tr("Xbox"),
+            GameSource.FOLDER: self.tr("Scanned folder"),
             GameSource.MANUAL: self.tr("Manual"),
         }
         strict_text = self.tr("Strict")
@@ -437,3 +486,8 @@ class LibraryView(QWidget):
         path = self._pick_executable(self.tr("Add game"))
         if path:
             self.addRequested.emit(path)
+
+    def _pick_folder(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, self.tr("Choose a folder to scan"))
+        if folder:
+            self.scanFolderRequested.emit(folder)

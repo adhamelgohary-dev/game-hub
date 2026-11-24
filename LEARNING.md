@@ -163,3 +163,12 @@ Running the real dummy-process lab caught a subtle latency hazard: during normal
 Read [guard.py](gamehub/core/protection/guard.py), [catalog.py](gamehub/core/protection/catalog.py), [protected_games.json](gamehub/core/protection/protected_games.json), and [test_zero_presence_guard.py](tests/test_zero_presence_guard.py).
 
 Try it yourself. Run `python -m pytest tests/test_zero_presence_guard.py -v` to watch the real Windows dummy-process lab test `FortniteBootstrapper.exe`, `FortniteLauncher.exe`, `VALORANT.exe`, `EasyAntiCheat_EOS.exe`, and `RiotClientServices.exe`.
+
+
+## M15 — Multi-launcher discovery, Scan Folders, and real-PC drive diagnostics
+
+Validating detectors against a real Windows PC revealed two subtle environment behaviors that synthetic fixtures alone can miss: Steam's `libraryfolders.vdf` retains both disconnected drive letters (`DRIVE_NO_ROOT_DIR = 1`) and mapped network drives (`DRIVE_REMOTE = 4`), so skipping non-fixed drive letters while still rejecting UNC shares and reparse points eliminates false partial-scan banners without weakening path validation. Separating user-reviewed Scan Folders into a dedicated `FolderDetector` backed by SQLite `scan_folders` and `scan_folder_choices` keeps manual folder games cleanly reconciled alongside 9 read-only launcher detectors.
+
+Read [epic.py](gamehub/core/library/epic.py), [steam.py](gamehub/core/library/steam.py), [riot.py](gamehub/core/library/riot.py), [folder_scanner.py](gamehub/core/library/folder_scanner.py), [scan_folders_dialog.py](gamehub/ui/scan_folders_dialog.py), and [test_v12_detectors_and_scan_folders.py](tests/test_v12_detectors_and_scan_folders.py).
+
+Try it yourself. Click **Scan folder…** in the Library header on any folder containing games and helpers (`unins000.exe`, `vc_redist.x64.exe`), untick one item, save, and rescan to see the unticked item stay remembered.

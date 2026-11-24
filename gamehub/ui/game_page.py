@@ -311,7 +311,14 @@ class GamePage(QWidget):
         sources = {
             GameSource.STEAM: self.tr("Steam"),
             GameSource.EPIC: self.tr("Epic Games"),
+            GameSource.RIOT: self.tr("Riot Games"),
+            GameSource.GOG: self.tr("GOG"),
+            GameSource.EA: self.tr("EA app"),
+            GameSource.UBISOFT: self.tr("Ubisoft Connect"),
+            GameSource.BATTLENET: self.tr("Battle.net"),
+            GameSource.ITCH: self.tr("itch.io"),
             GameSource.XBOX: self.tr("Xbox"),
+            GameSource.FOLDER: self.tr("Scanned folder"),
             GameSource.MANUAL: self.tr("Manual"),
         }
         last_played = (

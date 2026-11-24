@@ -211,6 +211,16 @@ def _read_config(config: Path, fallback_name: str) -> DetectedGame | None:
         title = fallback_name
 
     install_dir = config.parent
+    cover: Path | None = None
+    if visual is not None:
+        for attr in ("SplashScreenImage", "Square480x480Logo", "Square150x150Logo", "StoreLogo", "Logo"):
+            raw_logo = visual.get(attr, "").strip()
+            if raw_logo:
+                found_logo = contained_file(install_dir, raw_logo)
+                if found_logo is not None:
+                    cover = found_logo
+                    break
+
     executables: list[Path] = []
     is_pc_game = False
     for entry in game.findall("./ExecutableList/Executable"):
@@ -229,7 +239,7 @@ def _read_config(config: Path, fallback_name: str) -> DetectedGame | None:
 
     targets = tuple(dict.fromkeys(GameTarget("exe_path", os.path.normcase(str(path))) for path in executables))
     launch = LaunchTarget("exe", str(executables[0])) if executables else None
-    return DetectedGame(GameSource.XBOX, source_id, title, install_dir, None, launch, targets)
+    return DetectedGame(GameSource.XBOX, source_id, title, install_dir, cover, launch, targets)
 
 
 def _with_package_family(game: DetectedGame, families: dict[str, set[str]]) -> DetectedGame:

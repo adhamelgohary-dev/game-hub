@@ -6,27 +6,25 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Wait for owner verification at **Owner Gate 2** (after testing `GameHub-Setup-v1.1.0-rc.2.exe` on Desktop):
-- If the owner reports any bug or polish request on `v1.1.0-rc.2`: fix it with small commits, add regression tests, bump to `v1.1.0-rc.3`, publish, and repeat.
-- Once the owner replies `"verified"`, execute **M13 (Part G — Final `v1.1.0`)** `[simple]`:
-  1. Update `gamehub/__init__.py` → `__version__ = "1.1.0"`, `tests/test_packaging.py` version assertion, and `CHANGELOG.md` (`## v1.1.0` with `Added`, `Changed`, `Fixed`, `Security`).
-  2. Run full `pytest -q`, `ruff check .`, `gitleaks` (if installed), local PyInstaller smoke test, and record `docs/reviews/M13-review.md`.
-  3. Update `PROGRESS.md`, `HANDOFF.md`, `LEARNING.md`, commit and push `main`.
-  4. Tag `v1.1.0` and push tag `v1.1.0` so Windows CI builds and publishes the final `Game Hub v1.1.0` release (non-prerelease).
+Execute **M16 (Part 3 — Cover Art That Fits)** `[complex]` per [docs/design/11-v1.2-plan.md](docs/design/11-v1.2-plan.md):
+1. Update `steam.py` `_find_cover()` to search landscape/wide assets first (`header.jpg`, `library_header.jpg`, `library_hero.jpg`) across both flat and nested `librarycache/<appid>/` layouts before falling back to vertical capsules.
+2. Upgrade `gamehub/ui/covers.py` with disk WebP thumbnail caching under `<data_root>/cache/covers/` keyed by source path + mtime + size + dimensions, zero-stretch center-cropping, and clean typographic placeholders with full game name.
+3. Implement optional off-by-default SteamGridDB fetcher (`gamehub/core/library/steamgriddb.py`) gated on both `covers.steamgriddb_enabled` and user-supplied `covers.steamgriddb_api_key` (never logged), plus **"⋯ → Change cover…"** on every game card and Game page saving to `<data_root>/media/<game_id>/cover.webp` (`custom_cover = 1`).
+4. Proceed to **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide)** and **M18 (`v1.2.0-rc.1` build, verification, Desktop copy & Council review)**.
 
 ## In progress
 
-Paused cleanly on green `main` at **Owner Gate 2** awaiting owner's `"verified"` reply after testing `GameHub-Setup-v1.1.0-rc.2.exe`. All v1.1 implementation milestones (`D-v1.1`, `M9`, `M10`, `M11`, `M12a`, `M12b`, `M12c`) are complete, reviewed, committed, and pushed. Repository is **PUBLIC** and GitHub Releases contain `v1.0.0`, `v1.1.0-rc.1`, and pre-release `v1.1.0-rc.2`.
+Implementing **v1.2** on `main` (replacing unverified `v1.1.0-rc.2`). Completed and Council-approved: `D-v1.2`, `M14` (Part 1 Zero-Presence Anti-Cheat Protocol, tagged `m14`), and `M15` (Part 2 All-Launcher Discovery + Scan Folders + Plain Warnings, tagged `m15`). Repository is **PUBLIC** (`adhamelgohary-dev/game-hub`).
 
 ## Fragile spots
 
-- `gamehub/app.py`: Keep `watcher.start()` strictly after all `EventBus.subscribe(...)` calls, and keep `SingleInstance` anchored on `effective_default` so data-folder relocation never permits a second concurrent instance.
+- `gamehub/app.py`: Keep `ProtectionGuard.self_check()` strictly BEFORE `SingleInstance.claim_or_activate()` and before any window creation or DB writes; keep `watcher.start()` strictly after all `EventBus.subscribe(...)` calls; pass `wait=False` during emergency shutdown teardown.
 - `gamehub/core/i18n/catalog.py`: Never place Unicode BiDi isolate characters (`\u2066`/`\u2069`) inside `QFileDialog` glob parentheses `(*.exe)` / `(*.png ...)` and never reintroduce `&` mnemonic ampersands in `.tr(...)` labels — `tests/test_i18n_and_settings_ui.py` enforces AST `.tr()` parity, mnemonic-free labels, and `QDir.match` validity.
-- `gamehub/core/protection/catalog.py` & `protected_games.json`: Keep `sys._MEIPASS` resolution in `_default_bundled_catalog_path()` so frozen builds always load bundled `protected_games.json`, and avoid duplicating shared wrapper executables like `start_protected_game.exe` across multiple catalog entries.
+- `gamehub/core/protection/catalog.py` & `protected_games.json`: Keep `sys._MEIPASS` resolution in `_default_bundled_catalog_path()` and `strict_load=True` fail-closed loading; never add persistent `EAAntiCheatService` to `anti_cheat_services`.
 - `gamehub/core/storage/media.py` and `location.py`: Preserve Windows directory pinning, `lstat()` reparse-point checks, and `PRAGMA user_version` verification for all managed media and store moves.
-- `packaging/gamehub.spec`, `packaging/installer.iss`, and `packaging/THIRD_PARTY_NOTICES.txt`: Keep `PySide6-Addons`, `third-party/FFmpeg/LGPL-2.1.txt`, `[InstallDelete]` on `{app}\_internal`, and `[Registry]` `uninsdeletevalue` cleanup intact.
+- `tests/test_packaging.py`: Static AST/regex security scan enforces Layer 1 anti-cheat invariants (`OpenProcess` only in `processes.py`, zero `SendInput`/`SetWindowsHookEx`/`ReadProcessMemory`, `asInvoker`, `upx=False`) and offline boundaries (update allowlist cleanly when adding strictly opt-in `steamgriddb.py` in M16).
 
-Last worked on by: Gemini 4 Neon (High), 2026-11-23
+Last worked on by: Gemini 4 Neon (High), 2026-11-24
 
 ## Run the app and tests
 

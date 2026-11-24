@@ -62,8 +62,10 @@ def _is_unmounted_windows_drive(raw_path: str) -> bool:
         return False
     import ctypes
 
-    # DRIVE_NO_ROOT_DIR (1) means a disconnected/offline drive letter in libraryfolders.vdf.
-    return ctypes.windll.kernel32.GetDriveTypeW(ctypes.c_wchar_p(p.anchor)) == 1
+    # Skip offline/disconnected/removable/mapped-network drive letters in libraryfolders.vdf
+    # (DRIVE_NO_ROOT_DIR=1, DRIVE_REMOVABLE=2, DRIVE_REMOTE=4, DRIVE_CDROM=5) without failing scan.
+    drive_type = ctypes.windll.kernel32.GetDriveTypeW(ctypes.c_wchar_p(p.anchor))
+    return drive_type in {1, 2, 4, 5}
 
 
 def _library_paths(path: Path) -> tuple[list[Path], bool]:
