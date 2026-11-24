@@ -54,6 +54,18 @@ def _steam_home() -> Path | None:
     return None
 
 
+def _is_unmounted_windows_drive(raw_path: str) -> bool:
+    if os.name != "nt":
+        return False
+    p = Path(raw_path)
+    if not p.is_absolute() or len(p.anchor) != 3 or p.anchor[1:] != ":\\" or not p.anchor[0].isalpha():
+        return False
+    import ctypes
+
+    # DRIVE_NO_ROOT_DIR (1) means a disconnected/offline drive letter in libraryfolders.vdf.
+    return ctypes.windll.kernel32.GetDriveTypeW(ctypes.c_wchar_p(p.anchor)) == 1
+
+
 def _library_paths(path: Path) -> tuple[list[Path], bool]:
     entries = _read_vdf(path).get("libraryfolders")
     if not isinstance(entries, dict):
@@ -65,6 +77,9 @@ def _library_paths(path: Path) -> tuple[list[Path], bool]:
             if len(libraries) == MAX_LIBRARIES:
                 return libraries, True
             raw_path = value.get("path") if isinstance(value, dict) else value
+            if isinstance(raw_path, str) and _is_unmounted_windows_drive(raw_path):
+                # Unmounted external/secondary drive in Steam's VDF is normal; skip cleanly.
+                continue
             try:
                 library = local_path(raw_path) if isinstance(raw_path, str) else None
             except OSError:
