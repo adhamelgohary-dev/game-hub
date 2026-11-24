@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Game Hub — Mods &amp; Arabizations Mockup (Part 6 Design)</title>
+<title>GameRewind — Translations &amp; Mods Mockup (Simplified Design)</title>
 <style>
   :root {
     --bg: #111318;
     --sidebar: #161922;
     --surface: #1d212c;
-    --surface-2: #242938;
+    --surface-2: #252b3b;
     --border: #2f364a;
     --text: #f3f5fa;
     --muted: #9aa3b8;
@@ -22,133 +22,183 @@
     --red-soft: rgba(248,113,113,0.14);
   }
   * { box-sizing: border-box; font-family: "Segoe UI", system-ui, sans-serif; }
-  body { margin: 0; background: var(--bg); color: var(--text); padding: 24px; }
-  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+  body { margin: 0; background: var(--bg); color: var(--text); padding: 20px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
   .toolbar button { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
   .toolbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .app { display: grid; grid-template-columns: 210px 1fr; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--bg); min-height: 680px; box-shadow: 0 20px 50px rgba(0,0,0,0.45); }
+  .app { display: grid; grid-template-columns: 220px 1fr; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--bg); min-height: 640px; box-shadow: 0 20px 50px rgba(0,0,0,0.45); max-width: 1120px; }
   .sidebar { background: var(--sidebar); border-inline-end: 1px solid var(--border); padding: 18px 14px; display: flex; flex-direction: column; gap: 8px; }
-  .brand { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-  .dot { width: 12px; height: 12px; border-radius: 4px; background: var(--accent); display: inline-block; }
+  .brand { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(135deg, #4c8dff, #34d399); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; }
   .nav { padding: 10px 12px; border-radius: 8px; color: var(--muted); font-size: 14px; }
   .nav.active { background: var(--accent-soft); color: var(--text); font-weight: 600; }
-  .main { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
-  .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-  .title { font-size: 22px; font-weight: 700; margin: 0; }
-  .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .actions { display: flex; gap: 10px; }
-  .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; }
+  .content { display: grid; grid-template-columns: 240px 1fr; min-height: 640px; }
+  .game-list { border-inline-end: 1px solid var(--border); padding: 18px 14px; display: flex; flex-direction: column; gap: 10px; background: #141720; }
+  .search { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 13px; }
+  .game-item { padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; display: flex; justify-content: space-between; align-items: center; font-size: 13px; cursor: pointer; }
+  .game-item.selected { background: var(--surface); border-color: var(--accent); font-weight: 600; }
+  .game-item.locked { color: var(--muted); }
+  .lock-pill { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--red-soft); color: var(--red); }
+  .main { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .title { font-size: 21px; font-weight: 700; margin: 0; }
+  .backup-ok { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--green); background: var(--green-soft); border: 1px solid rgba(52,211,153,0.35); border-radius: 999px; padding: 5px 12px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { padding: 10px 16px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn.danger { background: var(--red-soft); border-color: rgba(248,113,113,0.4); color: var(--red); }
-  .profiles { display: flex; gap: 8px; align-items: center; background: var(--surface); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); }
-  .pill { padding: 6px 12px; border-radius: 20px; font-size: 13px; border: 1px solid var(--border); color: var(--muted); }
-  .pill.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-  .banner { border-radius: 10px; padding: 14px 16px; border: 1px solid; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
-  .banner.warn { background: var(--amber-soft); border-color: rgba(251,191,36,0.45); color: #fde68a; }
-  .banner.lock { background: var(--red-soft); border-color: rgba(248,113,113,0.45); color: #fecaca; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .row { display: grid; grid-template-columns: 40px 1fr 130px 110px 120px; align-items: center; gap: 12px; padding: 12px 10px; border-bottom: 1px solid var(--border); }
-  .row:last-child { border-bottom: none; }
-  .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-  .badge.ar { background: var(--green-soft); color: var(--green); }
+  .btn.restore { background: var(--surface); border: 1.5px solid var(--amber); color: #fde68a; font-size: 14px; padding: 11px 18px; }
+  .btn.remove { background: transparent; border-color: rgba(248,113,113,0.35); color: var(--red); padding: 7px 12px; font-size: 12px; }
+  .conflict-box { background: var(--amber-soft); border: 1px solid rgba(251,191,36,0.45); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .conflict-title { font-size: 15px; font-weight: 700; color: #fde68a; }
+  .conflict-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .details-link { color: var(--muted); font-size: 12px; text-decoration: underline; margin-inline-start: auto; cursor: pointer; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .item-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  .item-row:last-child { border-bottom: none; }
+  .item-info { display: flex; flex-direction: column; gap: 4px; }
+  .item-name { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge.tr { background: var(--green-soft); color: var(--green); }
   .badge.mod { background: var(--accent-soft); color: #93c5fd; }
-  .badge.conflict { background: var(--amber-soft); color: var(--amber); }
   .muted { color: var(--muted); font-size: 12px; }
-  .code { font-family: Consolas, monospace; font-size: 12px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 4px; direction: ltr; display: inline-block; }
-  .footer-note { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--green); background: var(--green-soft); border: 1px solid rgba(52,211,153,0.35); border-radius: 10px; padding: 10px 14px; }
+  .controls { display: flex; align-items: center; gap: 12px; }
+  .switch { width: 46px; height: 26px; border-radius: 999px; background: var(--accent); position: relative; display: inline-block; }
+  .switch::after { content: ""; position: absolute; top: 3px; inset-inline-end: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+  .switch.off { background: #3b4256; }
+  .switch.off::after { inset-inline-end: auto; inset-inline-start: 3px; }
+  .lock-screen { background: var(--surface); border: 1px solid rgba(248,113,113,0.4); border-radius: 14px; padding: 48px 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 24px; }
+  .lock-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--red-soft); color: var(--red); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; }
+  .lock-title { font-size: 20px; font-weight: 700; margin: 0; }
+  .lock-desc { color: var(--muted); font-size: 14px; max-width: 460px; line-height: 1.6; }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <div class="toolbar">
-  <button id="btn-en" class="active" onclick="setLang('en')">English (LTR)</button>
-  <button id="btn-ar" onclick="setLang('ar')">العربية (RTL)</button>
+  <button id="btn-en" class="active" onclick="setMode('en')">EN Dark</button>
+  <button id="btn-ar" onclick="setMode('ar')">AR RTL</button>
+  <button id="btn-lock" onclick="setMode('lock')">Protected Game Lock</button>
 </div>
 
 <div id="app" class="app" dir="ltr">
   <aside class="sidebar">
-    <div class="brand"><span class="dot"></span><span data-en="Game Hub" data-ar="Game Hub">Game Hub</span></div>
+    <div class="brand"><span class="brand-icon">GR</span><span>GameRewind</span></div>
     <div class="nav" data-en="Library" data-ar="المكتبة">Library</div>
-    <div class="nav active" data-en="Mods &amp; Translations" data-ar="المودات والتعريبات">Mods &amp; Translations</div>
+    <div class="nav active" data-en="Translations &amp; Mods" data-ar="التعريبات والمودات">Translations &amp; Mods</div>
     <div class="nav" data-en="Settings" data-ar="الإعدادات">Settings</div>
   </aside>
 
-  <main class="main">
-    <div class="header">
-      <div>
-        <h1 class="title" data-en="Mafia II: Definitive Edition — Mods &amp; Translations" data-ar="Mafia II: Definitive Edition — المودات والتعريبات">Mafia II: Definitive Edition — Mods &amp; Translations</h1>
-        <div class="subtitle" data-en="Single-player game · Automatic backups enabled · Protected/online games are locked" data-ar="لعبة فردية · النسخ الاحتياطي التلقائي مفعل · الألعاب المحمية والأونلاين مقفولة تلقائياً">Single-player game · Automatic backups enabled · Protected/online games are locked</div>
+  <div class="content">
+    <section class="game-list">
+      <input class="search" id="search-box" type="text" placeholder="Search games..." data-en-ph="Search games..." data-ar-ph="ابحث عن لعبة..." readonly>
+      <div id="game-mafia" class="game-item selected">
+        <span>Mafia II: Definitive Edition</span>
       </div>
-      <div class="actions">
-        <span class="btn primary" data-en="+ Import Package (.zip)" data-ar="+ استيراد حزمة (.zip)">+ Import Package (.zip)</span>
-        <span class="btn danger" data-en="Restore to Vanilla" data-ar="استعادة النسخة الأصلية">Restore to Vanilla</span>
+      <div class="game-item">
+        <span>Death Stranding</span>
       </div>
-    </div>
-
-    <div class="profiles">
-      <strong style="font-size:13px;" data-en="Profile:" data-ar="البروفايل:">Profile:</strong>
-      <span class="pill" data-en="Vanilla" data-ar="أصلي (Vanilla)">Vanilla</span>
-      <span class="pill" data-en="Arabized" data-ar="معرّب">Arabized</span>
-      <span class="pill" data-en="Modded" data-ar="مودات">Modded</span>
-      <span class="pill active" data-en="Modded + Arabized" data-ar="مودات + تعريب">Modded + Arabized</span>
-    </div>
-
-    <div class="banner warn">
-      <div>
-        <strong data-en="File conflict detected (1 file)" data-ar="تم اكتشاف تعارض في ملف واحد">File conflict detected (1 file)</strong>
-        <div style="font-size:13px;margin-top:4px;" data-en="Both &quot;Mafia II Arabic Translation v1.2&quot; and &quot;Classic HUD Mod v2.0&quot; edit pc/sds_en/gui/fonts.sds. Priority #1 (Arabic Translation) currently wins." data-ar="كل من &quot;تعريب مافيا 2 (v1.2)&quot; و &quot;Classic HUD Mod v2.0&quot; يعدلان ملف pc/sds_en/gui/fonts.sds. الأولوية رقم 1 (التعريب) هي المطبقة حالياً.">Both "Mafia II Arabic Translation v1.2" and "Classic HUD Mod v2.0" edit <span class="code">pc/sds_en/gui/fonts.sds</span>. Priority #1 (Arabic Translation) currently wins.</div>
+      <div id="game-fortnite" class="game-item locked">
+        <span>Fortnite</span>
+        <span class="lock-pill" data-en="Online" data-ar="أونلاين">Online</span>
       </div>
-      <span class="btn" data-en="Resolve conflict…" data-ar="حل التعارض…">Resolve conflict…</span>
-    </div>
+      <div class="game-item locked">
+        <span>Valorant</span>
+        <span class="lock-pill" data-en="Online" data-ar="أونلاين">Online</span>
+      </div>
+    </section>
 
-    <div class="card">
-      <div class="row">
-        <strong>#1</strong>
+    <main class="main" id="normal-pane">
+      <div class="header">
         <div>
-          <strong data-en="Mafia II — Arabic Translation (v1.2.0)" data-ar="تعريب مافيا 2 (v1.2.0)">Mafia II — Arabic Translation (v1.2.0)</strong>
-          <div class="muted" data-en="Changed files only (2 files) · Target exe hash matched" data-ar="ملفات معدلة فقط (ملفين) · متوافق مع نسخة اللعبة">Changed files only (2 files) · Target exe hash matched</div>
+          <h1 class="title" data-en="Mafia II: Definitive Edition" data-ar="Mafia II: Definitive Edition">Mafia II: Definitive Edition</h1>
+          <div class="backup-ok" data-en="Original game files are backed up ✓" data-ar="ملفات اللعبة الأصلية محفوظة في نسخة احتياطية ✓">Original game files are backed up ✓</div>
         </div>
-        <div><span class="badge ar" data-en="Arabization" data-ar="تعريب">Arabization</span></div>
-        <div><span class="badge conflict" data-en="Wins 1 file" data-ar="يفوز في ملف">Wins 1 file</span></div>
-        <div class="actions"><span class="btn">↑ ↓</span><span class="btn" data-en="ON" data-ar="مفعل">ON</span></div>
+        <div class="actions">
+          <span class="btn primary" data-en="+ Import translation or mod (.zip)" data-ar="+ استيراد تعريب أو مود (.zip)">+ Import translation or mod (.zip)</span>
+        </div>
       </div>
 
-      <div class="row">
-        <strong>#2</strong>
+      <div class="conflict-box">
+        <div class="conflict-title" data-en="This translation and this mod change the same file. Which one should win?" data-ar="التعريب ده والمود ده بيعدلوا نفس الملف. تحب مين فيهم يكسب؟">This translation and this mod change the same file. Which one should win?</div>
+        <div class="conflict-actions">
+          <span class="btn primary" data-en="Use Mafia II Arabic Translation ✓" data-ar="استخدم تعريب مافيا 2 ✓">Use Mafia II Arabic Translation ✓</span>
+          <span class="btn" data-en="Use Classic HUD Mod" data-ar="استخدم مود الواجهة الكلاسيكية">Use Classic HUD Mod</span>
+          <span class="details-link" data-en="Details ▾" data-ar="التفاصيل ▾">Details ▾</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="item-row">
+          <div class="item-info">
+            <div class="item-name">
+              <span data-en="Mafia II Arabic Translation" data-ar="تعريب مافيا 2">Mafia II Arabic Translation</span>
+              <span class="badge tr" data-en="Translation" data-ar="تعريب">Translation</span>
+            </div>
+            <div class="muted" data-en="On · Version 1.2" data-ar="شغّال · الإصدار 1.2">On · Version 1.2</div>
+          </div>
+          <div class="controls">
+            <span class="switch" title="On"></span>
+            <span class="btn remove" data-en="Remove" data-ar="حذف">Remove</span>
+          </div>
+        </div>
+
+        <div class="item-row">
+          <div class="item-info">
+            <div class="item-name">
+              <span data-en="Classic HUD Mod" data-ar="مود الواجهة الكلاسيكية">Classic HUD Mod</span>
+              <span class="badge mod" data-en="Mod" data-ar="مود">Mod</span>
+            </div>
+            <div class="muted" data-en="On · Version 2.0" data-ar="شغّال · الإصدار 2.0">On · Version 2.0</div>
+          </div>
+          <div class="controls">
+            <span class="switch" title="On"></span>
+            <span class="btn remove" data-en="Remove" data-ar="حذف">Remove</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:auto; display:flex; justify-content:flex-start;">
+        <span class="btn restore" data-en="Restore the original game" data-ar="استرجاع اللعبة الأصلية">Restore the original game</span>
+      </div>
+    </main>
+
+    <main class="main hidden" id="lock-pane">
+      <div class="header">
         <div>
-          <strong data-en="Classic HUD &amp; Remaster Mod (v2.0.1)" data-ar="مود الواجهة الكلاسيكية Classic HUD (v2.0.1)">Classic HUD &amp; Remaster Mod (v2.0.1)</strong>
-          <div class="muted" data-en="Changed files only (6 files) · 1 file overridden by #1" data-ar="ملفات معدلة فقط (6 ملفات) · ملف واحد مستبدل بالأولوية #1">Changed files only (6 files) · 1 file overridden by #1</div>
+          <h1 class="title">Fortnite</h1>
         </div>
-        <div><span class="badge mod" data-en="Mod" data-ar="مود">Mod</span></div>
-        <div><span class="badge conflict" data-en="1 conflict" data-ar="تعارض 1">1 conflict</span></div>
-        <div class="actions"><span class="btn">↑ ↓</span><span class="btn" data-en="ON" data-ar="مفعل">ON</span></div>
       </div>
-    </div>
-
-    <div class="footer-note">
-      <span data-en="Backup verified: 7 original game files safely backed up locally (SHA-256 verified). Never redistributes original game files." data-ar="النسخة الاحتياطية سليمة: 7 ملفات أصلية محفوظة محلياً بأمان. لا يتم مشاركة أي ملفات أصلية للعبة أبداً.">Backup verified: 7 original game files safely backed up locally (SHA-256 verified). Never redistributes original game files.</span>
-      <span data-en="manifest.json v1" data-ar="manifest.json v1">manifest.json v1</span>
-    </div>
-
-    <div class="banner lock">
-      <div>
-        <strong data-en="Example on Protected Games (Fortnite / Valorant / EA FC):" data-ar="مثال على الألعاب المحمية (Fortnite / Valorant / EA FC):">Example on Protected Games (Fortnite / Valorant / EA FC):</strong>
-        <span style="font-size:13px;" data-en=" Mods &amp; Translations are permanently disabled for anti-cheat games to guarantee zero ban risk." data-ar=" المودات والتعريبات معطلة تلقائياً في الألعاب المحمية بـ Anti-Cheat لمنع أي خطر بان."> Mods &amp; Translations are permanently disabled for anti-cheat games to guarantee zero ban risk.</span>
+      <div class="lock-screen">
+        <div class="lock-icon">🔒</div>
+        <h2 class="lock-title" data-en="Protected online game" data-ar="لعبة أونلاين محمية">Protected online game</h2>
+        <div class="lock-desc" data-en="Mods and translations are turned off for online games to protect your account." data-ar="المودات والتعريبات مقفولة للألعاب الأونلاين علشان نحمي حسابك.">Mods and translations are turned off for online games to protect your account.</div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
 <script>
-function setLang(lang) {
+function setMode(mode) {
   const app = document.getElementById('app');
+  const lang = mode === 'ar' ? 'ar' : 'en';
+  const locked = mode === 'lock';
   app.dir = lang === 'ar' ? 'rtl' : 'ltr';
-  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
-  document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
+  document.getElementById('btn-en').classList.toggle('active', mode === 'en');
+  document.getElementById('btn-ar').classList.toggle('active', mode === 'ar');
+  document.getElementById('btn-lock').classList.toggle('active', mode === 'lock');
+  document.getElementById('normal-pane').classList.toggle('hidden', locked);
+  document.getElementById('lock-pane').classList.toggle('hidden', !locked);
+  document.getElementById('game-mafia').classList.toggle('selected', !locked);
+  document.getElementById('game-fortnite').classList.toggle('selected', locked);
   document.querySelectorAll('[data-en]').forEach(el => {
     el.textContent = el.getAttribute('data-' + lang);
   });
+  const search = document.getElementById('search-box');
+  search.placeholder = search.getAttribute('data-' + lang + '-ph');
 }
-if (location.search.includes('lang=ar')) setLang('ar');
+const params = new URLSearchParams(location.search);
+if (params.get('mode')) setMode(params.get('mode'));
+else if (params.get('lang') === 'ar') setMode('ar');
 </script>
 </body>
 </html>
