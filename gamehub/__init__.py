@@ -1,3 +1,3 @@
 """Game Hub desktop application."""
 
-__version__ = "1.1.0-rc.2"
+__version__ = "1.2.0-rc.1"

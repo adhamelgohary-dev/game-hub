@@ -6,17 +6,14 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Execute **M18 (`v1.2.0-rc.1` packaging, full verification, pre-release publish & owner handoff)** `[complex]`:
-1. Bump version to `1.2.0-rc.1` (`gamehub/__init__.py`, `packaging/version_info.txt`, `packaging/installer.iss`, `tests/test_packaging.py`) and add `## v1.2.0-rc.1` release notes to `CHANGELOG.md`.
-2. Run full `pytest -q`, `ruff check .`, local PyInstaller one-dir build + Python-free `--smoke-test`, Inno Setup installer build (`GameHub-Setup-v1.2.0-rc.1.exe`), portable zip + `SHA256SUMS.txt`, and copy `GameHub-Setup-v1.2.0-rc.1.exe` to the owner's Desktop.
-3. Record `docs/reviews/M18-review.md`, commit & push `main`, tag `v1.2.0-rc.1`, push tag so Windows CI publishes the pre-release (or verify GitHub Release assets), and present the owner with:
-   - Numbered click-only verification checklist in Egyptian Arabic.
-   - Part 5 Rename decision (`GameRewind` recommended vs `Rewind Games` vs `PlayRewind`).
-   - Part 6 Mods & Arabizations design/mockup approval (`docs/design/12-mods-and-arabizations.md` + `docs/design/mockups/mods-arabizations.html`).
+Wait at **Owner Gate (v1.2)** after delivering `GameHub-Setup-v1.2.0-rc.1.exe` on `C:\Users\adham\Desktop` and publishing GitHub pre-release `v1.2.0-rc.1`:
+- If the owner reports any bug or polish request on `v1.2.0-rc.1`: fix with small commits + regression tests, bump to `v1.2.0-rc.2`, publish, and repeat.
+- Once the owner replies `"verified"` and chooses a **Part 5 Rename variant** (`GameRewind`, `Rewind Games`, `PlayRewind`, or keep `Game Hub`), execute **M19** `[simple]` (apply rename if selected, bump version to `1.2.0`, run full verification + Council review, and publish final `Game Hub v1.2.0`).
+- Once the owner approves `docs/design/12-mods-and-arabizations.md` + `docs/design/mockups/mods-arabizations.html`, execute **M20 (Part 6 — Mods & Arabizations)** `[complex]`.
 
 ## In progress
 
-Implementing **v1.2** on `main`. Completed and Council-approved: `D-v1.2`, `M14` (`m14`), `M15` (`m15`), `M16` (`m16`), and `M17` (`m17`). Repository is **PUBLIC** (`adhamelgohary-dev/game-hub`).
+Paused cleanly on green `main` at **Owner Gate (v1.2)**. All v1.2 RC1 implementation milestones (`D-v1.2`, `M14`, `M15`, `M16`, `M17`, `M18`) are complete, Council-approved, tagged (`m14`–`m18`, `v1.2.0-rc.1`), and pushed. Repository is **PUBLIC** (`adhamelgohary-dev/game-hub`).
 
 ## Fragile spots
 

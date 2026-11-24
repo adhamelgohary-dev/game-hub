@@ -98,7 +98,7 @@ def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:
         package = stripped.split("==")[0]
         assert f"'{package}'" in spec_text, f"Missing {package!r} in packaging/gamehub.spec"
 
-    assert __version__ == "1.1.0-rc.2"
+    assert __version__ == "1.2.0-rc.1"
     assert "PrivilegesRequired=lowest" in installer_text
     assert "GameHub-Setup" in installer_text
     assert "Flags: deletevalue uninsdeletevalue dontcreatekey" in installer_text

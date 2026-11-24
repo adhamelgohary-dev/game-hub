@@ -30,13 +30,14 @@
 - ✅ M15 — Part 2: Fix Epic & Steam, add Riot/GOG/EA/Ubisoft/Battle.net/itch/Xbox detectors, Scan Folders, plain scan warnings [complex]
 - ✅ M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
 - ✅ M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
-- 🔄 M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
+- ✅ M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
+- 🔄 Owner Gate (v1.2) — Waiting for owner to test `GameHub-Setup-v1.2.0-rc.1.exe`, reply `"verified"`, pick Rename variant (`GameRewind` / `Rewind Games` / `PlayRewind`), and approve Part 6 Mods design/mockup [simple]
 - ⬜ M19 — Execute owner-chosen Rename variant & publish final `v1.2.0` after owner replies `"verified"` [simple]
 - ⬜ M20 — Part 6: Mods & Arabizations implementation (blocked until owner approves `docs/design/12-mods-and-arabizations.md` + mockups) [complex]
 
-**Current task** — Executing **M18 (`v1.2.0-rc.1` build, verification, Desktop copy & pre-release)** after `M17` Council APPROVE (`211 passed`).
+**Current task** — Paused cleanly on green `main` at **Owner Gate (v1.2)** awaiting owner testing of `GameHub-Setup-v1.2.0-rc.1.exe` on Desktop, Rename variant choice, and Part 6 Mods approval.
 
 **Last completed**
-- **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide):** Reorganized Settings into 5 clear groups (**General**, **Capture and notes**, **Protected games**, **Library and folders**, **About and privacy**) with plain-language explanations under every setting in EN & AR, Scan folders manager, optional off-by-default SteamGridDB controls, **Reset to defaults** with confirmation, and updated `docs/USER-GUIDE-AR.md` with Egyptian Arabic **"شرح الإعدادات"**. Passed `docs/reviews/M17-review.md`.
+- **M18 (`v1.2.0-rc.1` Pre-Release):** Bumped version to `1.2.0-rc.1`, updated `CHANGELOG.md`, verified `211 passed`, `ruff` clean, local PyInstaller `--onedir` + Python-free `PATH` frozen `--smoke-test` exit `0`, passed `docs/reviews/M18-review.md`, published `v1.2.0-rc.1` pre-release via Windows CI with `SHA256SUMS.txt`, and copied verified `GameHub-Setup-v1.2.0-rc.1.exe` to Desktop.
 
-**Tests** — 211 tests and `ruff check .` passing.
+**Tests** — 211 tests, `ruff check .`, local PyInstaller frozen smoke test, and Windows CI release workflow passing.

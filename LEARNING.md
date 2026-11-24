@@ -190,3 +190,12 @@ Grouping settings into five task-oriented sections with one-line muted helper te
 Read [settings_view.py](gamehub/ui/settings_view.py), [settings.py](gamehub/core/settings.py), [USER-GUIDE-AR.md](docs/USER-GUIDE-AR.md), and [test_v12_settings.py](tests/test_v12_settings.py).
 
 Try it yourself. Open **Settings → About and privacy** and click **Reset to defaults**, confirm the dialog, and verify that theme, capture interval, launcher toggles, and per-game protection return to their safe defaults while your library remains intact.
+
+
+## M18 — `v1.2.0-rc.1` verification, frozen smoke test, and pre-release gate
+
+Shipping a multi-pillar release safely combines automated static invariants (`tests/test_packaging.py`), live real-PC verification (Steam 26/26 wide covers, Epic 3, Riot 1, EA 2 with zero false partial banners), a local Python-free `PATH` PyInstaller smoke test (`FROZEN_SMOKE_EXIT=0`), and a full Windows CI Inno Setup install/upgrade/uninstall pipeline producing `SHA256SUMS.txt`. Publishing `-rc.1` first lets the owner validate the exact installer binary on their machine and decide on irreversible items (brand rename variant and Part 6 Mods scope) before cutting final `v1.2.0`.
+
+Read [CHANGELOG.md](CHANGELOG.md), [M18-review.md](docs/reviews/M18-review.md), [11-v1.2-plan.md](docs/design/11-v1.2-plan.md), and [12-mods-and-arabizations.md](docs/design/12-mods-and-arabizations.md).
+
+Try it yourself. Run `Get-FileHash "$env:USERPROFILE\Desktop\GameHub-Setup-v1.2.0-rc.1.exe" -Algorithm SHA256` and confirm it matches `SHA256SUMS.txt` on the `v1.2.0-rc.1` GitHub pre-release.

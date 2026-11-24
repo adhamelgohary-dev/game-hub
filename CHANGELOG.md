@@ -1,5 +1,38 @@
 # Changelog
 
+## v1.2.0-rc.1
+
+### Added
+- **Zero-Presence Anti-Cheat Protocol (Layers 1–7):**
+  - Fail-closed startup self-check (`ProtectedGamesCatalog` strict load + Toolhelp32 basename scan + read-only SCM service check for `EasyAntiCheat_EOS`, `EasyAntiCheat`, `BEService`, `vgc`) runs **before** `SingleInstance` activation, window creation, or any database write — refusing immediately if a protected game or Riot Client is already running.
+  - Fast 300 ms passive `ProtectionGuard` with a 1-second main-thread heartbeat watchdog detects earliest launcher-stage processes (`FortniteBootstrapper.exe`, `FortniteLauncher.exe`, `VALORANT.exe`, `EAAntiCheat.GameServiceLauncher.exe`, `start_protected_game.exe`) and performs emergency teardown in under 500 ms before anti-cheat drivers initialize.
+  - **Riot Client** is locked ALWAYS strict for Vanguard safety; **Epic**, **EA**, **Battle.net**, **Ubisoft**, and **Steam** remain allowed by default so single-player story games run in Full mode, with opt-in per-launcher strict toggles and confirmation-guarded per-game overrides in **Settings → Protected games**.
+  - Added **"Test protection"** self-test button using harmless temporary dummy executables to confirm detection and exit latency on the user's PC, plus `docs/DEFENDER-SUBMISSION.md` click-only false-positive submission guide.
+- **All-Launcher Read-Only Discovery & Scan Folders:**
+  - Added read-only detectors for **Riot Games**, **GOG** (Galaxy SQLite + registry), **EA app**, **Ubisoft Connect**, **Battle.net**, and **itch.io** (`butler.db`), plus improved **Xbox** cover extraction from `MicrosoftGame.config`.
+  - Added **Scan folders** (`Scan folder…` in Library & **Settings → Library and folders**) with depth-bounded symlink-safe `.exe` scanning, automatic filtering of uninstallers/crash reporters/redistributables/anti-cheat helpers, an editable candidate review dialog, and persisted include/ignore choices.
+  - Replaced raw partial-scan warnings with plain-language English & Arabic banners featuring **Retry** and **Learn more** actions.
+- **Fitting Cover Art, WebP Thumbnail Cache, Change Cover & Opt-In SteamGridDB:**
+  - Switched Steam cover discovery to **landscape-first** across flat, per-AppID, and hashed `librarycache` directories before falling back to vertical capsules.
+  - Replaced stretched card covers with resize-aware zero-stretch `CoverLabel`, added atomic `<data_root>/cache/covers/` WebP thumbnail caching, and upgraded fallback placeholders to render full game titles cleanly.
+  - Added **"⋯ → Change cover…"** and **"Reset cover"** on every Library card and Game page backed by safe managed WebP storage (`<data_root>/media/<game_id>/cover.webp`, preserved across refreshes).
+  - Added strictly **opt-in (off by default)** SteamGridDB cover art fetching in **Settings → Library and folders** requiring the user's own API key (password-masked, never logged).
+- **Plain-Language Grouped Settings & Egyptian Arabic Guide:**
+  - Reorganized **Settings** into 5 clear groups (**General**, **Capture and notes**, **Protected games**, **Library and folders**, **About and privacy**) with a one-line plain explanation under every setting in both English and Arabic.
+  - Added **Reset to defaults** (with confirmation, keeping all notes and screenshots) and updated `docs/USER-GUIDE-AR.md` with a complete Egyptian Arabic **"شرح الإعدادات"** section.
+
+### Changed
+- Upgraded SQLite database to Schema v6 (`scan_folders`, `scan_folder_choices`, `games.custom_cover`, per-launcher strict toggles, optional SteamGridDB settings) with automatic `gamehub.db-v5.bak` pre-upgrade backup.
+- Updated `WindowsLauncher` to support detached official Riot Client launches alongside Steam, Epic, GOG, EA, Ubisoft, Battle.net, and Xbox URIs.
+
+### Fixed
+- **Epic Games discovery:** Added modern per-user `HKCU\...\Uninstall\EpicGames-*` (`EpicAppId`) and `LauncherInstalled.dat` scanning alongside legacy `ProgramData` manifests so modern Epic Games installs (e.g., *Fortnite*, *Death Stranding*, *Hue*) appear automatically.
+- **Steam false partial warnings:** Skipped offline, unmounted, removable, and mapped-network drive letters in `libraryfolders.vdf` (`GetDriveTypeW` in `{1, 2, 4, 5}`) without falsely marking the Steam scan as partial.
+- **Emergency shutdown latency:** Skipped blocking on background library worker threads (`wait=False`) during emergency anti-cheat exits so Game Hub closes in milliseconds.
+
+### Security
+- Expanded static AST/regex security invariants in `tests/test_packaging.py` to enforce zero `SendInput`, `keybd_event`, `mouse_event`, `SetWindowsHookEx`, `ReadProcessMemory`, `WriteProcessMemory`, `CreateRemoteThread`, zero `OpenProcess` outside `processes.py`, `asInvoker` manifest, `upx=False`, and strictly isolated opt-in network access confined exclusively to `gamehub/core/library/steamgriddb.py`.
+
 ## v1.1.0-rc.2
 
 ### Added
