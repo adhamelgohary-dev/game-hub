@@ -155,3 +155,11 @@ Testing assumptions directly against a real Windows 11 machine caught three crit
 Read [anti-cheat.md](docs/research/anti-cheat.md), [11-v1.2-plan.md](docs/design/11-v1.2-plan.md), [12-mods-and-arabizations.md](docs/design/12-mods-and-arabizations.md), and [D-v1.2-review.md](docs/reviews/D-v1.2-review.md).
 
 Try it yourself. Open `docs/design/mockups/mods-arabizations.html` in a browser and toggle between English (LTR) and Arabic (RTL) to preview the Mafia II Arabization-vs-Mod conflict resolution design.
+
+## M14 — Zero-Presence anti-cheat guard, fail-closed watchdog, and emergency teardown
+
+Running the real dummy-process lab caught a subtle latency hazard: during normal exit, `LibraryController.close()` waited for a background PowerShell `XboxDetector` scan (~7 seconds), which would delay exiting when a protected game launches. Passing `wait=False` on emergency protection exits dropped full shutdown latency from ~7.9 s to well under 500 ms. Ordering the startup protection check *before* `SingleInstance.claim_or_activate()` guarantees that even clicking a desktop shortcut while a protected game runs refuses immediately without activating or writing to disk.
+
+Read [guard.py](gamehub/core/protection/guard.py), [catalog.py](gamehub/core/protection/catalog.py), [protected_games.json](gamehub/core/protection/protected_games.json), and [test_zero_presence_guard.py](tests/test_zero_presence_guard.py).
+
+Try it yourself. Run `python -m pytest tests/test_zero_presence_guard.py -v` to watch the real Windows dummy-process lab test `FortniteBootstrapper.exe`, `FortniteLauncher.exe`, `VALORANT.exe`, `EasyAntiCheat_EOS.exe`, and `RiotClientServices.exe`.

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMenu,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
@@ -286,6 +287,21 @@ class GamePage(QWidget):
         if self._updating_protection or self._game is None:
             return
         mode = str(self._protection_combo.currentData() or "auto")
+        if mode == "full" and self._auto_effective_strict and self._game.protection_mode != "full":
+            answer = QMessageBox.warning(
+                self,
+                self.tr("Turn off anti-cheat protection?"),
+                self.tr(
+                    "This game uses anti-cheat software. Keeping protection on (Strict-exit) "
+                    "ensures Game Hub closes before the game starts for zero ban risk. "
+                    "Turn off protection for {game} anyway?"
+                ).format(game=self._game.name),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                self._sync_protection_controls(self._game)
+                return
         effective_strict = mode == "strict" or (mode == "auto" and self._auto_effective_strict)
         self._exit_after_launch.setVisible(effective_strict)
         self._update_mode_badge(effective_strict)

@@ -6,7 +6,7 @@ from contextlib import closing, contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 INITIAL_SCHEMA = (
     """
@@ -130,6 +130,70 @@ PROTECTION_SCHEMA = (
     "DELETE FROM settings WHERE key = 'app.start_with_windows'",
 )
 
+V12_SCHEMA = (
+    """
+    CREATE TABLE games_v6 (
+        id TEXT PRIMARY KEY NOT NULL,
+        source TEXT NOT NULL CHECK (
+            source IN (
+                'steam', 'epic', 'riot', 'gog', 'ea', 'ubisoft',
+                'battlenet', 'itch', 'xbox', 'folder', 'manual'
+            )
+        ),
+        source_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        install_dir TEXT,
+        cover_path TEXT,
+        added_at INTEGER NOT NULL,
+        hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
+        installed INTEGER NOT NULL DEFAULT 1 CHECK (installed IN (0, 1)),
+        launch_kind TEXT CHECK (
+            launch_kind IN (
+                'steam_uri', 'epic_uri', 'riot_client', 'ea_uri',
+                'ubisoft_uri', 'gog_uri', 'battlenet_uri', 'xbox_uri', 'exe'
+            )
+        ),
+        launch_value TEXT,
+        protection_mode TEXT NOT NULL DEFAULT 'auto'
+            CHECK (protection_mode IN ('auto', 'strict', 'full')),
+        exit_after_launch INTEGER NOT NULL DEFAULT 0 CHECK (exit_after_launch IN (0, 1)),
+        custom_cover INTEGER NOT NULL DEFAULT 0 CHECK (custom_cover IN (0, 1)),
+        UNIQUE (source, source_id),
+        CHECK ((launch_kind IS NULL) = (launch_value IS NULL))
+    ) STRICT
+    """,
+    """
+    INSERT INTO games_v6 (
+        id, source, source_id, name, install_dir, cover_path, added_at,
+        hidden, installed, launch_kind, launch_value, protection_mode,
+        exit_after_launch, custom_cover
+    )
+    SELECT
+        id, source, source_id, name, install_dir, cover_path, added_at,
+        hidden, installed, launch_kind, launch_value, protection_mode,
+        exit_after_launch, 0
+    FROM games
+    """,
+    "DROP TABLE games",
+    "ALTER TABLE games_v6 RENAME TO games",
+    """
+    CREATE TABLE scan_folders (
+        path TEXT PRIMARY KEY NOT NULL,
+        added_at INTEGER NOT NULL
+    ) STRICT
+    """,
+    """
+    CREATE TABLE scan_folder_choices (
+        exe_path TEXT PRIMARY KEY NOT NULL,
+        folder_path TEXT NOT NULL,
+        decision TEXT NOT NULL CHECK (decision IN ('include', 'ignore')),
+        custom_name TEXT,
+        updated_at INTEGER NOT NULL
+    ) STRICT
+    """,
+    "CREATE INDEX scan_folder_choices_folder ON scan_folder_choices (folder_path)",
+)
+
 
 class StorageError(RuntimeError):
     """The application cannot safely complete a local storage operation."""
@@ -145,8 +209,21 @@ class Database:
         except OSError as error:
             raise StorageError("Game Hub could not open its data folder.") from error
 
-        with self._connection("rwc") as connection, self._transaction(connection):
-            self._initialize(connection)
+        with self._connection("rwc") as connection:
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+            needs_rebuild = version < SCHEMA_VERSION
+            if needs_rebuild:
+                # SQLite requires PRAGMA foreign_keys = OFF outside a transaction to rebuild
+                # tables referenced by foreign keys (migration v5 -> v6 expands games CHECKs).
+                connection.execute("PRAGMA foreign_keys = OFF")
+            try:
+                with self._transaction(connection):
+                    self._initialize(connection)
+            finally:
+                if needs_rebuild:
+                    connection.execute("PRAGMA foreign_keys = ON")
+            if connection.execute("PRAGMA foreign_key_check").fetchone() is not None:
+                raise StorageError("Game Hub found inconsistent records in its database.")
 
     @contextmanager
     def _connection(self, mode: str) -> Iterator[sqlite3.Connection]:
@@ -194,6 +271,7 @@ class Database:
             NOTE_SCHEMA,
             CONTROLS_SCHEMA,
             PROTECTION_SCHEMA,
+            V12_SCHEMA,
         )
         for next_version, statements in enumerate(migrations[version:], start=version + 1):
             for statement in statements:

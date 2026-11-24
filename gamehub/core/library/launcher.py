@@ -34,6 +34,14 @@ _EPIC_URI = re.compile(
     rf"com\.epicgames\.launcher://apps/(?:{_EPIC_PART}(?:%3A{_EPIC_PART}){{2}}|{_EPIC_PART})"
     r"\?action=launch&silent=true\Z"
 )
+_UBISOFT_URI = re.compile(r"uplay://launch/[0-9]{1,10}/0\Z")
+_GOG_URI = re.compile(r"goggalaxy://openGameView/[0-9]{1,16}\Z")
+_EA_URI = re.compile(
+    r"(?:origin2://game/launch\?offerIds=[A-Za-z0-9._:,-]{1,128}|link2ea://launchgame/[A-Za-z0-9._-]{1,128})\Z"
+)
+_BATTLENET_URI = re.compile(r"battlenet://[A-Za-z0-9._-]{1,64}\Z")
+_XBOX_URI = re.compile(r"shell:AppsFolder\\[A-Za-z0-9._!-]{1,256}\Z")
+_RIOT_TOKEN = re.compile(r"[a-z0-9_-]{1,64}\Z")
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +58,9 @@ class LaunchResult:
     diagnostic: str | None = None
 
 
-def validate_launch_target(target: LaunchTarget) -> LaunchTarget | Path | None:
+def validate_launch_target(
+    target: LaunchTarget,
+) -> LaunchTarget | Path | tuple[Path, tuple[str, ...]] | None:
     """Confirm a launch target matches a fixed URI template or a safe local executable."""
     if not isinstance(target, LaunchTarget) or not isinstance(target.value, str):
         return None
@@ -58,6 +68,38 @@ def validate_launch_target(target: LaunchTarget) -> LaunchTarget | Path | None:
         return target if _STEAM_URI.fullmatch(target.value) else None
     if target.kind == "epic_uri":
         return target if _EPIC_URI.fullmatch(target.value) else None
+    if target.kind == "ubisoft_uri":
+        return target if _UBISOFT_URI.fullmatch(target.value) else None
+    if target.kind == "gog_uri":
+        return target if _GOG_URI.fullmatch(target.value) else None
+    if target.kind == "ea_uri":
+        return target if _EA_URI.fullmatch(target.value) else None
+    if target.kind == "battlenet_uri":
+        return target if _BATTLENET_URI.fullmatch(target.value) else None
+    if target.kind == "xbox_uri":
+        return target if _XBOX_URI.fullmatch(target.value) else None
+    if target.kind == "riot_client":
+        parts = target.value.split("|")
+        if len(parts) != 3:
+            return None
+        raw_exe, product, patchline = parts
+        if not _RIOT_TOKEN.fullmatch(product) or not _RIOT_TOKEN.fullmatch(patchline):
+            return None
+        try:
+            path = local_path(raw_exe)
+            if path is None or path.name.casefold() != "riotclientservices.exe":
+                return None
+            info = path.lstat()
+        except OSError:
+            return None
+        if stat.S_ISREG(info.st_mode) and not (
+            getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        ):
+            return (
+                path,
+                (f"--launch-product={product}", f"--launch-patchline={patchline}"),
+            )
+        return None
     if target.kind == "exe":
         try:
             path = local_path(target.value)
@@ -132,14 +174,22 @@ def _spawn_env() -> dict[str, str] | None:
     return env
 
 
-def _spawn_executable(path: Path) -> str | None:
+def _spawn_executable(
+    path: Path, args: tuple[str, ...] = (), *, detached: bool = False
+) -> str | None:
+    flags = 0
+    if detached and os.name == "nt":
+        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+        )
     try:
         subprocess.Popen(
-            [str(path)],
+            [str(path), *args],
             cwd=str(path.parent),
             env=_spawn_env(),
             shell=False,
             close_fds=True,
+            creationflags=flags,
         )
     except OSError:
         return "launch_failed"
@@ -147,15 +197,21 @@ def _spawn_executable(path: Path) -> str | None:
 
 
 class WindowsLauncher:
-    """Dispatch validated Steam URIs, Epic URIs, or local executables through Windows."""
+    """Dispatch validated official launcher URIs or local executables through Windows."""
 
     def __init__(
         self,
         open_uri: Callable[[str], str | None] = _shell_open_uri,
         spawn_exe: Callable[[Path], str | None] = _spawn_executable,
+        spawn_detached: Callable[[Path, tuple[str, ...]], str | None] | None = None,
     ) -> None:
         self._open_uri = open_uri
         self._spawn_exe = spawn_exe
+        self._spawn_detached = (
+            spawn_detached
+            if spawn_detached is not None
+            else (lambda p, args: _spawn_executable(p, args, detached=True))
+        )
 
     def launch(self, game_id: str, target: LaunchTarget, attempt_id: str) -> LaunchResult:
         validated = validate_launch_target(target)
@@ -164,6 +220,9 @@ class WindowsLauncher:
 
         if isinstance(validated, Path):
             diagnostic = self._spawn_exe(validated)
+        elif isinstance(validated, tuple):
+            path, args = validated
+            diagnostic = self._spawn_detached(path, args)
         else:
             diagnostic = self._open_uri(validated.value)
         if diagnostic is not None:

@@ -9,7 +9,14 @@ from typing import Protocol
 class GameSource(StrEnum):
     STEAM = "steam"
     EPIC = "epic"
+    RIOT = "riot"
+    GOG = "gog"
+    EA = "ea"
+    UBISOFT = "ubisoft"
+    BATTLENET = "battlenet"
+    ITCH = "itch"
     XBOX = "xbox"
+    FOLDER = "folder"
     MANUAL = "manual"
 
 
@@ -59,6 +66,7 @@ class GameSummary:
     source_id: str = ""
     protection_mode: str = "auto"
     exit_after_launch: bool = False
+    custom_cover: bool = False
 
 
 @dataclass(frozen=True, slots=True)

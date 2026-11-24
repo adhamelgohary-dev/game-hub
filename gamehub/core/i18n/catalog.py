@@ -338,6 +338,42 @@ AR_CATALOG: dict[str, str] = {
     "{seconds} sec": "{seconds} ث",
     "{source} (not installed)": "{source} (غير مثبّتة)",
     "{source} · Assign executable": "{source} · حدّد الملف التنفيذي",
+    "A protected game or its launcher is running — Game Hub won't run alongside it. Close it first.": (
+        "توجد لعبة محمية أو مشغّلها قيد التشغيل حاليًا — لن يعمل \u2066Game Hub\u2069 بجانبها. أغلقها أولًا."
+    ),
+    "Protection could not start — Game Hub will close to keep you safe.": (
+        "تعذّر تشغيل الحماية — سيُغلق \u2066Game Hub\u2069 تلقائيًا للحفاظ على أمانك."
+    ),
+    "Protected games": "الألعاب المحمية",
+    "Close Game Hub whenever this launcher is open": (
+        "أغلق \u2066Game Hub\u2069 تلقائيًا عند فتح هذا المشغّل"
+    ),
+    "Riot Client (always on for Vanguard safety)": (
+        "\u2066Riot Client\u2069 (مفعّل دائمًا لحماية \u2066Vanguard\u2069)"
+    ),
+    "Epic Games Launcher (off by default so story games work)": (
+        "\u2066Epic Games Launcher\u2069 (معطّل افتراضيًا لتعمل ألعاب القصة بشكل طبيعي)"
+    ),
+    "EA app": "\u2066EA app\u2069",
+    "Battle.net": "\u2066Battle.net\u2069",
+    "Ubisoft Connect": "\u2066Ubisoft Connect\u2069",
+    "Detected protected games on this PC": "الألعاب المحمية المكتشفة على هذا الجهاز",
+    "No protected games detected on this PC yet.": "لم يتم اكتشاف ألعاب محمية على هذا الجهاز بعد.",
+    "Strict-exit (Default)": "إغلاق فوري صارم (افتراضي)",
+    "Off for this game": "إيقاف الحماية لهذه اللعبة",
+    "Test protection": "اختبار الحماية",
+    "Running protection check…": "جارٍ اختبار الحماية…",
+    "Protection OK — Game Hub closed in {ms} ms": (
+        "الحماية تعمل بنجاح — أُغلق \u2066Game Hub\u2069 خلال {ms} مللي ثانية"
+    ),
+    "Protection test failed. Check that Windows process scanning is available.": (
+        "فشل اختبار الحماية. تأكد من أن فحص عمليات \u2066Windows\u2069 متاح."
+    ),
+    "Turn off anti-cheat protection?": "هل تريد إيقاف حماية مكافحة الغش؟",
+    "This game uses anti-cheat software. Keeping protection on (Strict-exit) ensures Game Hub closes before the game starts for zero ban risk. Turn off protection for {game} anyway?": (
+        "تستخدم هذه اللعبة نظام مكافحة غش. إبقاء الحماية مفعّلة (إغلاق فوري) يضمن إغلاق \u2066Game Hub\u2069 "
+        "قبل بدء اللعبة لتجنب أي خطر حظر. هل تريد إيقاف الحماية للعبة {game} على أي حال؟"
+    ),
     "{source} · Last played {date} · Total playtime {playtime}": (
         "{source} · آخر لعب {date} · إجمالي وقت اللعب {playtime}"
     ),

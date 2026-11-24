@@ -1,6 +1,37 @@
 {
-  "schema_version": 1,
-  "updated_at": "2026-11-23",
+  "schema_version": 2,
+  "updated_at": "2026-11-24",
+  "always_strict_launchers": {
+    "riot": [
+      "riotclientservices.exe",
+      "riotclientux.exe",
+      "riotclientcrashhandler.exe",
+      "leagueclient.exe",
+      "leagueclientux.exe"
+    ]
+  },
+  "optional_strict_launchers": {
+    "epic": ["epicgameslauncher.exe"],
+    "ea": ["eadesktop.exe", "ealocalhostsvc.exe"],
+    "battlenet": ["battle.net.exe"],
+    "ubisoft": ["upc.exe", "ubisoftconnect.exe"],
+    "steam": ["steam.exe"]
+  },
+  "anti_cheat_services": [
+    "EasyAntiCheat_EOS",
+    "EasyAntiCheat",
+    "BEService",
+    "vgc"
+  ],
+  "global_anti_cheat_exes": [
+    "easyanticheat.exe",
+    "easyanticheat_eos.exe",
+    "beservice.exe",
+    "vgc.exe",
+    "eaanticheat.gameservicelauncher.exe",
+    "sguard64.exe",
+    "sguardsvc64.exe"
+  ],
   "games": [
     {
       "id": "valorant",
@@ -11,8 +42,11 @@
       "default_mode": "strict",
       "steam_app_ids": [],
       "epic_app_names": [],
+      "riot_product_ids": ["valorant"],
       "xbox_package_prefixes": [],
-      "exe_names": ["valorant-win64-shipping.exe", "valorant.exe"]
+      "launcher_stage_exes": ["valorant.exe"],
+      "anti_cheat_exes": ["vgc.exe"],
+      "game_exes": ["valorant-win64-shipping.exe"]
     },
     {
       "id": "league_of_legends",
@@ -23,8 +57,11 @@
       "default_mode": "strict",
       "steam_app_ids": [],
       "epic_app_names": [],
+      "riot_product_ids": ["league_of_legends", "teamfighttactics"],
       "xbox_package_prefixes": [],
-      "exe_names": ["league of legends.exe"]
+      "launcher_stage_exes": ["leagueclient.exe", "leagueclientux.exe"],
+      "anti_cheat_exes": ["vgc.exe"],
+      "game_exes": ["league of legends.exe"]
     },
     {
       "id": "fortnite",
@@ -36,7 +73,12 @@
       "steam_app_ids": [],
       "epic_app_names": ["Fortnite"],
       "xbox_package_prefixes": [],
-      "exe_names": ["fortniteclient-win64-shipping.exe", "fortniteclient-win64-shipping_eac_eos.exe", "fortniteclient-win64-shipping_be.exe"]
+      "launcher_stage_exes": ["fortnitebootstrapper.exe", "fortnitelauncher.exe"],
+      "anti_cheat_exes": [
+        "fortniteclient-win64-shipping_eac_eos.exe",
+        "fortniteclient-win64-shipping_be.exe"
+      ],
+      "game_exes": ["fortniteclient-win64-shipping.exe"]
     },
     {
       "id": "apex_legends",
@@ -48,7 +90,9 @@
       "steam_app_ids": ["1172470"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["r5apex.exe", "r5apex_dx12.exe"]
+      "launcher_stage_exes": ["easyanticheat_launcher.exe"],
+      "anti_cheat_exes": ["easyanticheat_eos.exe", "easyanticheat.exe"],
+      "game_exes": ["r5apex.exe", "r5apex_dx12.exe"]
     },
     {
       "id": "call_of_duty",
@@ -60,7 +104,9 @@
       "steam_app_ids": ["1938090"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["ActivisionPublishingInc.CallofDuty"],
-      "exe_names": ["cod.exe", "modernwarfare.exe", "blackopscoldwar.exe"]
+      "launcher_stage_exes": ["codcrashhandler.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["cod.exe", "modernwarfare.exe", "blackopscoldwar.exe", "sp22-cod.exe", "sp23-cod.exe"]
     },
     {
       "id": "rainbow_six_siege",
@@ -72,7 +118,9 @@
       "steam_app_ids": ["359550"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["Ubisoft.RainbowSixSiege"],
-      "exe_names": ["rainbowsix.exe", "rainbowsix_vulkan.exe", "rainbowsix_dx11.exe", "rainbowsix_be.exe"]
+      "launcher_stage_exes": ["rainbowsix_be.exe"],
+      "anti_cheat_exes": ["beservice.exe"],
+      "game_exes": ["rainbowsix.exe", "rainbowsix_vulkan.exe", "rainbowsix_dx11.exe"]
     },
     {
       "id": "pubg",
@@ -84,7 +132,9 @@
       "steam_app_ids": ["578080"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["tslgame.exe", "tslgame_be.exe"]
+      "launcher_stage_exes": ["tslgame_be.exe", "execpubg.exe"],
+      "anti_cheat_exes": ["beservice.exe"],
+      "game_exes": ["tslgame.exe"]
     },
     {
       "id": "rust",
@@ -96,7 +146,9 @@
       "steam_app_ids": ["252490"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["rustclient.exe", "rust.exe"]
+      "launcher_stage_exes": ["rust.exe"],
+      "anti_cheat_exes": ["easyanticheat_eos.exe", "easyanticheat.exe"],
+      "game_exes": ["rustclient.exe"]
     },
     {
       "id": "ea_fc",
@@ -108,7 +160,9 @@
       "steam_app_ids": ["2195250", "2669320", "3405690"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["ElectronicArtsMobile.EASPORTSFC"],
-      "exe_names": ["fc24.exe", "fc25.exe", "fc26.exe"]
+      "launcher_stage_exes": ["eaanticheat.gameservicelauncher.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["fc24.exe", "fc25.exe", "fc26.exe", "fc27.exe", "fc27_showcase.exe", "fc27_trial.exe"]
     },
     {
       "id": "battlefield",
@@ -120,7 +174,9 @@
       "steam_app_ids": ["1517290", "1238810", "1238840"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["bf2042.exe", "bfv.exe", "bf1.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["bf2042.exe", "bfv.exe", "bf1.exe"]
     },
     {
       "id": "helldivers_2",
@@ -132,7 +188,9 @@
       "steam_app_ids": ["553850"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["helldivers2.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": ["gamemon.des", "gamemon64.des"],
+      "game_exes": ["helldivers2.exe"]
     },
     {
       "id": "elden_ring",
@@ -144,7 +202,9 @@
       "steam_app_ids": ["1245620"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["eldenring.exe", "start_protected_game.exe"]
+      "launcher_stage_exes": ["start_protected_game.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["eldenring.exe"]
     },
     {
       "id": "elden_ring_nightreign",
@@ -156,7 +216,9 @@
       "steam_app_ids": ["2622380"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["nightreign.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["nightreign.exe"]
     },
     {
       "id": "armored_core_6",
@@ -168,7 +230,9 @@
       "steam_app_ids": ["1888160"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["armoredcore6.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["armoredcore6.exe"]
     },
     {
       "id": "lords_of_the_fallen",
@@ -180,7 +244,9 @@
       "steam_app_ids": ["1501750"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["lotf2-win64-shipping.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["lotf2-win64-shipping.exe"]
     },
     {
       "id": "space_marine_2",
@@ -192,7 +258,9 @@
       "steam_app_ids": ["2183900"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": [
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": [
         "warhammer 40000 space marine 2.exe",
         "warhammer 40000 space marine 2 - retail.exe"
       ]
@@ -207,7 +275,9 @@
       "steam_app_ids": ["976730"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["Microsoft.Chelan"],
-      "exe_names": ["mcc-win64-shipping.exe", "mcc-win64-shipping-winstore.exe"]
+      "launcher_stage_exes": ["mcclauncher.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["mcc-win64-shipping.exe", "mcc-win64-shipping-winstore.exe"]
     },
     {
       "id": "halo_infinite",
@@ -219,7 +289,9 @@
       "steam_app_ids": ["1240440"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["Microsoft.254428597CFE2"],
-      "exe_names": ["haloinfinite.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["haloinfinite.exe"]
     },
     {
       "id": "sea_of_thieves",
@@ -231,7 +303,9 @@
       "steam_app_ids": ["1172620"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["Microsoft.SeaofThieves"],
-      "exe_names": ["sotgame.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["sotgame.exe"]
     },
     {
       "id": "destiny_2",
@@ -243,7 +317,9 @@
       "steam_app_ids": ["1085660"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["Bungie.Destiny2PCbasegame"],
-      "exe_names": ["destiny2.exe"]
+      "launcher_stage_exes": ["destiny2launcher.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["destiny2.exe"]
     },
     {
       "id": "dayz",
@@ -255,7 +331,9 @@
       "steam_app_ids": ["221100"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["dayz_x64.exe", "dayz_be.exe"]
+      "launcher_stage_exes": ["dayz_be.exe", "dayzlauncher.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["dayz_x64.exe"]
     },
     {
       "id": "escape_from_tarkov",
@@ -267,7 +345,9 @@
       "steam_app_ids": [],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["escapefromtarkov.exe", "escapefromtarkov_be.exe"]
+      "launcher_stage_exes": ["escapefromtarkov_be.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["escapefromtarkov.exe"]
     },
     {
       "id": "arma_3",
@@ -279,7 +359,9 @@
       "steam_app_ids": ["107410"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["arma3_x64.exe", "arma3.exe", "arma3battleye.exe"]
+      "launcher_stage_exes": ["arma3battleye.exe", "arma3launcher.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["arma3_x64.exe", "arma3.exe"]
     },
     {
       "id": "dead_by_daylight",
@@ -291,7 +373,9 @@
       "steam_app_ids": ["381210"],
       "epic_app_names": [],
       "xbox_package_prefixes": ["BehaviourInteractive.DeadbyDaylight"],
-      "exe_names": ["deadbydaylight-win64-shipping.exe", "deadbydaylight-egs-shipping.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["deadbydaylight-win64-shipping.exe", "deadbydaylight-egs-shipping.exe"]
     },
     {
       "id": "the_finals",
@@ -303,7 +387,9 @@
       "steam_app_ids": ["2073850"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["discovery.exe", "discovery-e.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["discovery.exe", "discovery-e.exe"]
     },
     {
       "id": "lost_ark",
@@ -315,7 +401,9 @@
       "steam_app_ids": ["1599340"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["lostark.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["lostark.exe"]
     },
     {
       "id": "for_honor",
@@ -327,7 +415,9 @@
       "steam_app_ids": ["304390"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["forhonor.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["forhonor.exe"]
     },
     {
       "id": "fall_guys",
@@ -339,7 +429,9 @@
       "steam_app_ids": ["1097150"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["fallguys_client_game.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["fallguys_client_game.exe"]
     },
     {
       "id": "war_thunder",
@@ -351,7 +443,9 @@
       "steam_app_ids": ["236390"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["aces.exe", "aces-min-cpu.exe"]
+      "launcher_stage_exes": ["eac_launcher.exe"],
+      "anti_cheat_exes": [],
+      "game_exes": ["aces.exe", "aces-min-cpu.exe"]
     },
     {
       "id": "genshin_impact",
@@ -363,7 +457,9 @@
       "steam_app_ids": [],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["genshinimpact.exe", "yuanshen.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["genshinimpact.exe", "yuanshen.exe"]
     },
     {
       "id": "honkai_star_rail",
@@ -375,7 +471,9 @@
       "steam_app_ids": [],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["starrail.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["starrail.exe"]
     },
     {
       "id": "zenless_zone_zero",
@@ -387,7 +485,9 @@
       "steam_app_ids": [],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["zenlesszonezero.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["zenlesszonezero.exe"]
     },
     {
       "id": "delta_force",
@@ -399,7 +499,9 @@
       "steam_app_ids": ["2507950"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["deltaforceclient-win64-shipping.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": ["sguard64.exe", "sguardsvc64.exe"],
+      "game_exes": ["deltaforceclient-win64-shipping.exe"]
     },
     {
       "id": "naraka_bladepoint",
@@ -411,7 +513,9 @@
       "steam_app_ids": ["1203220"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["narakabladepoint.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["narakabladepoint.exe"]
     },
     {
       "id": "counter_strike_2",
@@ -423,7 +527,9 @@
       "steam_app_ids": ["730"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["cs2.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["cs2.exe"]
     },
     {
       "id": "deadlock",
@@ -435,7 +541,9 @@
       "steam_app_ids": ["1422450"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["project8.exe", "deadlock.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["project8.exe", "deadlock.exe"]
     },
     {
       "id": "overwatch_2",
@@ -447,7 +555,9 @@
       "steam_app_ids": ["2357570"],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["overwatch.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["overwatch.exe"]
     },
     {
       "id": "world_of_warcraft",
@@ -459,7 +569,9 @@
       "steam_app_ids": [],
       "epic_app_names": [],
       "xbox_package_prefixes": [],
-      "exe_names": ["wow.exe", "wowclassic.exe"]
+      "launcher_stage_exes": [],
+      "anti_cheat_exes": [],
+      "game_exes": ["wow.exe", "wowclassic.exe"]
     }
   ]
 }

@@ -272,27 +272,19 @@ def test_lifecycle_play_through_strict_mode_and_forgetful_guard(tmp_path: Path) 
     coord.on_note_prompt_finished(rpg.id)
     assert actions == ["exit_app"]
 
-    # 2. Play-through Strict mode with exit_after_launch=True -> saves pending_note and exits!
+    # 2. Play-through Strict mode (Layer 5 Zero-Presence): ALWAYS saves pending_note and exits!
     actions.clear()
     lib.set_protection(apex.id, "strict", exit_after_launch=True)
     assert coord.on_play_launched(apex.id, exit_after_play=False) is True
     assert actions == ["exit_app"]
     assert len(pending.list_pending()) == 1
 
-    # 3. Play-through Strict mode (stay minimized) -> suspends hotkeys/capture, restores on stop!
+    # 3. Even with exit_after_launch=False, Layer 5 Zero-Presence exits immediately for Strict games.
     actions.clear()
     lib.set_protection(apex.id, "strict", exit_after_launch=False)
-    assert coord.on_play_launched(apex.id, exit_after_play=False) is False
-    assert actions == ["suspend_hotkeys", "pause_capture", "minimize"]
-    assert coord.is_strict_active() is True
-    # Protected detection for our own Play-launched game must NOT trigger forgetful-case exit.
-    actions.clear()
-    coord.on_protected_detected(
-        ProtectedGameDetected("apex_legends", "Apex Legends", "EAC", "r5apex.exe", apex.id)
-    )
-    assert actions == []
-    coord.on_game_stopped(GameStopped(apex.id, "s2", 70_000, 20, "completed", "process_exit"))
-    assert "resume_hotkeys" in actions and "resume_capture" in actions
+    assert coord.on_play_launched(apex.id, exit_after_play=False) is True
+    assert actions == ["exit_app"]
+    assert len(pending.list_pending()) == 2
 
     # 3b. External start of a registered strict game engages Strict mode immediately.
     actions.clear()

@@ -45,9 +45,17 @@ from gamehub.core.library.xbox import XboxDetector
 from gamehub.core.notifications.windows import WindowsNotifier
 from gamehub.core.protection.catalog import (
     OVERRIDE_FILENAME,
+    CatalogLoadError,
     ProtectedGameDetected,
     ProtectedGameExited,
     ProtectedGamesCatalog,
+)
+from gamehub.core.protection.guard import (
+    ProcessScanner,
+    ProtectionCheckError,
+    ProtectionGuard,
+    ServiceProbe,
+    run_dummy_process_protection_test,
 )
 from gamehub.core.protection.lifecycle import LifecycleCoordinator
 from gamehub.core.sessions.models import GameStarted, GameStopped, SessionIdentity
@@ -234,6 +242,62 @@ class GameHubWindow(QMainWindow):
         self._app.quit()
 
 
+class _GuardBridge(QObject):
+    triggered = Signal(object)
+    failed = Signal(str)
+
+
+def _read_startup_guard_prefs(data_root: Path) -> tuple[str, frozenset[str]]:
+    """Read language and optional strict-launcher prefs read-only without creating any files."""
+    import json
+    import sqlite3
+    from contextlib import closing
+
+    db_path = data_root / "gamehub.db"
+    if not db_path.is_file():
+        return "en", frozenset()
+    language = "en"
+    enabled: set[str] = set()
+    try:
+        uri = f"{db_path.absolute().as_uri()}?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True)) as conn:
+            rows = conn.execute(
+                "SELECT key, value FROM settings WHERE key = 'ui.language' "
+                "OR key LIKE 'protection.strict_launcher.%'"
+            ).fetchall()
+        for key, raw in rows:
+            try:
+                val = json.loads(raw)
+            except ValueError:
+                continue
+            if key == "ui.language" and val in {"en", "ar"}:
+                language = val
+            elif key.startswith("protection.strict_launcher.") and val is True:
+                enabled.add(key.rsplit(".", 1)[-1])
+    except sqlite3.Error:
+        pass
+    return language, frozenset(enabled)
+
+
+def _disabled_catalog_entries(
+    catalog: ProtectedGamesCatalog, library: LibraryRepository
+) -> frozenset[str]:
+    """Return catalog entry IDs where the user explicitly turned protection Off ('full')."""
+    disabled: set[str] = set()
+    try:
+        basenames_by_game = library.list_target_basenames()
+        for game in library.list_games():
+            if game.protection_mode != "full":
+                continue
+            exes = basenames_by_game.get(game.id, ())
+            matched = catalog.match_game(game.source, game.source_id, exes)
+            if matched is not None:
+                disabled.add(matched.id)
+    except StorageError:
+        pass
+    return frozenset(disabled)
+
+
 def _run(
     app: QApplication,
     data_root: Path,
@@ -241,8 +305,69 @@ def _run(
     smoke_test: bool,
     default_root: Path | None = None,
     play_game_id: str | None = None,
+    catalog_path: Path | None = None,
+    process_scanner: ProcessScanner | None = None,
+    service_probe: ServiceProbe | None = None,
+    guard_interval_sec: float = 0.30,
+    show_guard_dialog=None,
 ) -> int:
     effective_default = default_root if default_root is not None else data_root
+    startup_lang, startup_strict_launchers = (
+        ("en", frozenset()) if smoke_test else _read_startup_guard_prefs(data_root)
+    )
+    if startup_lang != "en":
+        apply_language(app, startup_lang)
+
+    def _notify_guard_block(kind: str, text: str) -> None:
+        if show_guard_dialog is not None:
+            show_guard_dialog(kind, text)
+            return
+        if kind == "fail_closed":
+            QMessageBox.critical(None, "Game Hub", text)
+        else:
+            QMessageBox.information(None, "Game Hub", text)
+
+    # Layer 2 (Cases 1 & 4 + Self-Check + Fail-Closed): runs BEFORE SingleInstance and BEFORE
+    # creating any window or writing any data.
+    try:
+        catalog = ProtectedGamesCatalog.load(
+            bundled_path=catalog_path,
+            override_path=None if smoke_test else (data_root / OVERRIDE_FILENAME),
+            strict_load=True,
+        )
+        protection_guard = ProtectionGuard(
+            catalog,
+            process_scanner=process_scanner,
+            service_probe=service_probe,
+            enabled_optional_launchers=startup_strict_launchers,
+            interval_sec=guard_interval_sec,
+        )
+        startup_trigger = protection_guard.self_check()
+    except (CatalogLoadError, ProtectionCheckError):
+        _notify_guard_block(
+            "fail_closed",
+            app.translate(
+                "GameHubWindow",
+                "Protection could not start — Game Hub will close to keep you safe.",
+            ),
+        )
+        return 2
+
+    if startup_trigger is not None and not smoke_test:
+        logging.getLogger("gamehub").info(
+            "startup_refused_protected kind=%s name=%s",
+            startup_trigger.kind,
+            startup_trigger.display_name,
+        )
+        _notify_guard_block(
+            "refused",
+            app.translate(
+                "GameHubWindow",
+                "A protected game or its launcher is running — Game Hub won't run alongside it. Close it first.",
+            ),
+        )
+        return 0
+
     window = GameHubWindow(app)
     instance = SingleInstance(effective_default, window.reveal)
     controller = None
@@ -256,6 +381,8 @@ def _run(
     voice_player = None
     hotkeys = None
     move_worker = None
+    guard_watchdog = None
+    emergency_exit = [False]
     try:
         if not instance.claim_or_activate():
             return 0
@@ -297,9 +424,63 @@ def _run(
             QTimer.singleShot(0, app.quit)
         else:
             remove_legacy_startup_entry()
-            catalog = ProtectedGamesCatalog.load(override_path=data_root / OVERRIDE_FILENAME)
             pending_notes = PendingNoteRepository(database)
             notifier = WindowsNotifier()
+
+            def _emergency_shutdown(*, fail_closed: bool = False) -> None:
+                emergency_exit[0] = True
+                if guard_watchdog is not None:
+                    guard_watchdog.stop()
+                if hotkeys is not None:
+                    hotkeys.suspend()
+                if capture_scheduler is not None:
+                    capture_scheduler.pause()
+                if voice_player is not None:
+                    voice_player.stop()
+                protection_guard.close()
+                if fail_closed:
+                    _notify_guard_block(
+                        "fail_closed",
+                        window.tr(
+                            "Protection could not start — Game Hub will close to keep you safe."
+                        ),
+                    )
+                window.close()
+                app.quit()
+
+            guard_bridge = _GuardBridge(window)
+            guard_bridge.triggered.connect(
+                lambda _trigger: _emergency_shutdown(fail_closed=False),
+                Qt.ConnectionType.QueuedConnection,
+            )
+            guard_bridge.failed.connect(
+                lambda _reason: _emergency_shutdown(fail_closed=True),
+                Qt.ConnectionType.QueuedConnection,
+            )
+
+            def _sync_guard_policy(snapshot: SettingsSnapshot | None = None) -> None:
+                snap = snapshot if snapshot is not None else SettingsService(database).read()
+                protection_guard.update_policy(
+                    enabled_optional_launchers=snap.enabled_optional_strict_launchers(),
+                    disabled_entry_ids=_disabled_catalog_entries(catalog, library),
+                )
+
+            _sync_guard_policy(initial_settings)
+            protection_guard.start(
+                on_trigger=guard_bridge.triggered.emit,
+                on_failure=guard_bridge.failed.emit,
+            )
+            guard_watchdog = QTimer(window)
+            guard_watchdog.setInterval(1000)
+
+            def _check_guard_heartbeat() -> None:
+                if not protection_guard.is_healthy():
+                    logging.getLogger("gamehub").error("protection_watchdog_unhealthy")
+                    _emergency_shutdown(fail_closed=True)
+
+            guard_watchdog.timeout.connect(_check_guard_heartbeat)
+            guard_watchdog.start()
+
             lifecycle = LifecycleCoordinator(
                 catalog,
                 library,
@@ -315,7 +496,7 @@ def _run(
                 else None,
                 minimize_window=window.showMinimized,
                 restore_window=window.reveal,
-                exit_app=window.close,
+                exit_app=lambda: _emergency_shutdown(fail_closed=False),
                 show_status=lambda name: window.statusBar().showMessage(
                     window.tr("Strict mode active for {game}").format(game=name)
                 ),
@@ -456,6 +637,7 @@ def _run(
                 events,
                 catalog=catalog,
                 on_protection_changed=lambda: (
+                    _sync_guard_policy(),
                     watcher.reload_protection(),
                     window.library.present_games(service.current().games),
                 ),
@@ -485,6 +667,14 @@ def _run(
                 controls_controller,
                 events,
                 lifecycle=lifecycle,
+                catalog=catalog,
+                library=library,
+                protection_guard=protection_guard,
+                on_guard_policy_changed=lambda snap=None: (
+                    _sync_guard_policy(snap),
+                    watcher.reload_protection(),
+                    window.library.present_games(service.current().games),
+                ),
             )
             watcher.start()
             if capture_scheduler is not None:
@@ -501,10 +691,13 @@ def _run(
                 QTimer.singleShot(0, notes_controller.offer_pending_notes)
         return app.exec()
     finally:
+        if guard_watchdog is not None:
+            guard_watchdog.stop()
+        protection_guard.close()
         if hotkeys is not None:
             hotkeys.close()
         if move_worker is not None:
-            move_worker.shutdown(wait=True)
+            move_worker.shutdown(wait=not emergency_exit[0], cancel_futures=emergency_exit[0])
         if voice_player is not None:
             voice_player.stop()
         if controls_controller is not None:
@@ -518,7 +711,7 @@ def _run(
         if watcher is not None:
             watcher.close()
         if controller is not None:
-            controller.close()
+            controller.close(wait=not emergency_exit[0])
         if log_handler is not None:
             logging.getLogger("gamehub").removeHandler(log_handler)
             log_handler.close()
@@ -811,6 +1004,7 @@ def _start_hotkeys(
 
 class _MoveBridge(QObject):
     finished = Signal(bool, object)
+    protectionTested = Signal(bool, int)
 
 
 def _wire_settings(
@@ -829,6 +1023,10 @@ def _wire_settings(
     events: EventBus,
     *,
     lifecycle: LifecycleCoordinator | None = None,
+    catalog: ProtectedGamesCatalog | None = None,
+    library: LibraryRepository | None = None,
+    protection_guard: ProtectionGuard | None = None,
+    on_guard_policy_changed=None,
 ) -> ThreadPoolExecutor:
     action_map = {
         "hotkey.record_note": (
@@ -875,6 +1073,25 @@ def _wire_settings(
     move_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="store-move")
     move_bridge = _MoveBridge(window)
 
+    def _load_protected_game_rows() -> list[tuple[str, str, str, str]]:
+        if catalog is None or library is None:
+            return []
+        rows: list[tuple[str, str, str, str]] = []
+        try:
+            basenames = library.list_target_basenames()
+            for game in library.list_games():
+                if not game.installed:
+                    continue
+                matched = catalog.match_game(
+                    game.source, game.source_id, basenames.get(game.id, ())
+                )
+                if matched is not None or game.protection_mode == "strict":
+                    anti_cheat = matched.anti_cheat if matched is not None else "Strict"
+                    rows.append((game.id, game.name, anti_cheat, game.protection_mode))
+        except StorageError:
+            return []
+        return rows
+
     def open_settings() -> None:
         try:
             current = settings_service.read()
@@ -882,8 +1099,43 @@ def _wire_settings(
             window.library.show_error(window.tr("Game Hub could not read your settings."))
             return
         window.settings_view.load_settings(current, store_location.current())
+        window.settings_view.set_protected_games(_load_protected_game_rows())
         window.settings_view.show_field_errors({})
         window.show_settings()
+
+    def set_protected_game_mode(game_id: str, mode: str) -> None:
+        if library is None:
+            return
+        try:
+            library.set_protection(game_id, mode)
+        except (StorageError, ValueError):
+            window.settings_view.show_field_errors({"_storage": "storage_unavailable"})
+            return
+        if on_guard_policy_changed is not None:
+            on_guard_policy_changed()
+        window.settings_view.set_protected_games(_load_protected_game_rows())
+        window.settings_view.show_status("settings_saved")
+
+    def run_protection_test() -> None:
+        if catalog is None:
+            window.settings_view.set_test_protection_result(False, 0)
+            return
+        window.settings_view.set_test_protection_running(True)
+
+        def _worker() -> None:
+            res = run_dummy_process_protection_test(
+                catalog,
+                dummy_exe_name="FortniteLauncher.exe",
+                live_guard=protection_guard,
+            )
+            move_bridge.protectionTested.emit(res.ok, res.elapsed_ms)
+
+        move_worker.submit(_worker)
+
+    move_bridge.protectionTested.connect(
+        window.settings_view.set_test_protection_result,
+        Qt.ConnectionType.QueuedConnection,
+    )
 
     def save_settings(patch: dict) -> None:
         result = settings_service.update(patch)
@@ -946,11 +1198,18 @@ def _wire_settings(
             last_time_controller.set_autoplay_enabled(snap.autoplay_voice)
         if "protection.external_behavior" in event.keys and lifecycle is not None:
             lifecycle.set_external_behavior(snap.external_protected_behavior)
+        if (
+            any(k.startswith("protection.strict_launcher.") for k in event.keys)
+            and on_guard_policy_changed is not None
+        ):
+            on_guard_policy_changed(snap)
 
     window.library.settingsRequested.connect(open_settings)
     window.settings_view.saveRequested.connect(save_settings)
     window.settings_view.openFolderRequested.connect(open_folder)
     window.settings_view.moveFolderRequested.connect(move_folder)
+    window.settings_view.testProtectionRequested.connect(run_protection_test)
+    window.settings_view.protectedGameModeChanged.connect(set_protected_game_mode)
     events.subscribe(SettingsChanged, apply_changed)
     return move_worker
 

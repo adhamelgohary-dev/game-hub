@@ -102,5 +102,5 @@ class LibraryController(QObject):
                 )
             )
 
-    def close(self) -> None:
-        self._worker.shutdown(cancel_futures=True)
+    def close(self, *, wait: bool = True) -> None:
+        self._worker.shutdown(wait=wait, cancel_futures=True)

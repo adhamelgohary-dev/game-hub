@@ -18,6 +18,14 @@ ALLOWED_LANGUAGES = ("en", "ar")
 ALLOWED_THEMES = ("dark", "light", "system")
 ALLOWED_EXTERNAL_BEHAVIORS = ("exit_app", "strict_mode", "ask_me")
 HOTKEY_KEYS = ("hotkey.record_note", "hotkey.last_time", "hotkey.pin_controls")
+STRICT_LAUNCHER_KEYS = (
+    "protection.strict_launcher.epic",
+    "protection.strict_launcher.ea",
+    "protection.strict_launcher.battlenet",
+    "protection.strict_launcher.ubisoft",
+    "protection.strict_launcher.steam",
+)
+MAX_API_KEY_LEN = 128
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +33,11 @@ class SettingsSnapshot:
     language: str = "en"
     theme: str = "dark"
     external_protected_behavior: str = "exit_app"
+    strict_launcher_epic: bool = False
+    strict_launcher_ea: bool = False
+    strict_launcher_battlenet: bool = False
+    strict_launcher_ubisoft: bool = False
+    strict_launcher_steam: bool = False
     capture_interval_sec: int = 30
     capture_buffer_size: int = 10
     autoplay_voice: bool = True
@@ -32,13 +45,34 @@ class SettingsSnapshot:
     hotkey_record_note: str = "Ctrl+Alt+N"
     hotkey_last_time: str = "Ctrl+Alt+L"
     hotkey_pin_controls: str = "Ctrl+Alt+C"
+    steamgriddb_enabled: bool = False
+    steamgriddb_api_key: str = ""
     revision: int = 0
+
+    def enabled_optional_strict_launchers(self) -> frozenset[str]:
+        enabled: set[str] = set()
+        if self.strict_launcher_epic:
+            enabled.add("epic")
+        if self.strict_launcher_ea:
+            enabled.add("ea")
+        if self.strict_launcher_battlenet:
+            enabled.add("battlenet")
+        if self.strict_launcher_ubisoft:
+            enabled.add("ubisoft")
+        if self.strict_launcher_steam:
+            enabled.add("steam")
+        return frozenset(enabled)
 
     def as_dict(self) -> dict[str, object]:
         return {
             "ui.language": self.language,
             "ui.theme": self.theme,
             "protection.external_behavior": self.external_protected_behavior,
+            "protection.strict_launcher.epic": self.strict_launcher_epic,
+            "protection.strict_launcher.ea": self.strict_launcher_ea,
+            "protection.strict_launcher.battlenet": self.strict_launcher_battlenet,
+            "protection.strict_launcher.ubisoft": self.strict_launcher_ubisoft,
+            "protection.strict_launcher.steam": self.strict_launcher_steam,
             "capture.interval_sec": self.capture_interval_sec,
             "capture.buffer_size": self.capture_buffer_size,
             "memory.autoplay_voice": self.autoplay_voice,
@@ -46,6 +80,8 @@ class SettingsSnapshot:
             "hotkey.record_note": self.hotkey_record_note,
             "hotkey.last_time": self.hotkey_last_time,
             "hotkey.pin_controls": self.hotkey_pin_controls,
+            "covers.steamgriddb_enabled": self.steamgriddb_enabled,
+            "covers.steamgriddb_api_key": self.steamgriddb_api_key,
         }
 
 
@@ -67,6 +103,11 @@ _FIELD_MAP = {
     "ui.language": "language",
     "ui.theme": "theme",
     "protection.external_behavior": "external_protected_behavior",
+    "protection.strict_launcher.epic": "strict_launcher_epic",
+    "protection.strict_launcher.ea": "strict_launcher_ea",
+    "protection.strict_launcher.battlenet": "strict_launcher_battlenet",
+    "protection.strict_launcher.ubisoft": "strict_launcher_ubisoft",
+    "protection.strict_launcher.steam": "strict_launcher_steam",
     "capture.interval_sec": "capture_interval_sec",
     "capture.buffer_size": "capture_buffer_size",
     "memory.autoplay_voice": "autoplay_voice",
@@ -74,6 +115,8 @@ _FIELD_MAP = {
     "hotkey.record_note": "hotkey_record_note",
     "hotkey.last_time": "hotkey_last_time",
     "hotkey.pin_controls": "hotkey_pin_controls",
+    "covers.steamgriddb_enabled": "steamgriddb_enabled",
+    "covers.steamgriddb_api_key": "steamgriddb_api_key",
 }
 
 
@@ -106,10 +149,21 @@ def _validate_value(key: str, raw: object) -> tuple[bool, object, str | None]:
         ):
             return True, raw, None
         return False, None, "invalid_buffer_size"
-    if key in {"memory.autoplay_voice", "memory.prompt_on_end"}:
+    if key in {
+        "memory.autoplay_voice",
+        "memory.prompt_on_end",
+        "covers.steamgriddb_enabled",
+        *STRICT_LAUNCHER_KEYS,
+    }:
         if isinstance(raw, bool):
             return True, raw, None
         return False, None, "invalid_boolean"
+    if key == "covers.steamgriddb_api_key":
+        if isinstance(raw, str):
+            cleaned = raw.strip()
+            if len(cleaned) <= MAX_API_KEY_LEN and cleaned.isascii() and "\n" not in cleaned and "\r" not in cleaned:
+                return True, cleaned, None
+        return False, None, "invalid_api_key"
     if key in HOTKEY_KEYS:
         if isinstance(raw, str):
             canonical = canonical_shortcut(raw)
@@ -173,6 +227,11 @@ class SettingsService:
             language=values["ui.language"],  # type: ignore[arg-type]
             theme=values["ui.theme"],  # type: ignore[arg-type]
             external_protected_behavior=values["protection.external_behavior"],  # type: ignore[arg-type]
+            strict_launcher_epic=values["protection.strict_launcher.epic"],  # type: ignore[arg-type]
+            strict_launcher_ea=values["protection.strict_launcher.ea"],  # type: ignore[arg-type]
+            strict_launcher_battlenet=values["protection.strict_launcher.battlenet"],  # type: ignore[arg-type]
+            strict_launcher_ubisoft=values["protection.strict_launcher.ubisoft"],  # type: ignore[arg-type]
+            strict_launcher_steam=values["protection.strict_launcher.steam"],  # type: ignore[arg-type]
             capture_interval_sec=values["capture.interval_sec"],  # type: ignore[arg-type]
             capture_buffer_size=values["capture.buffer_size"],  # type: ignore[arg-type]
             autoplay_voice=values["memory.autoplay_voice"],  # type: ignore[arg-type]
@@ -180,8 +239,14 @@ class SettingsService:
             hotkey_record_note=values["hotkey.record_note"],  # type: ignore[arg-type]
             hotkey_last_time=values["hotkey.last_time"],  # type: ignore[arg-type]
             hotkey_pin_controls=values["hotkey.pin_controls"],  # type: ignore[arg-type]
+            steamgriddb_enabled=values["covers.steamgriddb_enabled"],  # type: ignore[arg-type]
+            steamgriddb_api_key=values["covers.steamgriddb_api_key"],  # type: ignore[arg-type]
             revision=self._revision,
         )
+
+    def reset_to_defaults(self) -> SettingsResult:
+        """Restore every user setting to its safe default (including protection & SteamGridDB off)."""
+        return self.update(SettingsSnapshot().as_dict())
 
     def update(self, patch: dict[str, object]) -> SettingsResult:
         """Validate, apply hotkey/startup side effects atomically, and persist."""

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -36,6 +37,8 @@ class SettingsView(QWidget):
     saveRequested = Signal(dict)
     openFolderRequested = Signal()
     moveFolderRequested = Signal(str)
+    testProtectionRequested = Signal()
+    protectedGameModeChanged = Signal(str, str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -88,7 +91,9 @@ class SettingsView(QWidget):
 
         # Anti-cheat protection group
         self._protection_group = QGroupBox(body)
-        protection_form = QFormLayout(self._protection_group)
+        protection_layout = QVBoxLayout(self._protection_group)
+        protection_layout.setSpacing(10)
+        protection_form = QFormLayout()
         self._external_behavior_label = QLabel(self._protection_group)
         self._external_behavior_label.setWordWrap(True)
         self._external_behavior = QComboBox(self._protection_group)
@@ -100,6 +105,51 @@ class SettingsView(QWidget):
         protection_form.addRow(
             self._make_error("protection.external_behavior", self._protection_group)
         )
+        protection_layout.addLayout(protection_form)
+
+        # Per-launcher strict toggles (Riot always ON & locked; others OFF by default for story games)
+        self._launchers_heading = QLabel(self._protection_group)
+        self._launchers_heading.setObjectName("sectionHeading")
+        self._launchers_heading.setWordWrap(True)
+        protection_layout.addWidget(self._launchers_heading)
+
+        self._strict_riot = QCheckBox(self._protection_group)
+        self._strict_riot.setChecked(True)
+        self._strict_riot.setEnabled(False)
+        protection_layout.addWidget(self._strict_riot)
+
+        self._launcher_checks: dict[str, QCheckBox] = {}
+        for key in ("epic", "ea", "battlenet", "ubisoft", "steam"):
+            box = QCheckBox(self._protection_group)
+            self._launcher_checks[key] = box
+            protection_layout.addWidget(box)
+
+        # Detected protected games on this PC
+        self._detected_protected_heading = QLabel(self._protection_group)
+        self._detected_protected_heading.setObjectName("sectionHeading")
+        self._detected_protected_heading.setWordWrap(True)
+        protection_layout.addWidget(self._detected_protected_heading)
+
+        self._protected_games_container = QWidget(self._protection_group)
+        self._protected_games_layout = QVBoxLayout(self._protected_games_container)
+        self._protected_games_layout.setContentsMargins(0, 0, 0, 0)
+        self._protected_games_layout.setSpacing(6)
+        self._protected_games_rows: list[tuple[str, str, str, str]] = []
+        protection_layout.addWidget(self._protected_games_container)
+
+        # Test protection button & live result
+        test_row = QHBoxLayout()
+        self._test_protection_btn = QPushButton(self._protection_group)
+        self._test_protection_btn.clicked.connect(self.testProtectionRequested)
+        self._test_protection_result = QLabel(self._protection_group)
+        self._test_protection_result.setObjectName("mutedText")
+        self._test_protection_result.setTextFormat(Qt.TextFormat.PlainText)
+        self._test_protection_result.setWordWrap(True)
+        test_row.addWidget(self._test_protection_btn)
+        test_row.addWidget(self._test_protection_result, stretch=1)
+        protection_layout.addLayout(test_row)
+        self._last_test_result: tuple[bool, int] | None = None
+
         body_layout.addWidget(self._protection_group)
 
         # Capture group
@@ -245,6 +295,11 @@ class SettingsView(QWidget):
         ext_idx = self._external_behavior.findData(snapshot.external_protected_behavior)
         if ext_idx >= 0:
             self._external_behavior.setCurrentIndex(ext_idx)
+        self._launcher_checks["epic"].setChecked(snapshot.strict_launcher_epic)
+        self._launcher_checks["ea"].setChecked(snapshot.strict_launcher_ea)
+        self._launcher_checks["battlenet"].setChecked(snapshot.strict_launcher_battlenet)
+        self._launcher_checks["ubisoft"].setChecked(snapshot.strict_launcher_ubisoft)
+        self._launcher_checks["steam"].setChecked(snapshot.strict_launcher_steam)
         self._interval.setValue(snapshot.capture_interval_sec)
         self._buffer.setValue(snapshot.capture_buffer_size)
         self._autoplay.setChecked(snapshot.autoplay_voice)
@@ -253,6 +308,89 @@ class SettingsView(QWidget):
         self._hk_last.setText(snapshot.hotkey_last_time)
         self._hk_pin.setText(snapshot.hotkey_pin_controls)
         self._data_path_label.setText(str(data_root))
+
+    def set_protected_games(self, rows: list[tuple[str, str, str, str]]) -> None:
+        """Populate detected protected games: (game_id, name, anti_cheat, mode)."""
+        self._protected_games_rows = list(rows)
+        self._rebuild_protected_games_list()
+
+    def set_test_protection_running(self, running: bool) -> None:
+        self._test_protection_btn.setEnabled(not running)
+        if running:
+            self._test_protection_result.setText(self.tr("Running protection check…"))
+
+    def set_test_protection_result(self, ok: bool, elapsed_ms: int) -> None:
+        self._last_test_result = (ok, elapsed_ms)
+        self._test_protection_btn.setEnabled(True)
+        if ok:
+            self._test_protection_result.setText(
+                self.tr("Protection OK — Game Hub closed in {ms} ms").format(ms=elapsed_ms)
+            )
+        else:
+            self._test_protection_result.setText(
+                self.tr("Protection test failed. Check that Windows process scanning is available.")
+            )
+
+    def _rebuild_protected_games_list(self) -> None:
+        while self._protected_games_layout.count():
+            item = self._protected_games_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        if not self._protected_games_rows:
+            empty = QLabel(
+                self.tr("No protected games detected on this PC yet."),
+                self._protected_games_container,
+            )
+            empty.setObjectName("mutedText")
+            empty.setWordWrap(True)
+            self._protected_games_layout.addWidget(empty)
+            return
+
+        for game_id, name, anti_cheat, mode in self._protected_games_rows:
+            row_widget = QFrame(self._protected_games_container)
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 2, 0, 2)
+            row_layout.setSpacing(10)
+
+            info = QLabel(f"{name} ({anti_cheat})", row_widget)
+            info.setTextFormat(Qt.TextFormat.PlainText)
+            info.setWordWrap(True)
+            combo = QComboBox(row_widget)
+            combo.addItem(self.tr("Strict-exit (Default)"), "auto")
+            combo.addItem(self.tr("Off for this game"), "full")
+            combo.setCurrentIndex(1 if mode == "full" else 0)
+
+            def _on_changed(
+                index: int,
+                gid: str = game_id,
+                gname: str = name,
+                box: QComboBox = combo,
+            ) -> None:
+                chosen = str(box.itemData(index) or "auto")
+                if chosen == "full":
+                    answer = QMessageBox.warning(
+                        self,
+                        self.tr("Turn off anti-cheat protection?"),
+                        self.tr(
+                            "This game uses anti-cheat software. Keeping protection on (Strict-exit) "
+                            "ensures Game Hub closes before the game starts for zero ban risk. "
+                            "Turn off protection for {game} anyway?"
+                        ).format(game=gname),
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No,
+                    )
+                    if answer != QMessageBox.StandardButton.Yes:
+                        box.blockSignals(True)
+                        box.setCurrentIndex(0)
+                        box.blockSignals(False)
+                        return
+                self.protectedGameModeChanged.emit(gid, chosen)
+
+            combo.currentIndexChanged.connect(_on_changed)
+            row_layout.addWidget(info, stretch=1)
+            row_layout.addWidget(combo)
+            self._protected_games_layout.addWidget(row_widget)
 
     def set_busy(self, busy: bool) -> None:
         self._busy = busy
@@ -312,13 +450,31 @@ class SettingsView(QWidget):
         self._theme.setItemText(0, self.tr("Dark"))
         self._theme.setItemText(1, self.tr("Light"))
         self._theme.setItemText(2, self.tr("System"))
-        self._protection_group.setTitle(self.tr("Anti-cheat protection"))
+        self._protection_group.setTitle(self.tr("Protected games"))
         self._external_behavior_label.setText(
             self.tr("When a protected game starts while Game Hub is open")
         )
         self._external_behavior.setItemText(0, self.tr("Exit Game Hub automatically"))
         self._external_behavior.setItemText(1, self.tr("Switch to Strict mode"))
         self._external_behavior.setItemText(2, self.tr("Ask me (Windows notification)"))
+        self._launchers_heading.setText(
+            self.tr("Close Game Hub whenever this launcher is open")
+        )
+        self._strict_riot.setText(self.tr("Riot Client (always on for Vanguard safety)"))
+        self._launcher_checks["epic"].setText(
+            self.tr("Epic Games Launcher (off by default so story games work)")
+        )
+        self._launcher_checks["ea"].setText(self.tr("EA app"))
+        self._launcher_checks["battlenet"].setText(self.tr("Battle.net"))
+        self._launcher_checks["ubisoft"].setText(self.tr("Ubisoft Connect"))
+        self._launcher_checks["steam"].setText(self.tr("Steam"))
+        self._detected_protected_heading.setText(
+            self.tr("Detected protected games on this PC")
+        )
+        self._test_protection_btn.setText(self.tr("Test protection"))
+        self._rebuild_protected_games_list()
+        if self._last_test_result is not None:
+            self.set_test_protection_result(*self._last_test_result)
         self._capture_group.setTitle(self.tr("Screenshots"))
         self._interval_label.setText(self.tr("Capture interval (seconds)"))
         self._buffer_label.setText(self.tr("Screenshot ring size"))
@@ -378,6 +534,11 @@ class SettingsView(QWidget):
             "ui.language": self._language.currentData(),
             "ui.theme": self._theme.currentData(),
             "protection.external_behavior": self._external_behavior.currentData(),
+            "protection.strict_launcher.epic": self._launcher_checks["epic"].isChecked(),
+            "protection.strict_launcher.ea": self._launcher_checks["ea"].isChecked(),
+            "protection.strict_launcher.battlenet": self._launcher_checks["battlenet"].isChecked(),
+            "protection.strict_launcher.ubisoft": self._launcher_checks["ubisoft"].isChecked(),
+            "protection.strict_launcher.steam": self._launcher_checks["steam"].isChecked(),
             "capture.interval_sec": self._interval.value(),
             "capture.buffer_size": self._buffer.value(),
             "memory.autoplay_voice": self._autoplay.isChecked(),

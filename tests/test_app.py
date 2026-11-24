@@ -60,8 +60,14 @@ class AutoCloseWindow(orig_window):
         super().show()
         QTimer.singleShot(250, self.close)
 
+class _CleanScanner:
+    def list_processes(self):
+        return ()
+
 gamehub_app.GameHubWindow = AutoCloseWindow
-code = gamehub_app._run(qt_app, Path({str(tmp_path)!r}), smoke_test=False)
+code = gamehub_app._run(
+    qt_app, Path({str(tmp_path)!r}), smoke_test=False, process_scanner=_CleanScanner()
+)
 raise SystemExit(code)
 """
     proc = subprocess.Popen(

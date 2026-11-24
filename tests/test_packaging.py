@@ -28,10 +28,13 @@ FORBIDDEN_NATIVE_SYMBOLS = (
     "QUdpSocket",
     "ReadProcessMemory",
     "SeDebugPrivilege",
+    "SendInput",
     "SetValueEx",
     "SetWindowsHookEx",
     "VirtualAllocEx",
     "WriteProcessMemory",
+    "keybd_event",
+    "mouse_event",
 )
 
 
@@ -53,6 +56,16 @@ def test_app_makes_no_network_imports_and_no_game_injection_calls() -> None:
                 )
         for symbol in FORBIDDEN_NATIVE_SYMBOLS:
             assert symbol not in source, f"Forbidden Win32 API {symbol!r} in {path}"
+        if path.as_posix() != "gamehub/core/sessions/processes.py":
+            assert "OpenProcess" not in source, f"Forbidden OpenProcess outside processes.py in {path}"
+
+    manifest = Path("packaging/GameHub.manifest").read_text(encoding="utf-8")
+    assert "asInvoker" in manifest
+    assert "requireAdministrator" not in manifest
+    assert "highestAvailable" not in manifest
+    spec = Path("packaging/gamehub.spec").read_text(encoding="utf-8")
+    assert "upx=False" in spec
+    assert "upx=True" not in spec
 
 
 def test_packaging_definitions_and_third_party_licenses_are_complete() -> None:

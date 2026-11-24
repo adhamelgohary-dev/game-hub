@@ -78,17 +78,14 @@ class LifecycleCoordinator:
         )
 
     def on_play_launched(self, game_id: str, *, exit_after_play: bool) -> bool:
-        """Handle a Play launch. Returns True if Game Hub exited immediately."""
-        strict = self.is_strict_game(game_id)
-        exit_immediately = False
-        if strict:
-            try:
-                game = self._library.get_game(game_id)
-                exit_immediately = bool(game is not None and game.exit_after_launch)
-            except StorageError:
-                exit_immediately = False
+        """Handle a Play launch. Returns True if Game Hub exited immediately.
 
-        if strict and exit_immediately:
+        Layer 5 (Zero-Presence): any protected / strict game ALWAYS saves a deferred
+        pending note and exits Game Hub immediately after the official launcher starts
+        so Game Hub is never running alongside a protected game or its anti-cheat.
+        """
+        strict = self.is_strict_game(game_id)
+        if strict:
             try:
                 self._pending_notes.add(game_id, self._clock_ms())
             except StorageError:
@@ -97,9 +94,6 @@ class LifecycleCoordinator:
             return True
 
         self._play_launched_games[game_id] = exit_after_play
-        if strict:
-            self._active_strict_games.add(game_id)
-            self._sync_strict_enforcement()
         self._minimize_window()
         return False
 

@@ -27,7 +27,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (source, source_id) DO UPDATE SET
     name = excluded.name,
     install_dir = excluded.install_dir,
-    cover_path = excluded.cover_path,
+    cover_path = CASE WHEN games.custom_cover = 1 THEN games.cover_path ELSE excluded.cover_path END,
     launch_kind = excluded.launch_kind,
     launch_value = excluded.launch_value,
     installed = 1
@@ -124,6 +124,7 @@ def _summary(row: sqlite3.Row) -> GameSummary:
         source_id=row["source_id"],
         protection_mode=row["protection_mode"],
         exit_after_launch=bool(row["exit_after_launch"]),
+        custom_cover=bool(row["custom_cover"]),
     )
 
 
@@ -258,3 +259,79 @@ class LibraryRepository:
                 if base:
                     grouped[row["game_id"]].add(base)
         return {game_id: tuple(sorted(names)) for game_id, names in grouped.items()}
+
+    def set_custom_cover(self, game_id: str, cover_path: Path | None, *, custom: bool = True) -> None:
+        with self._database.write() as connection:
+            connection.execute(
+                "UPDATE games SET cover_path = ?, custom_cover = ? WHERE id = ?",
+                (str(cover_path) if cover_path is not None else None, int(custom), game_id),
+            )
+
+    def reset_protection_defaults(self) -> None:
+        with self._database.write() as connection:
+            connection.execute("UPDATE games SET protection_mode = 'auto', exit_after_launch = 0")
+
+    def list_scan_folders(self) -> tuple[Path, ...]:
+        with self._database.read() as connection:
+            rows = connection.execute(
+                "SELECT path FROM scan_folders ORDER BY added_at ASC, path ASC"
+            ).fetchall()
+            return tuple(Path(row["path"]) for row in rows)
+
+    def add_scan_folder(self, folder: Path) -> Path:
+        safe = local_path(folder)
+        if safe is None or not safe.is_dir():
+            raise ValueError("Select an accessible local folder.")
+        with self._database.write() as connection:
+            connection.execute(
+                "INSERT INTO scan_folders (path, added_at) VALUES (?, ?) "
+                "ON CONFLICT (path) DO NOTHING",
+                (str(safe), time_ns() // 1_000_000),
+            )
+        return safe
+
+    def remove_scan_folder(self, folder: Path) -> None:
+        norm = str(folder)
+        with self._database.write() as connection:
+            connection.execute("DELETE FROM scan_folders WHERE path = ?", (norm,))
+            connection.execute("DELETE FROM scan_folder_choices WHERE folder_path = ?", (norm,))
+
+    def list_scan_choices(self, folder: Path | None = None) -> dict[str, tuple[str, str | None]]:
+        with self._database.read() as connection:
+            if folder is None:
+                rows = connection.execute(
+                    "SELECT exe_path, decision, custom_name FROM scan_folder_choices"
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT exe_path, decision, custom_name FROM scan_folder_choices WHERE folder_path = ?",
+                    (str(folder),),
+                ).fetchall()
+            return {
+                os.path.normcase(row["exe_path"]): (row["decision"], row["custom_name"])
+                for row in rows
+            }
+
+    def save_scan_choices(
+        self,
+        folder: Path,
+        choices: list[tuple[Path, str, str | None]],
+    ) -> None:
+        now = time_ns() // 1_000_000
+        folder_str = str(folder)
+        with self._database.write() as connection:
+            connection.executemany(
+                """
+                INSERT INTO scan_folder_choices (exe_path, folder_path, decision, custom_name, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (exe_path) DO UPDATE SET
+                    folder_path = excluded.folder_path,
+                    decision = excluded.decision,
+                    custom_name = excluded.custom_name,
+                    updated_at = excluded.updated_at
+                """,
+                [
+                    (os.path.normcase(str(exe)), folder_str, decision, custom_name, now)
+                    for exe, decision, custom_name in choices
+                ],
+            )
