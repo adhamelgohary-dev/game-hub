@@ -1,5 +1,8 @@
-"""Editable application settings with adjacent error feedback and data-folder controls."""
+"""Editable application settings organized into 5 plain-language groups with EN/AR explanations."""
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -32,13 +35,26 @@ from gamehub.core.settings import (
 )
 
 
+def _make_hint(parent: QWidget) -> QLabel:
+    label = QLabel(parent)
+    label.setObjectName("mutedText")
+    label.setTextFormat(Qt.TextFormat.PlainText)
+    label.setWordWrap(True)
+    return label
+
+
 class SettingsView(QWidget):
     backRequested = Signal()
     saveRequested = Signal(dict)
+    resetDefaultsRequested = Signal()
     openFolderRequested = Signal()
     moveFolderRequested = Signal(str)
     testProtectionRequested = Signal()
     protectedGameModeChanged = Signal(str, str)
+    addScanFolderRequested = Signal(str)
+    rescanFolderRequested = Signal(str)
+    removeScanFolderRequested = Signal(str)
+    fetchCoversRequested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -48,6 +64,9 @@ class SettingsView(QWidget):
         self._error_labels: dict[str, QLabel] = {}
         self._error_codes: dict[str, str] = {}
         self._status_code: str | None = None
+        self._scan_folders: list[Path] = []
+        self._last_test_result: tuple[bool, int] | None = None
+        self._last_fetch_count: int | None = None
 
         self._back = QPushButton(self)
         self._back.clicked.connect(self.backRequested)
@@ -66,16 +85,20 @@ class SettingsView(QWidget):
         body_layout.setContentsMargins(0, 4, 8, 12)
         body_layout.setSpacing(14)
 
-        # Language & Appearance group
+        # 1. General (Language & Theme)
         self._lang_group = QGroupBox(body)
         lang_form = QFormLayout(self._lang_group)
+        lang_form.setVerticalSpacing(6)
+
         self._lang_label = QLabel(self._lang_group)
         self._lang_label.setWordWrap(True)
         self._language = QComboBox(self._lang_group)
         self._language.addItem("English", "en")
         self._language.addItem("العربية", "ar")
         self._lang_label.setBuddy(self._language)
+        self._lang_hint = _make_hint(self._lang_group)
         lang_form.addRow(self._lang_label, self._language)
+        lang_form.addRow(self._lang_hint)
         lang_form.addRow(self._make_error("ui.language", self._lang_group))
 
         self._theme_label = QLabel(self._lang_group)
@@ -85,15 +108,96 @@ class SettingsView(QWidget):
         self._theme.addItem("", "light")
         self._theme.addItem("", "system")
         self._theme_label.setBuddy(self._theme)
+        self._theme_hint = _make_hint(self._lang_group)
         lang_form.addRow(self._theme_label, self._theme)
+        lang_form.addRow(self._theme_hint)
         lang_form.addRow(self._make_error("ui.theme", self._lang_group))
         body_layout.addWidget(self._lang_group)
 
-        # Anti-cheat protection group
+        # 2. Capture and notes (Screenshots, Notes, Global shortcuts)
+        self._capture_group = QGroupBox(body)
+        capture_layout = QVBoxLayout(self._capture_group)
+        capture_layout.setSpacing(10)
+
+        capture_form = QFormLayout()
+        capture_form.setVerticalSpacing(6)
+        self._interval_label = QLabel(self._capture_group)
+        self._interval_label.setWordWrap(True)
+        self._interval = QSpinBox(self._capture_group)
+        self._interval.setRange(MIN_CAPTURE_INTERVAL_SEC, MAX_CAPTURE_INTERVAL_SEC)
+        self._interval_label.setBuddy(self._interval)
+        self._interval_hint = _make_hint(self._capture_group)
+        capture_form.addRow(self._interval_label, self._interval)
+        capture_form.addRow(self._interval_hint)
+        capture_form.addRow(self._make_error("capture.interval_sec", self._capture_group))
+
+        self._buffer_label = QLabel(self._capture_group)
+        self._buffer_label.setWordWrap(True)
+        self._buffer = QSpinBox(self._capture_group)
+        self._buffer.setRange(MIN_BUFFER_SIZE, MAX_BUFFER_SIZE)
+        self._buffer_label.setBuddy(self._buffer)
+        self._buffer_hint = _make_hint(self._capture_group)
+        capture_form.addRow(self._buffer_label, self._buffer)
+        capture_form.addRow(self._buffer_hint)
+        capture_form.addRow(self._make_error("capture.buffer_size", self._capture_group))
+        capture_layout.addLayout(capture_form)
+
+        self._autoplay = QCheckBox(self._capture_group)
+        self._autoplay_hint = _make_hint(self._capture_group)
+        self._prompt_on_end = QCheckBox(self._capture_group)
+        self._prompt_on_end_hint = _make_hint(self._capture_group)
+        capture_layout.addWidget(self._autoplay)
+        capture_layout.addWidget(self._autoplay_hint)
+        capture_layout.addWidget(self._prompt_on_end)
+        capture_layout.addWidget(self._prompt_on_end_hint)
+
+        self._hotkeys_heading = QLabel(self._capture_group)
+        self._hotkeys_heading.setObjectName("sectionHeading")
+        self._hotkeys_hint = _make_hint(self._capture_group)
+        capture_layout.addWidget(self._hotkeys_heading)
+        capture_layout.addWidget(self._hotkeys_hint)
+
+        hotkeys_form = QFormLayout()
+        hotkeys_form.setVerticalSpacing(6)
+        self._hk_record_label = QLabel(self._capture_group)
+        self._hk_record_label.setWordWrap(True)
+        self._hk_record = QLineEdit(self._capture_group)
+        self._hk_record.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self._hk_record_label.setBuddy(self._hk_record)
+        self._hk_record_hint = _make_hint(self._capture_group)
+        hotkeys_form.addRow(self._hk_record_label, self._hk_record)
+        hotkeys_form.addRow(self._hk_record_hint)
+        hotkeys_form.addRow(self._make_error("hotkey.record_note", self._capture_group))
+
+        self._hk_last_label = QLabel(self._capture_group)
+        self._hk_last_label.setWordWrap(True)
+        self._hk_last = QLineEdit(self._capture_group)
+        self._hk_last.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self._hk_last_label.setBuddy(self._hk_last)
+        self._hk_last_hint = _make_hint(self._capture_group)
+        hotkeys_form.addRow(self._hk_last_label, self._hk_last)
+        hotkeys_form.addRow(self._hk_last_hint)
+        hotkeys_form.addRow(self._make_error("hotkey.last_time", self._capture_group))
+
+        self._hk_pin_label = QLabel(self._capture_group)
+        self._hk_pin_label.setWordWrap(True)
+        self._hk_pin = QLineEdit(self._capture_group)
+        self._hk_pin.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self._hk_pin_label.setBuddy(self._hk_pin)
+        self._hk_pin_hint = _make_hint(self._capture_group)
+        hotkeys_form.addRow(self._hk_pin_label, self._hk_pin)
+        hotkeys_form.addRow(self._hk_pin_hint)
+        hotkeys_form.addRow(self._make_error("hotkey.pin_controls", self._capture_group))
+        capture_layout.addLayout(hotkeys_form)
+        body_layout.addWidget(self._capture_group)
+
+        # 3. Protected games (Zero-Presence Anti-Cheat)
         self._protection_group = QGroupBox(body)
         protection_layout = QVBoxLayout(self._protection_group)
         protection_layout.setSpacing(10)
+
         protection_form = QFormLayout()
+        protection_form.setVerticalSpacing(6)
         self._external_behavior_label = QLabel(self._protection_group)
         self._external_behavior_label.setWordWrap(True)
         self._external_behavior = QComboBox(self._protection_group)
@@ -101,17 +205,20 @@ class SettingsView(QWidget):
         self._external_behavior.addItem("", "strict_mode")
         self._external_behavior.addItem("", "ask_me")
         self._external_behavior_label.setBuddy(self._external_behavior)
+        self._external_behavior_hint = _make_hint(self._protection_group)
         protection_form.addRow(self._external_behavior_label, self._external_behavior)
+        protection_form.addRow(self._external_behavior_hint)
         protection_form.addRow(
             self._make_error("protection.external_behavior", self._protection_group)
         )
         protection_layout.addLayout(protection_form)
 
-        # Per-launcher strict toggles (Riot always ON & locked; others OFF by default for story games)
         self._launchers_heading = QLabel(self._protection_group)
         self._launchers_heading.setObjectName("sectionHeading")
         self._launchers_heading.setWordWrap(True)
+        self._launchers_hint = _make_hint(self._protection_group)
         protection_layout.addWidget(self._launchers_heading)
+        protection_layout.addWidget(self._launchers_hint)
 
         self._strict_riot = QCheckBox(self._protection_group)
         self._strict_riot.setChecked(True)
@@ -124,7 +231,6 @@ class SettingsView(QWidget):
             self._launcher_checks[key] = box
             protection_layout.addWidget(box)
 
-        # Detected protected games on this PC
         self._detected_protected_heading = QLabel(self._protection_group)
         self._detected_protected_heading.setObjectName("sectionHeading")
         self._detected_protected_heading.setWordWrap(True)
@@ -137,7 +243,6 @@ class SettingsView(QWidget):
         self._protected_games_rows: list[tuple[str, str, str, str]] = []
         protection_layout.addWidget(self._protected_games_container)
 
-        # Test protection button & live result
         test_row = QHBoxLayout()
         self._test_protection_btn = QPushButton(self._protection_group)
         self._test_protection_btn.clicked.connect(self.testProtectionRequested)
@@ -147,75 +252,76 @@ class SettingsView(QWidget):
         self._test_protection_result.setWordWrap(True)
         test_row.addWidget(self._test_protection_btn)
         test_row.addWidget(self._test_protection_result, stretch=1)
+        self._test_protection_hint = _make_hint(self._protection_group)
         protection_layout.addLayout(test_row)
-        self._last_test_result: tuple[bool, int] | None = None
-
+        protection_layout.addWidget(self._test_protection_hint)
         body_layout.addWidget(self._protection_group)
 
-        # Capture group
-        self._capture_group = QGroupBox(body)
-        capture_form = QFormLayout(self._capture_group)
-        self._interval_label = QLabel(self._capture_group)
-        self._interval_label.setWordWrap(True)
-        self._interval = QSpinBox(self._capture_group)
-        self._interval.setRange(MIN_CAPTURE_INTERVAL_SEC, MAX_CAPTURE_INTERVAL_SEC)
-        self._interval_label.setBuddy(self._interval)
-        capture_form.addRow(self._interval_label, self._interval)
-        capture_form.addRow(self._make_error("capture.interval_sec", self._capture_group))
-
-        self._buffer_label = QLabel(self._capture_group)
-        self._buffer_label.setWordWrap(True)
-        self._buffer = QSpinBox(self._capture_group)
-        self._buffer.setRange(MIN_BUFFER_SIZE, MAX_BUFFER_SIZE)
-        self._buffer_label.setBuddy(self._buffer)
-        capture_form.addRow(self._buffer_label, self._buffer)
-        capture_form.addRow(self._make_error("capture.buffer_size", self._capture_group))
-        body_layout.addWidget(self._capture_group)
-
-        # Notes & Last time group
-        self._notes_group = QGroupBox(body)
-        notes_layout = QVBoxLayout(self._notes_group)
-        self._autoplay = QCheckBox(self._notes_group)
-        self._prompt_on_end = QCheckBox(self._notes_group)
-        notes_layout.addWidget(self._autoplay)
-        notes_layout.addWidget(self._prompt_on_end)
-        body_layout.addWidget(self._notes_group)
-
-        # Hotkeys group
-        self._hotkeys_group = QGroupBox(body)
-        hotkeys_form = QFormLayout(self._hotkeys_group)
-        self._hotkeys_hint = QLabel(self._hotkeys_group)
-        self._hotkeys_hint.setWordWrap(True)
-        hotkeys_form.addRow(self._hotkeys_hint)
-
-        self._hk_record_label = QLabel(self._hotkeys_group)
-        self._hk_record_label.setWordWrap(True)
-        self._hk_record = QLineEdit(self._hotkeys_group)
-        self._hk_record.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
-        self._hk_record_label.setBuddy(self._hk_record)
-        hotkeys_form.addRow(self._hk_record_label, self._hk_record)
-        hotkeys_form.addRow(self._make_error("hotkey.record_note", self._hotkeys_group))
-
-        self._hk_last_label = QLabel(self._hotkeys_group)
-        self._hk_last_label.setWordWrap(True)
-        self._hk_last = QLineEdit(self._hotkeys_group)
-        self._hk_last.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
-        self._hk_last_label.setBuddy(self._hk_last)
-        hotkeys_form.addRow(self._hk_last_label, self._hk_last)
-        hotkeys_form.addRow(self._make_error("hotkey.last_time", self._hotkeys_group))
-
-        self._hk_pin_label = QLabel(self._hotkeys_group)
-        self._hk_pin_label.setWordWrap(True)
-        self._hk_pin = QLineEdit(self._hotkeys_group)
-        self._hk_pin.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
-        self._hk_pin_label.setBuddy(self._hk_pin)
-        hotkeys_form.addRow(self._hk_pin_label, self._hk_pin)
-        hotkeys_form.addRow(self._make_error("hotkey.pin_controls", self._hotkeys_group))
-        body_layout.addWidget(self._hotkeys_group)
-
-        # Data folder group
+        # 4. Library and folders (Scan folders, optional SteamGridDB, Data folder)
         self._data_group = QGroupBox(body)
         data_layout = QVBoxLayout(self._data_group)
+        data_layout.setSpacing(10)
+
+        self._scan_folders_heading = QLabel(self._data_group)
+        self._scan_folders_heading.setObjectName("sectionHeading")
+        self._scan_folders_hint = _make_hint(self._data_group)
+        data_layout.addWidget(self._scan_folders_heading)
+        data_layout.addWidget(self._scan_folders_hint)
+
+        self._scan_folders_container = QWidget(self._data_group)
+        self._scan_folders_layout = QVBoxLayout(self._scan_folders_container)
+        self._scan_folders_layout.setContentsMargins(0, 0, 0, 0)
+        self._scan_folders_layout.setSpacing(6)
+        data_layout.addWidget(self._scan_folders_container)
+
+        scan_btn_row = QHBoxLayout()
+        self._add_scan_folder_btn = QPushButton(self._data_group)
+        self._add_scan_folder_btn.clicked.connect(self._pick_scan_folder)
+        scan_btn_row.addWidget(self._add_scan_folder_btn)
+        scan_btn_row.addStretch()
+        data_layout.addLayout(scan_btn_row)
+
+        # Optional SteamGridDB (off by default)
+        self._sgdb_heading = QLabel(self._data_group)
+        self._sgdb_heading.setObjectName("sectionHeading")
+        data_layout.addWidget(self._sgdb_heading)
+
+        self._sgdb_enabled = QCheckBox(self._data_group)
+        self._sgdb_enabled.toggled.connect(self._sync_sgdb_controls)
+        self._sgdb_hint = _make_hint(self._data_group)
+        data_layout.addWidget(self._sgdb_enabled)
+        data_layout.addWidget(self._sgdb_hint)
+
+        sgdb_form = QFormLayout()
+        sgdb_form.setVerticalSpacing(6)
+        self._sgdb_key_label = QLabel(self._data_group)
+        self._sgdb_key_label.setWordWrap(True)
+        self._sgdb_api_key = QLineEdit(self._data_group)
+        self._sgdb_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self._sgdb_api_key.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self._sgdb_api_key.textChanged.connect(self._sync_sgdb_controls)
+        self._sgdb_key_label.setBuddy(self._sgdb_api_key)
+        self._sgdb_key_hint = _make_hint(self._data_group)
+        sgdb_form.addRow(self._sgdb_key_label, self._sgdb_api_key)
+        sgdb_form.addRow(self._sgdb_key_hint)
+        sgdb_form.addRow(self._make_error("covers.steamgriddb_api_key", self._data_group))
+        data_layout.addLayout(sgdb_form)
+
+        fetch_row = QHBoxLayout()
+        self._fetch_covers_btn = QPushButton(self._data_group)
+        self._fetch_covers_btn.clicked.connect(self.fetchCoversRequested)
+        self._fetch_covers_status = _make_hint(self._data_group)
+        fetch_row.addWidget(self._fetch_covers_btn)
+        fetch_row.addWidget(self._fetch_covers_status, stretch=1)
+        data_layout.addLayout(fetch_row)
+
+        # Data folder
+        self._data_folder_heading = QLabel(self._data_group)
+        self._data_folder_heading.setObjectName("sectionHeading")
+        self._data_folder_hint = _make_hint(self._data_group)
+        data_layout.addWidget(self._data_folder_heading)
+        data_layout.addWidget(self._data_folder_hint)
+
         self._data_path_label = QLabel(self._data_group)
         self._data_path_label.setTextFormat(Qt.TextFormat.PlainText)
         self._data_path_label.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
@@ -237,7 +343,7 @@ class SettingsView(QWidget):
         data_layout.addWidget(self._make_error("data_location", self._data_group))
         body_layout.addWidget(self._data_group)
 
-        # About & Privacy group (zero-background + offline + anti-cheat guarantees)
+        # 5. About and privacy (Guarantees + Version + Reset to defaults)
         self._about_group = QGroupBox(body)
         about_layout = QVBoxLayout(self._about_group)
         about_layout.setSpacing(8)
@@ -251,9 +357,17 @@ class SettingsView(QWidget):
         self._about_version.setObjectName("mutedText")
         self._about_version.setTextFormat(Qt.TextFormat.PlainText)
         self._about_version.setWordWrap(True)
+        reset_row = QHBoxLayout()
+        self._reset_defaults_btn = QPushButton(self._about_group)
+        self._reset_defaults_btn.clicked.connect(self._confirm_reset_defaults)
+        reset_row.addWidget(self._reset_defaults_btn)
+        reset_row.addStretch()
+        self._reset_defaults_hint = _make_hint(self._about_group)
         about_layout.addWidget(self._about_zero_bg)
         about_layout.addWidget(self._about_anticheat)
         about_layout.addWidget(self._about_version)
+        about_layout.addLayout(reset_row)
+        about_layout.addWidget(self._reset_defaults_hint)
         body_layout.addWidget(self._about_group)
 
         body_layout.addStretch()
@@ -282,6 +396,7 @@ class SettingsView(QWidget):
         root.addLayout(header)
         root.addWidget(scroll, stretch=1)
         root.addLayout(footer)
+        self._sync_sgdb_controls()
         self.retranslate_ui()
 
     def load_settings(self, snapshot: SettingsSnapshot, data_root: Path) -> None:
@@ -307,7 +422,42 @@ class SettingsView(QWidget):
         self._hk_record.setText(snapshot.hotkey_record_note)
         self._hk_last.setText(snapshot.hotkey_last_time)
         self._hk_pin.setText(snapshot.hotkey_pin_controls)
+        self._sgdb_enabled.setChecked(snapshot.steamgriddb_enabled)
+        self._sgdb_api_key.setText(snapshot.steamgriddb_api_key)
         self._data_path_label.setText(str(data_root))
+        self._sync_sgdb_controls()
+
+    def set_scan_folders(self, folders: Sequence[Path]) -> None:
+        self._scan_folders = list(folders)
+        self._rebuild_scan_folders_list()
+
+    def set_fetch_covers_running(self, running: bool) -> None:
+        self._fetch_covers_btn.setEnabled(not running and self._can_fetch_covers())
+        if running:
+            self._fetch_covers_status.setText(self.tr("Fetching missing covers…"))
+
+    def set_fetch_covers_result(self, updated_count: int) -> None:
+        self._last_fetch_count = updated_count
+        self._fetch_covers_btn.setEnabled(self._can_fetch_covers())
+        if updated_count > 0:
+            self._fetch_covers_status.setText(
+                self.tr("Updated {count} missing covers.").format(count=updated_count)
+            )
+        else:
+            self._fetch_covers_status.setText(self.tr("No new covers were found."))
+
+    def _can_fetch_covers(self) -> bool:
+        return (
+            not self._busy
+            and not self._restart_required
+            and self._sgdb_enabled.isChecked()
+            and bool(self._sgdb_api_key.text().strip())
+        )
+
+    def _sync_sgdb_controls(self) -> None:
+        enabled = self._sgdb_enabled.isChecked()
+        self._sgdb_api_key.setEnabled(enabled)
+        self._fetch_covers_btn.setEnabled(self._can_fetch_covers())
 
     def set_protected_games(self, rows: list[tuple[str, str, str, str]]) -> None:
         """Populate detected protected games: (game_id, name, anti_cheat, mode)."""
@@ -330,6 +480,36 @@ class SettingsView(QWidget):
             self._test_protection_result.setText(
                 self.tr("Protection test failed. Check that Windows process scanning is available.")
             )
+
+    def _rebuild_scan_folders_list(self) -> None:
+        while self._scan_folders_layout.count():
+            item = self._scan_folders_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        if not self._scan_folders:
+            empty = _make_hint(self._scan_folders_container)
+            empty.setText(self.tr("No custom game folders added yet."))
+            self._scan_folders_layout.addWidget(empty)
+            return
+
+        for folder in self._scan_folders:
+            row = QFrame(self._scan_folders_container)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 2, 0, 2)
+            row_layout.setSpacing(8)
+            path_lbl = QLabel(str(folder), row)
+            path_lbl.setTextFormat(Qt.TextFormat.PlainText)
+            path_lbl.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+            path_lbl.setWordWrap(True)
+            rescan_btn = QPushButton(self.tr("Rescan"), row)
+            rescan_btn.clicked.connect(lambda _checked=False, f=str(folder): self.rescanFolderRequested.emit(f))
+            remove_btn = QPushButton(self.tr("Remove"), row)
+            remove_btn.clicked.connect(lambda _checked=False, f=str(folder): self.removeScanFolderRequested.emit(f))
+            row_layout.addWidget(path_lbl, stretch=1)
+            row_layout.addWidget(rescan_btn)
+            row_layout.addWidget(remove_btn)
+            self._scan_folders_layout.addWidget(row)
 
     def _rebuild_protected_games_list(self) -> None:
         while self._protected_games_layout.count():
@@ -397,14 +577,20 @@ class SettingsView(QWidget):
         enabled = not busy and not self._restart_required
         self._save.setEnabled(enabled)
         self._move_folder.setEnabled(enabled)
+        self._reset_defaults_btn.setEnabled(enabled)
+        self._add_scan_folder_btn.setEnabled(enabled)
         self._open_folder.setEnabled(not busy)
+        self._sync_sgdb_controls()
 
     def set_restart_required(self) -> None:
         self._restart_required = True
         self._busy = False
         self._save.setEnabled(False)
         self._move_folder.setEnabled(False)
+        self._reset_defaults_btn.setEnabled(False)
+        self._add_scan_folder_btn.setEnabled(False)
         self._open_folder.setEnabled(True)
+        self._sync_sgdb_controls()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Escape and not self._busy:
@@ -444,21 +630,79 @@ class SettingsView(QWidget):
     def retranslate_ui(self) -> None:
         self._back.setText(self.tr("Back to Library"))
         self._title.setText(self.tr("Settings"))
-        self._lang_group.setTitle(self.tr("Language and appearance"))
+
+        # 1. General
+        self._lang_group.setTitle(self.tr("General"))
         self._lang_label.setText(self.tr("Display language"))
+        self._lang_hint.setText(
+            self.tr("Choose English or Arabic. Right-to-left layout switches immediately.")
+        )
         self._theme_label.setText(self.tr("Theme"))
+        self._theme_hint.setText(
+            self.tr("Pick Dark, Light, or automatically match your Windows theme.")
+        )
         self._theme.setItemText(0, self.tr("Dark"))
         self._theme.setItemText(1, self.tr("Light"))
         self._theme.setItemText(2, self.tr("System"))
+
+        # 2. Capture and notes
+        self._capture_group.setTitle(self.tr("Capture and notes"))
+        self._interval_label.setText(self.tr("Capture interval (seconds)"))
+        self._interval_hint.setText(
+            self.tr("How often Game Hub saves a quiet screenshot while you play a single-player game.")
+        )
+        self._buffer_label.setText(self.tr("Screenshot ring size"))
+        self._buffer_hint.setText(
+            self.tr("How many recent screenshots to keep per game before replacing the oldest one.")
+        )
+        self._autoplay.setText(self.tr("Autoplay voice notes"))
+        self._autoplay_hint.setText(
+            self.tr("Play your latest voice reminder automatically when the Last time card opens.")
+        )
+        self._prompt_on_end.setText(self.tr("Ask for a note when a game closes"))
+        self._prompt_on_end_hint.setText(
+            self.tr("Offer a quick voice or text note right after you finish a game session.")
+        )
+        self._hotkeys_heading.setText(self.tr("Global shortcuts"))
+        self._hotkeys_hint.setText(
+            self.tr("Use Ctrl, Alt, or Shift with a letter, digit, or F1–F12. Leave blank to disable.")
+        )
+        self._hk_record_label.setText(self.tr("Record voice note"))
+        self._hk_record_hint.setText(
+            self.tr("Press during gameplay to start or stop recording a voice reminder.")
+        )
+        self._hk_record.setPlaceholderText("Ctrl+Alt+N")
+        self._hk_last_label.setText(self.tr("Reopen Last time card"))
+        self._hk_last_hint.setText(
+            self.tr("Bring back your last screenshots, voice note, and controls at any time.")
+        )
+        self._hk_last.setPlaceholderText("Ctrl+Alt+L")
+        self._hk_pin_label.setText(self.tr("Pin controls screenshot"))
+        self._hk_pin_hint.setText(
+            self.tr("Capture the current controls screen and pin it to the game's page.")
+        )
+        self._hk_pin.setPlaceholderText("Ctrl+Alt+C")
+
+        # 3. Protected games
         self._protection_group.setTitle(self.tr("Protected games"))
         self._external_behavior_label.setText(
             self.tr("When a protected game starts while Game Hub is open")
+        )
+        self._external_behavior_hint.setText(
+            self.tr(
+                "Recommended: Exit Game Hub automatically so zero presence stays next to anti-cheat games."
+            )
         )
         self._external_behavior.setItemText(0, self.tr("Exit Game Hub automatically"))
         self._external_behavior.setItemText(1, self.tr("Switch to Strict mode"))
         self._external_behavior.setItemText(2, self.tr("Ask me (Windows notification)"))
         self._launchers_heading.setText(
             self.tr("Close Game Hub whenever this launcher is open")
+        )
+        self._launchers_hint.setText(
+            self.tr(
+                "Leave off for launchers where you play single-player story games; protected games still close Game Hub automatically."
+            )
         )
         self._strict_riot.setText(self.tr("Riot Client (always on for Vanguard safety)"))
         self._launcher_checks["epic"].setText(
@@ -472,29 +716,48 @@ class SettingsView(QWidget):
             self.tr("Detected protected games on this PC")
         )
         self._test_protection_btn.setText(self.tr("Test protection"))
+        self._test_protection_hint.setText(
+            self.tr("Runs a safe dummy check to verify Game Hub detects protected games in under a second.")
+        )
         self._rebuild_protected_games_list()
         if self._last_test_result is not None:
             self.set_test_protection_result(*self._last_test_result)
-        self._capture_group.setTitle(self.tr("Screenshots"))
-        self._interval_label.setText(self.tr("Capture interval (seconds)"))
-        self._buffer_label.setText(self.tr("Screenshot ring size"))
-        self._notes_group.setTitle(self.tr("Notes and Last time"))
-        self._autoplay.setText(self.tr("Autoplay voice notes"))
-        self._prompt_on_end.setText(self.tr("Ask for a note when a game closes"))
-        self._hotkeys_group.setTitle(self.tr("Global shortcuts"))
-        self._hotkeys_hint.setText(
-            self.tr("Use Ctrl, Alt, or Shift with a letter, digit, or F1–F12. Leave blank to disable.")
+
+        # 4. Library and folders
+        self._data_group.setTitle(self.tr("Library and folders"))
+        self._scan_folders_heading.setText(self.tr("Scan folders"))
+        self._scan_folders_hint.setText(
+            self.tr("Scan any local folder for standalone games. Uninstallers and helper tools are skipped automatically.")
         )
-        self._hk_record_label.setText(self.tr("Record voice note"))
-        self._hk_record.setPlaceholderText("Ctrl+Alt+N")
-        self._hk_last_label.setText(self.tr("Reopen Last time card"))
-        self._hk_last.setPlaceholderText("Ctrl+Alt+L")
-        self._hk_pin_label.setText(self.tr("Pin controls screenshot"))
-        self._hk_pin.setPlaceholderText("Ctrl+Alt+C")
-        self._data_group.setTitle(self.tr("Data folder"))
+        self._add_scan_folder_btn.setText(self.tr("Add scan folder…"))
+        self._rebuild_scan_folders_list()
+
+        self._sgdb_heading.setText(self.tr("Optional cover art (SteamGridDB)"))
+        self._sgdb_enabled.setText(
+            self.tr("Fetch missing covers from SteamGridDB (optional, off by default)")
+        )
+        self._sgdb_hint.setText(
+            self.tr(
+                "This is the only optional internet feature in Game Hub. It sends only game titles using your own API key."
+            )
+        )
+        self._sgdb_key_label.setText(self.tr("SteamGridDB API key"))
+        self._sgdb_key_hint.setText(
+            self.tr("Stored locally on your PC and never written to logs.")
+        )
+        self._fetch_covers_btn.setText(self.tr("Fetch missing covers now"))
+        if self._last_fetch_count is not None:
+            self.set_fetch_covers_result(self._last_fetch_count)
+
+        self._data_folder_heading.setText(self.tr("Data folder"))
+        self._data_folder_hint.setText(
+            self.tr("Where Game Hub stores your notes, screenshots, custom covers, and local database.")
+        )
         self._data_path_label.setAccessibleName(self.tr("Current data folder"))
         self._open_folder.setText(self.tr("Open folder"))
         self._move_folder.setText(self.tr("Move data folder…"))
+
+        # 5. About and privacy
         self._about_group.setTitle(self.tr("About and privacy"))
         self._about_zero_bg.setText(
             self.tr(
@@ -505,12 +768,18 @@ class SettingsView(QWidget):
         self._about_anticheat.setText(
             self.tr(
                 "Offline and anti-cheat safe: all notes and screenshots stay on your PC. "
-                "Game Hub never injects, hooks, or reads game memory, and defaults protected "
-                "multiplayer games to Strict mode."
+                "Game Hub never injects, hooks, or reads game memory, and closes automatically "
+                "before protected multiplayer games start."
             )
         )
         self._about_version.setText(
             self.tr("Game Hub v{version} · MIT License").format(version=__version__)
+        )
+        self._reset_defaults_btn.setText(self.tr("Reset to defaults"))
+        self._reset_defaults_hint.setText(
+            self.tr(
+                "Restores settings, shortcuts, launcher toggles, and per-game protection to safe defaults. Your notes and screenshots are kept."
+            )
         )
         self._save.setText(self.tr("Save settings"))
         if self._data_root != Path():
@@ -546,17 +815,38 @@ class SettingsView(QWidget):
             "hotkey.record_note": self._hk_record.text().strip(),
             "hotkey.last_time": self._hk_last.text().strip(),
             "hotkey.pin_controls": self._hk_pin.text().strip(),
+            "covers.steamgriddb_enabled": self._sgdb_enabled.isChecked(),
+            "covers.steamgriddb_api_key": self._sgdb_api_key.text().strip(),
         }
         self.saveRequested.emit(patch)
+
+    def _confirm_reset_defaults(self) -> None:
+        answer = QMessageBox.question(
+            self,
+            self.tr("Reset settings to defaults?"),
+            self.tr(
+                "This restores all settings, shortcuts, launcher toggles, and per-game anti-cheat protection back to their safe defaults. Your saved notes and screenshots will not be deleted."
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.resetDefaultsRequested.emit()
 
     def _pick_destination(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, self.tr("Choose a new empty data folder"))
         if folder:
             self.moveFolderRequested.emit(folder)
 
+    def _pick_scan_folder(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, self.tr("Choose a folder to scan"))
+        if folder:
+            self.addScanFolderRequested.emit(folder)
+
     def _message_for_code(self, code: str) -> str:
         messages = {
             "settings_saved": self.tr("Settings saved."),
+            "settings_reset": self.tr("Settings restored to defaults."),
             "location_moved_restart": self.tr(
                 "Data folder verified and updated. Restart Game Hub to use the new location."
             ),
@@ -565,6 +855,7 @@ class SettingsView(QWidget):
             "invalid_external_behavior": self.tr("Select a supported protected-game action."),
             "invalid_capture_interval": self.tr("Choose an interval between 5 and 300 seconds."),
             "invalid_buffer_size": self.tr("Choose a screenshot ring size between 1 and 50."),
+            "invalid_api_key": self.tr("Enter a valid ASCII API key (up to 128 characters)."),
             "invalid_shortcut": self.tr(
                 "Enter a shortcut such as Ctrl+Alt+N, or leave blank to disable."
             ),

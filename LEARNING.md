@@ -181,3 +181,12 @@ Setting `QLabel.setScaledContents(True)` on responsive grid cards stretches imag
 Read [steam.py](gamehub/core/library/steam.py), [covers.py](gamehub/ui/covers.py), [storage/covers.py](gamehub/core/storage/covers.py), [steamgriddb.py](gamehub/core/library/steamgriddb.py), and [test_v12_covers.py](tests/test_v12_covers.py).
 
 Try it yourself. Click the `⋯` button on any game card → **Change cover…**, pick a local PNG/JPG/WebP image, refresh the library, and confirm your custom cover stays preserved (`custom_cover = 1`) until you choose **Reset cover**.
+
+
+## M17 — Plain-language grouped Settings, opt-in network isolation, and Reset to defaults
+
+Grouping settings into five task-oriented sections with one-line muted helper text under every control makes technical options like screenshot ring sizes, global shortcuts, and per-launcher anti-cheat toggles self-explanatory in both English and Arabic. Keeping the optional SteamGridDB cover fetcher strictly disabled by default, password-masking the user's API key, and disabling the fetch trigger until both opt-in and key are provided ensures users never trigger unexpected outbound requests. Pairing `SettingsService.reset_to_defaults()` with `LibraryRepository.reset_protection_defaults()` restores every safety default cleanly without touching saved gameplay history.
+
+Read [settings_view.py](gamehub/ui/settings_view.py), [settings.py](gamehub/core/settings.py), [USER-GUIDE-AR.md](docs/USER-GUIDE-AR.md), and [test_v12_settings.py](tests/test_v12_settings.py).
+
+Try it yourself. Open **Settings → About and privacy** and click **Reset to defaults**, confirm the dialog, and verify that theme, capture interval, launcher toggles, and per-game protection return to their safe defaults while your library remains intact.

@@ -438,4 +438,84 @@ AR_CATALOG: dict[str, str] = {
     "Game Hub could not reset the cover image.": (
         "تعذّر على \u2066Game Hub\u2069 استعادة الغلاف الأصلي."
     ),
+    "General": "عام",
+    "Choose English or Arabic. Right-to-left layout switches immediately.": (
+        "اختر الإنجليزية أو العربية. ينتقل اتجاه الواجهة من اليمين إلى اليسار فورًا."
+    ),
+    "Pick Dark, Light, or automatically match your Windows theme.": (
+        "اختر المظهر الداكن أو الفاتح أو طابق مظهر \u2066Windows\u2069 تلقائيًا."
+    ),
+    "Capture and notes": "اللقطات والملاحظات",
+    "How often Game Hub saves a quiet screenshot while you play a single-player game.": (
+        "كل كم ثانية يحفظ \u2066Game Hub\u2069 لقطة شاشة هادئة أثناء لعب ألعاب القصة الفردية."
+    ),
+    "How many recent screenshots to keep per game before replacing the oldest one.": (
+        "عدد أحدث اللقطات المحفوظة لكل لعبة قبل استبدال اللقطة الأقدم."
+    ),
+    "Play your latest voice reminder automatically when the Last time card opens.": (
+        "تشغيل آخر ملاحظة صوتية تلقائيًا عند فتح بطاقة «آخر مرة»."
+    ),
+    "Offer a quick voice or text note right after you finish a game session.": (
+        "عرض نافذة سريعة لحفظ ملاحظة صوتية أو نصية فور إغلاق اللعبة."
+    ),
+    "Press during gameplay to start or stop recording a voice reminder.": (
+        "اضغطه أثناء اللعب لبدء أو إيقاف تسجيل ملاحظة صوتية سريعة."
+    ),
+    "Bring back your last screenshots, voice note, and controls at any time.": (
+        "إظهار آخر اللقطات والملاحظة الصوتية وشاشة التحكم في أي وقت."
+    ),
+    "Capture the current controls screen and pin it to the game's page.": (
+        "التقاط شاشة أزرار التحكم الحالية وتثبيتها في صفحة اللعبة."
+    ),
+    "Recommended: Exit Game Hub automatically so zero presence stays next to anti-cheat games.": (
+        "موصى به: إغلاق \u2066Game Hub\u2069 تلقائيًا حتى لا يبقى أي وجود بجانب ألعاب مكافحة الغش."
+    ),
+    "Leave off for launchers where you play single-player story games; protected games still close Game Hub automatically.": (
+        "اتركه مطفأً للمشغّلات التي تلعب عليها ألعاب قصة فردية؛ الألعاب المحمية ستغلق \u2066Game Hub\u2069 تلقائيًا على أي حال."
+    ),
+    "Runs a safe dummy check to verify Game Hub detects protected games in under a second.": (
+        "يشغّل اختبارًا آمنًا للتحقق من اكتشاف الألعاب المحمية والإغلاق في أقل من ثانية."
+    ),
+    "Library and folders": "المكتبة والمجلدات",
+    "Scan folders": "مجلدات المسح",
+    "Scan any local folder for standalone games. Uninstallers and helper tools are skipped automatically.": (
+        "امسح أي مجلد محلي للألعاب المستقلة. يتم تجاهل ملفات إلغاء التثبيت والأدوات المساعدة تلقائيًا."
+    ),
+    "Add scan folder…": "إضافة مجلد للمسح…",
+    "No custom game folders added yet.": "لم تتم إضافة مجلدات ألعاب مخصصة بعد.",
+    "Rescan": "إعادة المسح",
+    "Remove": "إزالة",
+    "Optional cover art (SteamGridDB)": "أغلفة إضافية اختيارية (\u2066SteamGridDB\u2069)",
+    "Fetch missing covers from SteamGridDB (optional, off by default)": (
+        "جلب الأغلفة الناقصة من \u2066SteamGridDB\u2069 (اختياري، مطفأ افتراضيًا)"
+    ),
+    "This is the only optional internet feature in Game Hub. It sends only game titles using your own API key.": (
+        "هذه هي الميزة الاختيارية الوحيدة التي تستخدم الإنترنت في \u2066Game Hub\u2069، وترسل أسماء الألعاب فقط باستخدام مفتاحك الخاص."
+    ),
+    "SteamGridDB API key": "مفتاح \u2066SteamGridDB API\u2069",
+    "Stored locally on your PC and never written to logs.": (
+        "يُحفظ محليًا على جهازك فقط ولا يُكتب أبدًا في السجلات."
+    ),
+    "Fetch missing covers now": "جلب الأغلفة الناقصة الآن",
+    "Fetching missing covers…": "جارٍ جلب الأغلفة الناقصة…",
+    "Updated {count} missing covers.": "تم تحديث {count} من الأغلفة الناقصة.",
+    "No new covers were found.": "لم يتم العثور على أغلفة جديدة.",
+    "Where Game Hub stores your notes, screenshots, custom covers, and local database.": (
+        "المكان الذي يحفظ فيه \u2066Game Hub\u2069 ملاحظاتك ولقطاتك والأغلفة المخصصة وقاعدة البيانات المحلية."
+    ),
+    "Offline and anti-cheat safe: all notes and screenshots stay on your PC. Game Hub never injects, hooks, or reads game memory, and closes automatically before protected multiplayer games start.": (
+        "بدون إنترنت وآمن مع مكافحة الغش: تبقى كل ملاحظاتك ولقطاتك على جهازك. لا يحقن \u2066Game Hub\u2069 الألعاب أو يقرأ ذاكرتها أبدًا، ويُغلق تلقائيًا قبل بدء الألعاب الجماعية المحمية."
+    ),
+    "Reset to defaults": "إعادة الإعدادات للوضع الافتراضي",
+    "Restores settings, shortcuts, launcher toggles, and per-game protection to safe defaults. Your notes and screenshots are kept.": (
+        "يعيد الإعدادات والاختصارات وخيارات المشغّلات وحماية الألعاب إلى الوضع الآمن الافتراضي دون حذف ملاحظاتك أو لقطاتك."
+    ),
+    "Reset settings to defaults?": "إعادة الإعدادات إلى الوضع الافتراضي؟",
+    "This restores all settings, shortcuts, launcher toggles, and per-game anti-cheat protection back to their safe defaults. Your saved notes and screenshots will not be deleted.": (
+        "سيؤدي هذا إلى إعادة كل الإعدادات والاختصارات وخيارات المشغّلات وحماية مكافحة الغش لكل لعبة إلى وضعها الآمن الافتراضي. لن تُحذف ملاحظاتك أو لقطاتك المحفوظة."
+    ),
+    "Settings restored to defaults.": "تمت استعادة الإعدادات الافتراضية.",
+    "Enter a valid ASCII API key (up to 128 characters).": (
+        "أدخل مفتاح \u2066API\u2069 صالحًا بأحرف إنجليزية فقط (حتى 128 حرفًا)."
+    ),
 }

@@ -29,14 +29,14 @@
 - ✅ M14 — Part 1: Zero-Presence Anti-Cheat Protocol (Layers 1–7 + Settings Protected Games UI) [complex]
 - ✅ M15 — Part 2: Fix Epic & Steam, add Riot/GOG/EA/Ubisoft/Battle.net/itch/Xbox detectors, Scan Folders, plain scan warnings [complex]
 - ✅ M16 — Part 3: Landscape-first Steam covers, thumbnail cache, optional SteamGridDB (off by default), Change cover [complex]
-- 🔄 M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
-- ⬜ M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
+- ✅ M17 — Part 4: Plain-language grouped Settings, Reset to defaults, Egyptian Arabic settings guide [complex]
+- 🔄 M18 — Part 5 conflict handoff + full verification, package `v1.2.0-rc.1`, copy installer to Desktop, Council review [complex]
 - ⬜ M19 — Execute owner-chosen Rename variant & publish final `v1.2.0` after owner replies `"verified"` [simple]
 - ⬜ M20 — Part 6: Mods & Arabizations implementation (blocked until owner approves `docs/design/12-mods-and-arabizations.md` + mockups) [complex]
 
-**Current task** — Starting **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide)** after `M16` Council APPROVE (`208 passed`).
+**Current task** — Executing **M18 (`v1.2.0-rc.1` build, verification, Desktop copy & pre-release)** after `M17` Council APPROVE (`211 passed`).
 
 **Last completed**
-- **M16 (Part 3 — Cover Art That Fits):** Updated Steam `_find_cover()` to search wide landscape assets first across flat, nested, and hashed layouts (**26/26** live Steam games on PC now load wide landscape art), replaced stretched `QLabel` covers with resize-aware zero-stretch `CoverLabel`, added atomic `<data_root>/cache/covers/` WebP thumbnail cache + full-title typographic placeholders, added managed `CoverStore` + **"⋯ → Change cover…"** / **"Reset cover"** on every card and Game page, and added strictly opt-in `steamgriddb.py`. Passed `docs/reviews/M16-review.md`.
+- **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide):** Reorganized Settings into 5 clear groups (**General**, **Capture and notes**, **Protected games**, **Library and folders**, **About and privacy**) with plain-language explanations under every setting in EN & AR, Scan folders manager, optional off-by-default SteamGridDB controls, **Reset to defaults** with confirmation, and updated `docs/USER-GUIDE-AR.md` with Egyptian Arabic **"شرح الإعدادات"**. Passed `docs/reviews/M17-review.md`.
 
-**Tests** — 208 tests and `ruff check .` passing.
+**Tests** — 211 tests and `ruff check .` passing.

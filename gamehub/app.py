@@ -47,6 +47,7 @@ from gamehub.core.library.models import GameSource, LibraryChanged
 from gamehub.core.library.riot import RiotDetector
 from gamehub.core.library.service import LibraryService
 from gamehub.core.library.steam import SteamDetector
+from gamehub.core.library.steamgriddb import fetch_steamgriddb_cover
 from gamehub.core.library.ubisoft import UbisoftDetector
 from gamehub.core.library.xbox import XboxDetector
 from gamehub.core.notifications.windows import WindowsNotifier
@@ -760,6 +761,19 @@ def _run(
                 catalog=catalog,
                 library=library,
                 protection_guard=protection_guard,
+                cover_store=cover_store,
+                on_scan_folder=lambda folder_str, inc=False: (
+                    _handle_scan_folder(folder_str, include_ignored=inc),
+                    window.settings_view.set_scan_folders(library.list_scan_folders()),
+                ),
+                on_remove_scan_folder=lambda folder_str: (
+                    controller.remove_scan_folder(Path(folder_str)),
+                    window.settings_view.set_scan_folders(library.list_scan_folders()),
+                ),
+                on_covers_updated=lambda: (
+                    clear_cover_cache(),
+                    window.library.present_games(service.current().games),
+                ),
                 on_guard_policy_changed=lambda snap=None: (
                     _sync_guard_policy(snap),
                     watcher.reload_protection(),
@@ -1095,6 +1109,7 @@ def _start_hotkeys(
 class _MoveBridge(QObject):
     finished = Signal(bool, object)
     protectionTested = Signal(bool, int)
+    coversFetched = Signal(int)
 
 
 def _wire_settings(
@@ -1116,6 +1131,10 @@ def _wire_settings(
     catalog: ProtectedGamesCatalog | None = None,
     library: LibraryRepository | None = None,
     protection_guard: ProtectionGuard | None = None,
+    cover_store: CoverStore | None = None,
+    on_scan_folder=None,
+    on_remove_scan_folder=None,
+    on_covers_updated=None,
     on_guard_policy_changed=None,
 ) -> ThreadPoolExecutor:
     action_map = {
@@ -1190,8 +1209,71 @@ def _wire_settings(
             return
         window.settings_view.load_settings(current, store_location.current())
         window.settings_view.set_protected_games(_load_protected_game_rows())
+        if library is not None:
+            window.settings_view.set_scan_folders(library.list_scan_folders())
         window.settings_view.show_field_errors({})
         window.show_settings()
+
+    def reset_defaults() -> None:
+        result = settings_service.reset_to_defaults()
+        if library is not None:
+            try:
+                library.reset_protection_defaults()
+            except StorageError:
+                pass
+        if result.ok:
+            window.settings_view.load_settings(result.snapshot, store_location.current())
+            window.settings_view.set_protected_games(_load_protected_game_rows())
+            if on_guard_policy_changed is not None:
+                on_guard_policy_changed(result.snapshot)
+            window.settings_view.show_status("settings_reset")
+        else:
+            window.settings_view.show_field_errors(result.errors)
+
+    def fetch_missing_covers() -> None:
+        if library is None or cover_store is None:
+            window.settings_view.set_fetch_covers_result(0)
+            return
+        snap = settings_service.read()
+        enabled = window.settings_view._sgdb_enabled.isChecked()
+        api_key = window.settings_view._sgdb_api_key.text().strip()
+        if not enabled or not api_key:
+            window.settings_view.set_fetch_covers_result(0)
+            return
+        if enabled != snap.steamgriddb_enabled or api_key != snap.steamgriddb_api_key:
+            settings_service.update(
+                {"covers.steamgriddb_enabled": enabled, "covers.steamgriddb_api_key": api_key}
+            )
+        window.settings_view.set_fetch_covers_running(True)
+
+        def _worker() -> None:
+            updated = 0
+            try:
+                games = library.list_games()
+            except StorageError:
+                move_bridge.coversFetched.emit(0)
+                return
+            for game in games:
+                if game.cover_path is not None or game.custom_cover:
+                    continue
+                img = fetch_steamgriddb_cover(game.name, enabled=enabled, api_key=api_key)
+                if img is None:
+                    continue
+                try:
+                    cover_store.import_cover_bytes(game.id, img)
+                    updated += 1
+                except (OSError, ValueError, StorageError):
+                    continue
+            move_bridge.coversFetched.emit(updated)
+
+        move_worker.submit(_worker)
+
+    def _on_covers_fetched(count: int) -> None:
+        window.settings_view.set_fetch_covers_result(count)
+        if count > 0 and on_covers_updated is not None:
+            on_covers_updated()
+
+    move_bridge.coversFetched.connect(_on_covers_fetched, Qt.ConnectionType.QueuedConnection)
 
     def set_protected_game_mode(game_id: str, mode: str) -> None:
         if library is None:
@@ -1296,10 +1378,21 @@ def _wire_settings(
 
     window.library.settingsRequested.connect(open_settings)
     window.settings_view.saveRequested.connect(save_settings)
+    window.settings_view.resetDefaultsRequested.connect(reset_defaults)
     window.settings_view.openFolderRequested.connect(open_folder)
     window.settings_view.moveFolderRequested.connect(move_folder)
     window.settings_view.testProtectionRequested.connect(run_protection_test)
     window.settings_view.protectedGameModeChanged.connect(set_protected_game_mode)
+    window.settings_view.fetchCoversRequested.connect(fetch_missing_covers)
+    if on_scan_folder is not None:
+        window.settings_view.addScanFolderRequested.connect(
+            lambda folder_str: on_scan_folder(folder_str, False)
+        )
+        window.settings_view.rescanFolderRequested.connect(
+            lambda folder_str: on_scan_folder(folder_str, True)
+        )
+    if on_remove_scan_folder is not None:
+        window.settings_view.removeScanFolderRequested.connect(on_remove_scan_folder)
     events.subscribe(SettingsChanged, apply_changed)
     return move_worker
 

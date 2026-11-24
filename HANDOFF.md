@@ -6,15 +6,17 @@ Read [docs/design/README.md](docs/design/README.md) before implementation.
 
 ## Next step
 
-Execute **M17 (Part 4 — Plain-Language Grouped Settings & Arabic Guide)** `[complex]` per [docs/design/11-v1.2-plan.md](docs/design/11-v1.2-plan.md):
-1. Reorganize `gamehub/ui/settings_view.py` into 5 clear groups with a one-line plain-language explanation under every setting in EN & AR: **General**, **Capture & notes**, **Protected games**, **Library & folders** (Scan folders manager + optional SteamGridDB toggle/API key/consent note + Fetch missing covers + Data folder open/move), and **Privacy & about** (**Reset to defaults** button with confirmation).
-2. Wire Scan Folders list/add/rescan/remove, optional SteamGridDB settings + on-demand fetch missing covers, and Reset to defaults (`SettingsService.reset_to_defaults()` + `library.reset_protection_defaults()` + reload UI/hotkeys/guard) in `gamehub/app.py`.
-3. Update `docs/USER-GUIDE-AR.md` for v1.2 (Zero-background, Zero-Presence Anti-Cheat, All Launchers, Covers) and add a clear Egyptian Arabic **"شرح الإعدادات"** section.
-4. Proceed to **M18 (`v1.2.0-rc.1` build, full verification, screenshots, Desktop installer copy, pre-release publish & Council review)**.
+Execute **M18 (`v1.2.0-rc.1` packaging, full verification, pre-release publish & owner handoff)** `[complex]`:
+1. Bump version to `1.2.0-rc.1` (`gamehub/__init__.py`, `packaging/version_info.txt`, `packaging/installer.iss`, `tests/test_packaging.py`) and add `## v1.2.0-rc.1` release notes to `CHANGELOG.md`.
+2. Run full `pytest -q`, `ruff check .`, local PyInstaller one-dir build + Python-free `--smoke-test`, Inno Setup installer build (`GameHub-Setup-v1.2.0-rc.1.exe`), portable zip + `SHA256SUMS.txt`, and copy `GameHub-Setup-v1.2.0-rc.1.exe` to the owner's Desktop.
+3. Record `docs/reviews/M18-review.md`, commit & push `main`, tag `v1.2.0-rc.1`, push tag so Windows CI publishes the pre-release (or verify GitHub Release assets), and present the owner with:
+   - Numbered click-only verification checklist in Egyptian Arabic.
+   - Part 5 Rename decision (`GameRewind` recommended vs `Rewind Games` vs `PlayRewind`).
+   - Part 6 Mods & Arabizations design/mockup approval (`docs/design/12-mods-and-arabizations.md` + `docs/design/mockups/mods-arabizations.html`).
 
 ## In progress
 
-Implementing **v1.2** on `main` (replacing unverified `v1.1.0-rc.2`). Completed and Council-approved: `D-v1.2`, `M14` (`m14`), `M15` (`m15`), and `M16` (`m16`). Repository is **PUBLIC** (`adhamelgohary-dev/game-hub`).
+Implementing **v1.2** on `main`. Completed and Council-approved: `D-v1.2`, `M14` (`m14`), `M15` (`m15`), `M16` (`m16`), and `M17` (`m17`). Repository is **PUBLIC** (`adhamelgohary-dev/game-hub`).
 
 ## Fragile spots
 
