@@ -9,8 +9,6 @@ from pathlib import Path, PurePosixPath
 from time import time_ns
 from uuid import uuid4
 
-from PIL import Image, ImageOps, UnidentifiedImageError
-
 from gamehub.core.library.paths import local_path
 from gamehub.core.storage import media
 from gamehub.core.storage.db import Database, StorageError
@@ -61,6 +59,8 @@ def encode_uploaded_image(source: Path) -> bytes:
         ) from error
     if not raw:
         raise ValueError("Select a supported local image (PNG, JPEG, WebP, or BMP) up to 16 MB.")
+
+    from PIL import Image, ImageOps, UnidentifiedImageError
 
     try:
         with Image.open(BytesIO(raw), formats=tuple(_ALLOWED_FORMATS)) as loaded:

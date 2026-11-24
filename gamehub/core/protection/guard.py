@@ -27,8 +27,11 @@ from gamehub.core.protection.catalog import ProtectedGamesCatalog
 
 LOGGER = logging.getLogger(__name__)
 
-DEFAULT_GUARD_INTERVAL_SEC = 0.15
+DEFAULT_GUARD_INTERVAL_SEC = 0.08
 DEFAULT_WATCHDOG_STALE_SEC = 2.5
+_FULL_AUDIT_INTERVAL_SEC = 2.0
+_SCM_CHECK_EVERY_N_TICKS = 3
+_ENUM_PID_CAPACITY = 4096
 
 # Win32 Service Control Manager read-only constants
 _SC_MANAGER_CONNECT = 0x0001
@@ -131,11 +134,12 @@ class _ServiceStatusProcess(ctypes.Structure):
 
 
 class ToolhelpProcessScanner:
-    """Passive Toolhelp32 process basename enumeration — zero process handles."""
+    """Passive Toolhelp32 process basename enumeration + K32EnumProcesses PID diff — zero handles."""
 
     def __init__(self) -> None:
         if os.name != "nt":
             self._kernel = None
+            self._enum_procs = None
             return
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         self._kernel = kernel
@@ -150,6 +154,34 @@ class ToolhelpProcessScanner:
         self._close = kernel.CloseHandle
         self._close.argtypes = [wintypes.HANDLE]
         self._close.restype = wintypes.BOOL
+        try:
+            enum_procs = kernel.K32EnumProcesses
+            enum_procs.argtypes = [
+                ctypes.POINTER(wintypes.DWORD),
+                wintypes.DWORD,
+                ctypes.POINTER(wintypes.DWORD),
+            ]
+            enum_procs.restype = wintypes.BOOL
+            self._enum_procs = enum_procs
+            self._pid_buf = (wintypes.DWORD * _ENUM_PID_CAPACITY)()
+            self._pid_buf_cb = ctypes.sizeof(self._pid_buf)
+            self._pid_needed = wintypes.DWORD(0)
+        except AttributeError:
+            self._enum_procs = None
+
+    def pid_snapshot(self) -> bytes | None:
+        """Return an opaque bytes snapshot of active PIDs without opening any process handles.
+
+        Returns None on overflow/error so callers fall back to a full Toolhelp32 snapshot.
+        """
+        if self._enum_procs is None:
+            return None
+        if not self._enum_procs(self._pid_buf, self._pid_buf_cb, ctypes.byref(self._pid_needed)):
+            return None
+        used = int(self._pid_needed.value)
+        if used <= 0 or used >= self._pid_buf_cb:
+            return None
+        return bytes(memoryview(self._pid_buf)[:used])
 
     def list_processes(self) -> tuple[tuple[int, str], ...]:
         if self._kernel is None:
@@ -163,11 +195,15 @@ class ToolhelpProcessScanner:
         try:
             entry = _ProcessEntry32W()
             entry.dwSize = ctypes.sizeof(entry)
-            ok = self._first(snap, ctypes.byref(entry))
+            ref = ctypes.byref(entry)
+            ok = self._first(snap, ref)
             while ok:
-                if entry.th32ProcessID > 0 and entry.szExeFile:
-                    results.append((int(entry.th32ProcessID), ntpath.normcase(entry.szExeFile)))
-                ok = self._next(snap, ctypes.byref(entry))
+                pid = entry.th32ProcessID
+                if pid > 0:
+                    exe_name = entry.szExeFile
+                    if exe_name:
+                        results.append((int(pid), exe_name.lower()))
+                ok = self._next(snap, ref)
             err = ctypes.get_last_error()
             if err != _ERROR_NO_MORE_FILES:
                 raise ProtectionCheckError(f"Process32NextW failed (winerror={err})")
@@ -293,6 +329,14 @@ class ProtectionGuard:
             if exe and name
         )
         self._ignored_pids: set[int] = set()
+        self._trigger_map: dict[str, tuple[int, ProtectionTrigger]] = {}
+        self._rebuild_trigger_map_locked()
+
+        self._fast_pid_fn: Callable[[], bytes | None] | None = (
+            self._scanner.pid_snapshot if isinstance(self._scanner, ToolhelpProcessScanner) else None
+        )
+        self._last_pid_sig: bytes | None = None
+        self._last_full_scan: float = 0.0
 
         self._stop = Event()
         self._thread: Thread | None = None
@@ -300,6 +344,127 @@ class ProtectionGuard:
         self._last_heartbeat: float = 0.0
         self._failed_reason: str | None = None
         self._triggered: ProtectionTrigger | None = None
+
+    def _rebuild_trigger_map_locked(self) -> None:
+        """Precompute O(1) basename -> (priority, ProtectionTrigger) lookup map."""
+        mapping: dict[str, tuple[int, ProtectionTrigger]] = {}
+        enabled_optional = self._enabled_optional_launchers
+        disabled_entries = self._disabled_entry_ids
+
+        def _put(exe: str, prio: int, trigger: ProtectionTrigger) -> None:
+            existing = mapping.get(exe)
+            if existing is None or prio < existing[0]:
+                mapping[exe] = (prio, trigger)
+
+        # 1. Always-strict launchers (Riot Client — NEVER disableable)
+        for launcher_key, exes in self._catalog.always_strict_launchers.items():
+            disp = LAUNCHER_DISPLAY_NAMES.get(launcher_key, launcher_key)
+            for exe in exes:
+                _put(
+                    exe,
+                    1,
+                    ProtectionTrigger(
+                        kind="strict_launcher",
+                        identifier=exe,
+                        display_name=disp,
+                        stage="launcher",
+                    ),
+                )
+
+        # 2. Optional strict launchers toggled ON by user
+        for launcher_key in sorted(enabled_optional):
+            disp = LAUNCHER_DISPLAY_NAMES.get(launcher_key, launcher_key)
+            for exe in self._catalog.optional_strict_launchers.get(launcher_key, ()):
+                _put(
+                    exe,
+                    2,
+                    ProtectionTrigger(
+                        kind="strict_launcher",
+                        identifier=exe,
+                        display_name=disp,
+                        stage="launcher",
+                    ),
+                )
+
+        # 3. Earliest launcher-stage processes of protected games
+        for entry in self._catalog.entries:
+            if entry.id in disabled_entries:
+                continue
+            for exe in entry.launcher_stage_exes:
+                _put(
+                    exe,
+                    3,
+                    ProtectionTrigger(
+                        kind="launcher_stage",
+                        identifier=exe,
+                        display_name=entry.name,
+                        stage="launcher_stage",
+                        entry_id=entry.id,
+                    ),
+                )
+
+        # 4. Global & per-game anti-cheat processes
+        for exe in sorted(self._catalog.global_anti_cheat_exes):
+            matched = self._catalog.match_exe_name(exe)
+            _put(
+                exe,
+                4,
+                ProtectionTrigger(
+                    kind="anti_cheat_exe",
+                    identifier=exe,
+                    display_name=matched.name if matched is not None else exe,
+                    stage="anti_cheat",
+                    entry_id=matched.id if matched is not None else None,
+                ),
+            )
+
+        for entry in self._catalog.entries:
+            if entry.id in disabled_entries:
+                continue
+            for exe in entry.anti_cheat_exes:
+                _put(
+                    exe,
+                    5,
+                    ProtectionTrigger(
+                        kind="anti_cheat_exe",
+                        identifier=exe,
+                        display_name=entry.name,
+                        stage="anti_cheat",
+                        entry_id=entry.id,
+                    ),
+                )
+
+        # 5. Game executables of protected games
+        for entry in self._catalog.entries:
+            if entry.id in disabled_entries:
+                continue
+            for exe in entry.game_exes:
+                _put(
+                    exe,
+                    6,
+                    ProtectionTrigger(
+                        kind="game_exe",
+                        identifier=exe,
+                        display_name=entry.name,
+                        stage="game",
+                        entry_id=entry.id,
+                    ),
+                )
+
+        # 5b. User-marked custom Strict games
+        for exe, display_name in self._extra_strict_exes:
+            _put(
+                exe,
+                7,
+                ProtectionTrigger(
+                    kind="game_exe",
+                    identifier=exe,
+                    display_name=display_name,
+                    stage="game",
+                ),
+            )
+
+        self._trigger_map = mapping
 
     def update_policy(
         self,
@@ -323,6 +488,9 @@ class ProtectionGuard:
                     for exe, name in extra_strict_exes
                     if exe and name
                 )
+            self._rebuild_trigger_map_locked()
+            # Force a full process re-check on next tick after policy changes.
+            self._last_pid_sig = None
 
     def ignore_pid(self, pid: int) -> None:
         """Temporarily exempt only a self-test dummy child PID owned by the Test Protection button."""
@@ -345,120 +513,63 @@ class ProtectionGuard:
             raise ProtectionCheckError("service_probe_unavailable")
         return self.check_once()
 
-    def check_once(self) -> ProtectionTrigger | None:
+    def check_once(
+        self, *, force_full: bool = True, check_services: bool = True
+    ) -> ProtectionTrigger | None:
         """Evaluate running processes and on-demand anti-cheat services synchronously."""
         with self._scan_lock:
-            return self._check_once_locked()
+            return self._check_once_locked(force_full=force_full, check_services=check_services)
 
-    def _check_once_locked(self) -> ProtectionTrigger | None:
+    def _check_once_locked(
+        self, *, force_full: bool = True, check_services: bool = True
+    ) -> ProtectionTrigger | None:
         with self._config_lock:
-            enabled_optional = self._enabled_optional_launchers
-            disabled_entries = self._disabled_entry_ids
-            extra_strict = self._extra_strict_exes
+            trigger_map = self._trigger_map
             ignored_pids = frozenset(self._ignored_pids)
 
-        raw_procs = self._scanner.list_processes()
-        basenames: set[str] = set()
-        for pid, name in raw_procs:
-            if pid in ignored_pids:
-                continue
-            basenames.add(ntpath.normcase(ntpath.basename(name)))
+        now = self._clock()
+        did_full_scan = True
+        if not force_full and self._fast_pid_fn is not None:
+            sig = self._fast_pid_fn()
+            if (
+                sig is not None
+                and sig == self._last_pid_sig
+                and (now - self._last_full_scan) < _FULL_AUDIT_INTERVAL_SEC
+            ):
+                did_full_scan = False
+            else:
+                self._last_pid_sig = sig
 
-        # 1. Always-strict launchers (Riot Client — NEVER disableable)
-        for launcher_key, exes in self._catalog.always_strict_launchers.items():
-            for exe in exes:
-                if exe in basenames:
-                    return ProtectionTrigger(
-                        kind="strict_launcher",
-                        identifier=exe,
-                        display_name=LAUNCHER_DISPLAY_NAMES.get(launcher_key, launcher_key),
-                        stage="launcher",
-                    )
+        if did_full_scan:
+            if force_full and self._fast_pid_fn is not None:
+                self._last_pid_sig = self._fast_pid_fn()
+            raw_procs = self._scanner.list_processes()
+            self._last_full_scan = now
+            best_prio = 999
+            best_trigger: ProtectionTrigger | None = None
+            for pid, name in raw_procs:
+                if ignored_pids and pid in ignored_pids:
+                    continue
+                norm = name if ("\\" not in name and "/" not in name and name.islower()) else ntpath.normcase(ntpath.basename(name))
+                hit = trigger_map.get(norm)
+                if hit is not None and hit[0] < best_prio:
+                    best_prio, best_trigger = hit
+                    if best_prio == 1:
+                        break
+            if best_trigger is not None:
+                return best_trigger
 
-        # 2. Optional strict launchers toggled ON by user
-        for launcher_key in enabled_optional:
-            for exe in self._catalog.optional_strict_launchers.get(launcher_key, ()):
-                if exe in basenames:
-                    return ProtectionTrigger(
-                        kind="strict_launcher",
-                        identifier=exe,
-                        display_name=LAUNCHER_DISPLAY_NAMES.get(launcher_key, launcher_key),
-                        stage="launcher",
-                    )
-
-        # 3. Earliest launcher-stage processes of protected games
-        for entry in self._catalog.entries:
-            if entry.id in disabled_entries:
-                continue
-            for exe in entry.launcher_stage_exes:
-                if exe in basenames:
-                    return ProtectionTrigger(
-                        kind="launcher_stage",
-                        identifier=exe,
-                        display_name=entry.name,
-                        stage="launcher_stage",
-                        entry_id=entry.id,
-                    )
-
-        # 4. Global & per-game anti-cheat processes
-        for exe in sorted(self._catalog.global_anti_cheat_exes):
-            if exe in basenames:
-                matched = self._catalog.match_exe_name(exe)
+        # Read-only SCM status of on-demand anti-cheat services
+        if check_services or did_full_scan:
+            running_svcs = self._service_probe.running_services(self._catalog.anti_cheat_services)
+            if running_svcs:
+                first_svc = min(running_svcs)
                 return ProtectionTrigger(
-                    kind="anti_cheat_exe",
-                    identifier=exe,
-                    display_name=matched.name if matched is not None else exe,
-                    stage="anti_cheat",
-                    entry_id=matched.id if matched is not None else None,
+                    kind="anti_cheat_service",
+                    identifier=first_svc,
+                    display_name=first_svc,
+                    stage="anti_cheat_service",
                 )
-
-        for entry in self._catalog.entries:
-            if entry.id in disabled_entries:
-                continue
-            for exe in entry.anti_cheat_exes:
-                if exe in basenames:
-                    return ProtectionTrigger(
-                        kind="anti_cheat_exe",
-                        identifier=exe,
-                        display_name=entry.name,
-                        stage="anti_cheat",
-                        entry_id=entry.id,
-                    )
-
-        # 5. Game executables of protected games
-        for entry in self._catalog.entries:
-            if entry.id in disabled_entries:
-                continue
-            for exe in entry.game_exes:
-                if exe in basenames:
-                    return ProtectionTrigger(
-                        kind="game_exe",
-                        identifier=exe,
-                        display_name=entry.name,
-                        stage="game",
-                        entry_id=entry.id,
-                    )
-
-        # 5b. User-marked custom Strict games
-        for exe, display_name in extra_strict:
-            if exe in basenames:
-                return ProtectionTrigger(
-                    kind="game_exe",
-                    identifier=exe,
-                    display_name=display_name,
-                    stage="game",
-                )
-
-        # 6. Read-only SCM status of on-demand anti-cheat services
-        running_svcs = self._service_probe.running_services(self._catalog.anti_cheat_services)
-        if running_svcs:
-            first_svc = min(running_svcs)
-            return ProtectionTrigger(
-                kind="anti_cheat_service",
-                identifier=first_svc,
-                display_name=first_svc,
-                stage="anti_cheat_service",
-            )
 
         return None
 
@@ -477,20 +588,19 @@ class ProtectionGuard:
 
         def _loop() -> None:
             try:
+                tick = 0
                 while not self._stop.is_set():
                     started = self._clock()
-                    trigger = self.check_once()
+                    trigger = self.check_once(
+                        force_full=(tick == 0),
+                        check_services=(tick % _SCM_CHECK_EVERY_N_TICKS == 0),
+                    )
+                    tick += 1
                     with self._heartbeat_lock:
                         self._last_heartbeat = self._clock()
                     if trigger is not None:
                         with self._heartbeat_lock:
                             self._triggered = trigger
-                        LOGGER.info(
-                            "protection_guard_triggered kind=%s stage=%s name=%s",
-                            trigger.kind,
-                            trigger.stage,
-                            trigger.display_name,
-                        )
                         on_trigger(trigger)
                         return
                     delay = max(0.0, self._interval - (self._clock() - started))
@@ -502,10 +612,6 @@ class ProtectionGuard:
                     reason = "protection_guard_fatal"
                 with self._heartbeat_lock:
                     self._failed_reason = reason
-                try:
-                    LOGGER.error("protection_guard_failed_closed")
-                except BaseException:  # noqa: BLE001, S110
-                    pass
                 on_failure(reason)
 
         self._thread = Thread(target=_loop, name="protection-guard", daemon=True)

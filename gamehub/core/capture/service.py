@@ -4,8 +4,6 @@ import logging
 from io import BytesIO
 from time import monotonic, perf_counter_ns, time_ns
 
-from PIL import Image
-
 from gamehub.core.capture.models import CaptureFrame, CaptureLease
 from gamehub.core.capture.windows import WgcCapture, WindowProbe
 from gamehub.core.sessions.tracker import SessionTracker
@@ -102,6 +100,8 @@ def _encode(frame: CaptureFrame) -> bytes | None:
         return None
     if len(frame.pixels) != width * height * 4:
         return None
+    from PIL import Image
+
     with (
         Image.frombytes("RGBA", (width, height), frame.pixels, "raw", "BGRA") as source,
         source.convert("RGB") as image,

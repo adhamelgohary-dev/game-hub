@@ -5,8 +5,6 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageOps, UnidentifiedImageError
-
 from gamehub.core.library.paths import local_path
 from gamehub.core.storage.db import Database, StorageError
 from gamehub.core.storage.library import LibraryRepository
@@ -28,6 +26,8 @@ def encode_cover_webp(raw_bytes: bytes) -> bytes:
     """Validate bounded image bytes, normalize orientation, strip metadata, and encode WebP."""
     if not raw_bytes or len(raw_bytes) > MAX_COVER_SOURCE_BYTES:
         raise ValueError("Selected image is empty or too large.")
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
     previous_max = Image.MAX_IMAGE_PIXELS
     Image.MAX_IMAGE_PIXELS = MAX_COVER_PIXELS
     try:

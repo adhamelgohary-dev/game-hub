@@ -3,7 +3,7 @@
 from collections.abc import Callable, Sequence
 from html import escape
 
-from PySide6.QtCore import QDateTime, QLocale, Qt, Signal
+from PySide6.QtCore import QDateTime, QLocale, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QKeyEvent, QMouseEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from gamehub.core.library.models import GameSource, GameSummary
-from gamehub.ui.covers import CoverLabel
+from gamehub.ui.covers import CoverLabel, wait_for_cover_loads
 
 
 class GameCard(QFrame):
@@ -70,6 +70,7 @@ class GameCard(QFrame):
             initial_width=280,
             fixed_height=150,
             radius=9,
+            defer_load=True,
             parent=self,
         )
         layout.addWidget(self._cover)
@@ -115,19 +116,31 @@ class GameCard(QFrame):
         self._more_btn.setFixedWidth(34)
         self._more_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._more_btn.setAccessibleName(more_options_text)
-        self._more_menu = QMenu(self._more_btn)
-        self._action_change_cover = QAction(change_cover_text, self._more_menu)
-        self._action_change_cover.triggered.connect(self._on_change_cover)
-        self._more_menu.addAction(self._action_change_cover)
-        if game.custom_cover:
-            self._action_reset_cover = QAction(reset_cover_text, self._more_menu)
-            self._action_reset_cover.triggered.connect(self._on_reset_cover)
-            self._more_menu.addAction(self._action_reset_cover)
-        self._more_btn.setMenu(self._more_menu)
+        self._has_custom_cover = game.custom_cover
+        self._change_cover_text = change_cover_text
+        self._reset_cover_text = reset_cover_text
+        self._more_menu: QMenu | None = None
+        self._more_btn.clicked.connect(self._open_more_menu)
         actions.addWidget(self._play_btn, 1)
         actions.addWidget(self._details_btn, 1)
         actions.addWidget(self._more_btn)
         layout.addLayout(actions)
+
+    def ensure_cover_loaded(self) -> None:
+        self._cover.ensure_loaded()
+
+    def _open_more_menu(self) -> None:
+        if self._more_menu is None:
+            menu = QMenu(self._more_btn)
+            action_change = QAction(self._change_cover_text, menu)
+            action_change.triggered.connect(self._on_change_cover)
+            menu.addAction(action_change)
+            if self._has_custom_cover:
+                action_reset = QAction(self._reset_cover_text, menu)
+                action_reset.triggered.connect(self._on_reset_cover)
+                menu.addAction(action_reset)
+            self._more_menu = menu
+        self._more_menu.popup(self._more_btn.mapToGlobal(QPoint(0, self._more_btn.height())))
 
     def set_selected(self, value: bool) -> None:
         self.setProperty("selected", value)
@@ -295,6 +308,7 @@ class LibraryView(QWidget):
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._scroll.setWidget(self._grid_container)
+        self._scroll.verticalScrollBar().valueChanged.connect(self._load_visible_covers)
 
         self._content = QStackedWidget(self)
         self._content.addWidget(self._empty)
@@ -419,77 +433,104 @@ class LibraryView(QWidget):
                 continue
             filtered.append((game, is_strict))
 
-        for card in self._cards:
-            self._grid_layout.removeWidget(card)
-            card.deleteLater()
-        self._cards.clear()
+        self._grid_container.setUpdatesEnabled(False)
+        try:
+            for card in self._cards:
+                self._grid_layout.removeWidget(card)
+                card.deleteLater()
+            self._cards.clear()
 
-        if not self._games:
-            self._empty.setText(self.tr("No games in your library. Refresh or add a game."))
-            self._content.setCurrentWidget(self._empty)
+            if not self._games:
+                self._empty.setText(self.tr("No games in your library. Refresh or add a game."))
+                self._content.setCurrentWidget(self._empty)
+                return
+            if not filtered:
+                self._empty.setText(self.tr("No games match your current search or filter."))
+                self._content.setCurrentWidget(self._empty)
+                return
+
+            locale = QLocale()
+            sources = {
+                GameSource.STEAM: self.tr("Steam"),
+                GameSource.EPIC: self.tr("Epic Games"),
+                GameSource.RIOT: self.tr("Riot Games"),
+                GameSource.GOG: self.tr("GOG"),
+                GameSource.EA: self.tr("EA app"),
+                GameSource.UBISOFT: self.tr("Ubisoft Connect"),
+                GameSource.BATTLENET: self.tr("Battle.net"),
+                GameSource.ITCH: self.tr("itch.io"),
+                GameSource.XBOX: self.tr("Xbox"),
+                GameSource.FOLDER: self.tr("Scanned folder"),
+                GameSource.MANUAL: self.tr("Manual"),
+            }
+            strict_text = self.tr("Strict")
+            full_text = self.tr("Full")
+            play_text = self.tr("Play")
+            details_text = self.tr("Details")
+            change_cover_text = self.tr("Change cover…")
+            reset_cover_text = self.tr("Reset cover")
+            more_options_text = self.tr("More game options")
+
+            for game, is_strict in filtered:
+                source = sources[game.source]
+                if not game.installed:
+                    source = self.tr("{source} (not installed)").format(source=source)
+                last_played = self.tr("Never")
+                if game.last_played is not None:
+                    date = QDateTime.fromMSecsSinceEpoch(game.last_played).toLocalTime()
+                    last_played = locale.toString(date, QLocale.FormatType.ShortFormat)
+                card = GameCard(
+                    game,
+                    source_label=source,
+                    last_played_label=last_played,
+                    playtime_label=self._format_playtime(game.total_playtime),
+                    strict_mode=is_strict,
+                    strict_text=strict_text,
+                    full_text=full_text,
+                    play_text=play_text,
+                    details_text=details_text,
+                    change_cover_text=change_cover_text,
+                    reset_cover_text=reset_cover_text,
+                    more_options_text=more_options_text,
+                    parent=self._grid_container,
+                )
+                card.set_selected(game.id == self._selected_id)
+                card.set_busy(self._busy)
+                card.selected.connect(self.select_game)
+                card.clicked.connect(self._emit_open)
+                card.detailsRequested.connect(self._emit_open)
+                card.playRequested.connect(self._emit_play)
+                card.changeCoverRequested.connect(self._pick_cover)
+                card.resetCoverRequested.connect(self.resetCoverRequested)
+                self._cards.append(card)
+
+            self._relayout_cards()
+            self._content.setCurrentWidget(self._scroll)
+        finally:
+            self._grid_container.setUpdatesEnabled(True)
+        QTimer.singleShot(0, self._load_visible_covers)
+
+    def _load_visible_covers(self, *_args) -> None:
+        if not self._cards:
             return
-        if not filtered:
-            self._empty.setText(self.tr("No games match your current search or filter."))
-            self._content.setCurrentWidget(self._empty)
-            return
+        viewport_h = max(400, self._scroll.viewport().height())
+        scroll_y = self._scroll.verticalScrollBar().value()
+        min_y = max(0, scroll_y - viewport_h // 2)
+        max_y = scroll_y + viewport_h + viewport_h // 2
+        # Always prime the top initial rows immediately even before first geometry pass.
+        eager_count = max(12, self._columns * 4)
+        for index, card in enumerate(self._cards):
+            if index < eager_count:
+                card.ensure_cover_loaded()
+                continue
+            top = card.y()
+            bottom = top + card.height()
+            if bottom > 0 and top <= max_y and bottom >= min_y:
+                card.ensure_cover_loaded()
 
-        locale = QLocale()
-        sources = {
-            GameSource.STEAM: self.tr("Steam"),
-            GameSource.EPIC: self.tr("Epic Games"),
-            GameSource.RIOT: self.tr("Riot Games"),
-            GameSource.GOG: self.tr("GOG"),
-            GameSource.EA: self.tr("EA app"),
-            GameSource.UBISOFT: self.tr("Ubisoft Connect"),
-            GameSource.BATTLENET: self.tr("Battle.net"),
-            GameSource.ITCH: self.tr("itch.io"),
-            GameSource.XBOX: self.tr("Xbox"),
-            GameSource.FOLDER: self.tr("Scanned folder"),
-            GameSource.MANUAL: self.tr("Manual"),
-        }
-        strict_text = self.tr("Strict")
-        full_text = self.tr("Full")
-        play_text = self.tr("Play")
-        details_text = self.tr("Details")
-        change_cover_text = self.tr("Change cover…")
-        reset_cover_text = self.tr("Reset cover")
-        more_options_text = self.tr("More game options")
-
-        for game, is_strict in filtered:
-            source = sources[game.source]
-            if not game.installed:
-                source = self.tr("{source} (not installed)").format(source=source)
-            last_played = self.tr("Never")
-            if game.last_played is not None:
-                date = QDateTime.fromMSecsSinceEpoch(game.last_played).toLocalTime()
-                last_played = locale.toString(date, QLocale.FormatType.ShortFormat)
-            card = GameCard(
-                game,
-                source_label=source,
-                last_played_label=last_played,
-                playtime_label=self._format_playtime(game.total_playtime),
-                strict_mode=is_strict,
-                strict_text=strict_text,
-                full_text=full_text,
-                play_text=play_text,
-                details_text=details_text,
-                change_cover_text=change_cover_text,
-                reset_cover_text=reset_cover_text,
-                more_options_text=more_options_text,
-                parent=self._grid_container,
-            )
-            card.set_selected(game.id == self._selected_id)
-            card.set_busy(self._busy)
-            card.selected.connect(self.select_game)
-            card.clicked.connect(self._emit_open)
-            card.detailsRequested.connect(self._emit_open)
-            card.playRequested.connect(self._emit_play)
-            card.changeCoverRequested.connect(self._pick_cover)
-            card.resetCoverRequested.connect(self.resetCoverRequested)
-            self._cards.append(card)
-
-        self._relayout_cards()
-        self._content.setCurrentWidget(self._scroll)
+    def wait_for_visible_covers(self, timeout_sec: float = 10.0) -> None:
+        self._load_visible_covers()
+        wait_for_cover_loads(timeout_sec)
 
     def _relayout_cards(self) -> None:
         while self._grid_layout.count():

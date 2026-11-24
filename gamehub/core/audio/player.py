@@ -1,7 +1,8 @@
-"""Play an application-generated local voice note through Qt Multimedia."""
+"""Play an application-generated local voice note through Qt Multimedia (lazily loaded)."""
+
+from __future__ import annotations
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QUrl, Signal
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 
 MAX_CLIP_BYTES = 8 * 1024 * 1024
 
@@ -12,23 +13,37 @@ class VoicePlayer(QObject):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        self._audio = None
+        self._player = None
+        self._playing_state = None
+        self._no_error = None
+        self._buffer: QBuffer | None = None
+
+    def _ensure_backend(self) -> bool:
+        if self._player is not None:
+            return True
+        from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+
         self._audio = QAudioOutput(self)
         self._player = QMediaPlayer(self)
+        self._playing_state = QMediaPlayer.PlaybackState.PlayingState
+        self._no_error = QMediaPlayer.Error.NoError
         self._player.setAudioOutput(self._audio)
         self._player.playbackStateChanged.connect(self._changed)
         self._player.errorOccurred.connect(self._error)
-        self._buffer: QBuffer | None = None
+        return True
 
     def is_available(self) -> bool:
-        return self._player.isAvailable()
+        self._ensure_backend()
+        return bool(self._player is not None and self._player.isAvailable())
 
     def play(self, clip: bytes) -> bool:
         self.stop()
-        if (
-            not self._player.isAvailable()
-            or not 27 <= len(clip) <= MAX_CLIP_BYTES
-            or not clip.startswith(b"OggS\x00")
-        ):
+        if not 27 <= len(clip) <= MAX_CLIP_BYTES or not clip.startswith(b"OggS\x00"):
+            self.failed.emit()
+            return False
+        self._ensure_backend()
+        if self._player is None or not self._player.isAvailable():
             self.failed.emit()
             return False
         buffer = QBuffer(self)
@@ -45,15 +60,16 @@ class VoicePlayer(QObject):
     def stop(self) -> None:
         if self._buffer is None:
             return
-        self._player.stop()
-        self._player.setSource(QUrl())
+        if self._player is not None:
+            self._player.stop()
+            self._player.setSource(QUrl())
         self._buffer.close()
         self._buffer.deleteLater()
         self._buffer = None
 
-    def _changed(self, state: QMediaPlayer.PlaybackState) -> None:
-        self.playingChanged.emit(state == QMediaPlayer.PlaybackState.PlayingState)
+    def _changed(self, state) -> None:
+        self.playingChanged.emit(state == self._playing_state)
 
     def _error(self, code, _message: str) -> None:
-        if code != QMediaPlayer.Error.NoError:
+        if code != self._no_error:
             self.failed.emit()

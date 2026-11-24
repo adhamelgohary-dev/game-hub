@@ -186,8 +186,14 @@ class ModsEngine:
         self._scanner = process_scanner if process_scanner is not None else ToolhelpProcessScanner()
         self._service_probe = service_probe if service_probe is not None else WindowsServiceProbe()
         self._op_lock = Lock()
+        self._protected_cache: dict[tuple[str, str, str, int], tuple[bool, str]] = {}
 
-    def is_game_protected(self, game: GameSummary) -> tuple[bool, str]:
+    def invalidate_protection_cache(self) -> None:
+        self._protected_cache.clear()
+
+    def is_game_protected(
+        self, game: GameSummary, *, use_cache: bool = True
+    ) -> tuple[bool, str]:
         """Return (True, reason) for ANY protected/online/strict game (even if user overrode mode).
 
         Checks:
@@ -196,6 +202,28 @@ class ModsEngine:
         3. Path overlap with any protected game's install_dir in the library.
         4. Explicit strict protection mode.
         """
+        cache_key: tuple[str, str, str, int] | None = None
+        if use_cache:
+            dir_str = str(game.install_dir) if game.install_dir is not None else ""
+            dir_mtime = 0
+            if game.install_dir is not None:
+                try:
+                    dir_mtime = game.install_dir.stat().st_mtime_ns
+                except OSError:
+                    dir_mtime = -1
+            cache_key = (game.id, game.protection_mode, dir_str, dir_mtime)
+            cached = self._protected_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+        result = self._compute_game_protected(game)
+        if cache_key is not None:
+            if len(self._protected_cache) > 512:
+                self._protected_cache.clear()
+            self._protected_cache[cache_key] = result
+        return result
+
+    def _compute_game_protected(self, game: GameSummary) -> tuple[bool, str]:
         basenames_by_game = self._library.list_target_basenames()
         exes = set(basenames_by_game.get(game.id, ()))
         if game.install_dir is not None:
@@ -230,7 +258,8 @@ class ModsEngine:
         return game
 
     def _assert_not_protected(self, game: GameSummary) -> None:
-        protected, _reason = self.is_game_protected(game)
+        # Always perform a fresh uncached disk/catalog verification before any mutation.
+        protected, _reason = self.is_game_protected(game, use_cache=False)
         if protected:
             raise ProtectedGameModError(
                 "Mods and translations are turned off for online games to protect your account."

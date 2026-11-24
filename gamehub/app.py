@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from threading import Timer
 
 from PySide6.QtCore import QObject, QStandardPaths, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QDesktopServices, QImageReader
@@ -61,6 +60,7 @@ from gamehub.core.protection.catalog import (
     ProtectedGamesCatalog,
 )
 from gamehub.core.protection.guard import (
+    DEFAULT_GUARD_INTERVAL_SEC,
     ProcessScanner,
     ProtectionCheckError,
     ProtectionGuard,
@@ -99,7 +99,11 @@ from gamehub.modules.mods.models import (
     ProtectedGameModError,
 )
 from gamehub.single_instance import SingleInstance
-from gamehub.ui.covers import clear_cover_cache, set_cover_cache_dir
+from gamehub.ui.covers import (
+    clear_cover_cache,
+    set_cover_cache_dir,
+    shutdown_cover_loader,
+)
 from gamehub.ui.game_page import GamePage
 from gamehub.ui.last_moments import LastMomentsDialog
 from gamehub.ui.library_controller import LibraryController
@@ -393,7 +397,7 @@ def _run(
     catalog_path: Path | None = None,
     process_scanner: ProcessScanner | None = None,
     service_probe: ServiceProbe | None = None,
-    guard_interval_sec: float = 0.15,
+    guard_interval_sec: float = DEFAULT_GUARD_INTERVAL_SEC,
     show_guard_dialog=None,
     hard_exit_on_emergency: bool = False,
 ) -> int:
@@ -507,126 +511,25 @@ def _run(
         database = Database(data_root / "gamehub.db")
         events = EventBus(window)
         library = LibraryRepository(database)
-        cover_store: CoverStore | None = None
-        try:
-            cover_store = CoverStore(database, data_root)
-        except (OSError, StorageError):
-            logging.getLogger("gamehub").warning("cover_storage_unavailable")
-        detectors = (
-            ()
-            if smoke_test
-            else (
-                SteamDetector(),
-                EpicDetector(),
-                RiotDetector(),
-                GogDetector(),
-                EaDetector(),
-                UbisoftDetector(),
-                BattleNetDetector(),
-                ItchDetector(),
-                XboxDetector(),
-                FolderDetector(library),
-            )
-        )
-        screenshots = _open_screenshot_store(database, data_root)
-        controls = _open_controls_store(database, data_root)
-        memory = _open_memory_store(database, data_root)
         initial_settings = SettingsService(database).read()
         apply_language(app, initial_settings.language)
         apply_theme(app, initial_settings.theme)
         window.retranslate_ui()
-
-        service = LibraryService(library, detectors, events.publish)
-        window.library.present_games(service.current().games)
-        controller = LibraryController(window.library, service)
-
-        def _handle_scan_folder(folder_str: str, *, include_ignored: bool = False) -> None:
-            folder = Path(folder_str)
-            try:
-                candidates = scan_folder_candidates(
-                    folder,
-                    existing_choices=library.list_scan_choices(folder),
-                    known_exe_keys=library.list_known_exe_keys(exclude_source=GameSource.FOLDER),
-                    include_ignored=include_ignored,
-                )
-            except (OSError, ValueError):
-                window.library.show_error(
-                    window.tr("Choose an accessible local folder to scan for games.")
-                )
-                return
-            if not candidates:
-                QMessageBox.information(
-                    window,
-                    window.tr("Scan folder"),
-                    window.tr("No new game executables were found in that folder."),
-                )
-                return
-            dialog = ScanFolderDialog(folder, candidates, parent=window)
-            if dialog.exec() == ScanFolderDialog.DialogCode.Accepted:
-                controller.apply_scan_folder(folder, dialog.choices())
-
-        window.library.scanFolderRequested.connect(_handle_scan_folder)
-
-        def _handle_change_cover(game_id: str, image_path: str) -> None:
-            if cover_store is None:
-                window.notify(window.tr("GameRewind could not save the selected cover image."))
-                return
-            try:
-                cover_store.import_cover(game_id, Path(image_path))
-            except (OSError, ValueError, StorageError):
-                window.notify(window.tr("Choose a valid PNG, JPG, or WebP cover image."))
-                return
-            clear_cover_cache()
-            window.library.present_games(service.current().games)
-            if window.is_game_page_open(game_id):
-                events.publish(LibraryChanged((game_id,)))
-
-        def _handle_reset_cover(game_id: str) -> None:
-            if cover_store is None:
-                return
-            try:
-                cover_store.reset_cover(game_id)
-            except (OSError, StorageError):
-                window.notify(window.tr("GameRewind could not reset the cover image."))
-                return
-            clear_cover_cache()
-            controller.refresh()
-            if window.is_game_page_open(game_id):
-                events.publish(LibraryChanged((game_id,)))
-
-        window.library.changeCoverRequested.connect(_handle_change_cover)
-        window.library.resetCoverRequested.connect(_handle_reset_cover)
-        window.game_page.changeCoverRequested.connect(_handle_change_cover)
-        window.game_page.resetCoverRequested.connect(_handle_reset_cover)
-        window.library.lastMomentsRequested.connect(
-            lambda game_id: _open_last_moments(window, library, screenshots, game_id)
-        )
-        window.game_page.lastMomentsRequested.connect(
-            lambda game_id: _open_last_moments(window, library, screenshots, game_id)
-        )
-        window.game_page.assignExecutableRequested.connect(controller.assign_target)
-        window.game_page.set_loaders(
-            load_control_image=controls.read_image if controls is not None else (lambda _p: None),
-            load_screenshot=screenshots.read_image if screenshots is not None else (lambda _p: None),
-        )
-        window.game_page.backRequested.connect(window.show_library)
-        window.settings_view.backRequested.connect(window.show_library)
         app.setQuitOnLastWindowClosed(True)
-        window.show()
+
         if smoke_test:
+            window.show()
             _check_capture_runtime()
             _check_audio_runtime()
             QTimer.singleShot(0, app.quit)
         else:
-            remove_legacy_startup_entry()
-            pending_notes = PendingNoteRepository(database)
-            notifier = WindowsNotifier()
-
             def _emergency_shutdown(*, fail_closed: bool = False) -> None:
                 if emergency_exit[0]:
                     return
                 emergency_exit[0] = True
                 emergency_exit_code[0] = 2 if fail_closed else 0
+                if hard_exit_on_emergency:
+                    os._exit(emergency_exit_code[0])
                 try:
                     if guard_watchdog is not None:
                         guard_watchdog.stop()
@@ -653,15 +556,6 @@ def _run(
                     app.quit()
                 finally:
                     if hard_exit_on_emergency:
-                        try:
-                            if hotkeys is not None:
-                                hotkeys.close()
-                        except BaseException:  # noqa: BLE001, S110
-                            pass
-                        try:
-                            instance.close()
-                        except BaseException:  # noqa: BLE001, S110
-                            pass
                         os._exit(emergency_exit_code[0])
 
             guard_bridge = _GuardBridge(window)
@@ -682,21 +576,19 @@ def _run(
                     extra_strict_exes=_custom_strict_exes(catalog, library),
                 )
 
-            def _arm_hard_exit_failsafe(code: int) -> None:
-                if not hard_exit_on_emergency:
-                    return
-                failsafe = Timer(0.20, lambda: os._exit(code))
-                failsafe.daemon = True
-                failsafe.start()
-
             def _on_guard_trigger(trigger) -> None:
-                _arm_hard_exit_failsafe(0)
+                # Exit directly on the guard thread in production so a busy UI thread can NEVER
+                # delay shutdown when an anti-cheat game or Riot Client starts.
+                if hard_exit_on_emergency:
+                    os._exit(0)
                 guard_bridge.triggered.emit(trigger)
 
             def _on_guard_failure(reason: str) -> None:
-                _arm_hard_exit_failsafe(2)
+                if hard_exit_on_emergency:
+                    os._exit(2)
                 guard_bridge.failed.emit(reason)
 
+            # Start continuous Zero-Presence ProtectionGuard BEFORE showing the window.
             _sync_guard_policy(initial_settings)
             protection_guard.start(
                 on_trigger=_on_guard_trigger,
@@ -713,271 +605,402 @@ def _run(
             guard_watchdog.timeout.connect(_check_guard_heartbeat)
             guard_watchdog.start()
 
-            def _sync_capture_active() -> None:
-                if capture_scheduler is None or emergency_exit[0]:
+            # Show the main window immediately before heavy library/subsystem setup.
+            window.show()
+
+            def _finish_startup() -> None:
+                nonlocal controller, watcher, capture_scheduler, capture_service
+                nonlocal notes_controller, last_time_controller, controls_controller
+                nonlocal voice_player, hotkeys, move_worker
+                if emergency_exit[0]:
                     return
-                if window._tracked_games and not lifecycle.is_strict_active():
-                    capture_scheduler.start()
-                else:
-                    capture_scheduler.pause()
 
-            lifecycle = LifecycleCoordinator(
-                catalog,
-                library,
-                pending_notes,
-                external_behavior=initial_settings.external_protected_behavior,
-                suspend_hotkeys=lambda: hotkeys.suspend() if hotkeys is not None else None,
-                resume_hotkeys=lambda: hotkeys.resume() if hotkeys is not None else None,
-                pause_capture=lambda: capture_scheduler.pause()
-                if capture_scheduler is not None
-                else None,
-                resume_capture=_sync_capture_active,
-                minimize_window=window.showMinimized,
-                restore_window=lambda: None if emergency_exit[0] else window.reveal(),
-                exit_app=lambda: _emergency_shutdown(fail_closed=False),
-                show_status=lambda name: window.statusBar().showMessage(
-                    window.tr("Strict mode active for {game}").format(game=name)
-                ),
-                notify_passive=lambda name: notifier.notify_protected_game(
-                    name,
-                    title=window.tr("Protected game detected"),
-                    body=window.tr(
-                        "{game} is running. GameRewind switched to Strict mode; you can close GameRewind anytime."
-                    ).format(game=name),
-                ),
-                prompts_enabled=lambda: notes_controller.prompts_enabled
-                if notes_controller is not None
-                else False,
-            )
-            window.library.set_strict_resolver(lambda game: lifecycle.is_strict_game(game.id))
-            events.subscribe(GameStarted, window.game_started)
-            events.subscribe(GameStopped, window.game_stopped)
-            events.subscribe(GameStarted, lambda _e: _sync_capture_active())
-            events.subscribe(GameStopped, lambda _e: _sync_capture_active())
-            events.subscribe(GameStarted, lifecycle.on_game_started)
-            events.subscribe(GameStopped, lifecycle.on_game_stopped)
-            events.subscribe(ProtectedGameDetected, lifecycle.on_protected_detected)
-            events.subscribe(
-                ProtectedGameExited,
-                lambda event: lifecycle.clear_external_protected(event.entry_id),
-            )
-            events.subscribe(GameStarted, controller.session_updated)
-            events.subscribe(GameStopped, controller.session_updated)
-            sessions = SessionRepository(database)
-            launcher = LaunchCoordinator(WindowsLauncher(), events.publish)
-            tracker = SessionTracker(sessions, events.publish, launcher.claim)
-            watcher = SessionWatcher(
-                sessions,
-                ProcessProbe(),
-                tracker,
-                catalog=catalog,
-                library=library,
-                publish_protected=events.publish,
-            )
-            events.subscribe(LibraryChanged, watcher.library_changed)
-            windows = _open_window_probe(allowed_pids=tracker.active_pids)
-
-            def foreground_session() -> SessionIdentity | None:
-                active_pids = tracker.active_pids()
-                if not active_pids or windows is None:
-                    return None
-                foreground = windows.foreground(allowed_pids=active_pids)
-                return tracker.active_for(foreground.process) if foreground is not None else None
-
-            if screenshots is not None and windows is not None:
+                cover_store: CoverStore | None = None
                 try:
-                    capture_service = CaptureService(
-                        windows,
-                        tracker,
-                        WgcCapture(),
-                        screenshots,
-                        buffer_size=initial_settings.capture_buffer_size,
-                    )
-                    capture_scheduler = CaptureScheduler(
-                        capture_service, window, interval_sec=initial_settings.capture_interval_sec
-                    )
-                except (OSError, RuntimeError):
-                    logging.getLogger("gamehub").warning("capture_startup_unavailable")
-
-            notes_controller = _start_notes(
-                window,
-                database,
-                data_root,
-                library,
-                foreground_session,
-                events.publish,
-                is_strict_active=lifecycle.is_strict_active,
-                on_prompt_finished=lifecycle.on_note_prompt_finished,
-                pending_notes=pending_notes,
-            )
-            if notes_controller is not None:
-                events.subscribe(GameStopped, notes_controller.game_stopped)
-
-            voice_player = _open_voice_player(window)
-            last_time_controller = _start_last_time(
-                window,
-                memory,
-                screenshots,
-                controls,
-                voice_player,
-                launcher,
-                foreground_session,
-                is_strict_game=lifecycle.is_strict_game,
-                before_strict_launch=lambda _gid: (
-                    hotkeys.suspend() if hotkeys is not None else None,
-                    capture_scheduler.pause() if capture_scheduler is not None else None,
-                ),
-                on_launch_accepted=lambda gid, exit_after: lifecycle.on_play_launched(
-                    gid, exit_after_play=exit_after
-                ),
-            )
-            if last_time_controller is not None:
-                events.subscribe(GameStarted, last_time_controller.game_started)
-                events.subscribe(GameStopped, last_time_controller.game_stopped)
-                window.library.playRequested.connect(last_time_controller.open_play_preview)
-                window.game_page.playRequested.connect(last_time_controller.open_play_preview)
-            else:
-                window.library.playRequested.connect(
-                    lambda _game_id: window.library.show_error(
-                        window.tr("GameRewind could not open the Last time card.")
-                    )
+                    cover_store = CoverStore(database, data_root)
+                except (OSError, StorageError):
+                    logging.getLogger("gamehub").warning("cover_storage_unavailable")
+                detectors = (
+                    SteamDetector(),
+                    EpicDetector(),
+                    RiotDetector(),
+                    GogDetector(),
+                    EaDetector(),
+                    UbisoftDetector(),
+                    BattleNetDetector(),
+                    ItchDetector(),
+                    XboxDetector(),
+                    FolderDetector(library),
                 )
-                window.game_page.playRequested.connect(
-                    lambda _game_id: window.game_page.show_error(
-                        window.tr("GameRewind could not open the Last time card.")
-                    )
-                )
+                screenshots = _open_screenshot_store(database, data_root)
+                controls = _open_controls_store(database, data_root)
+                memory = _open_memory_store(database, data_root)
 
-            if controls is not None:
-                controls_controller = ControlsController(
-                    window,
-                    controls,
-                    capture_scheduler.pin_foreground if capture_scheduler is not None else None,
-                    events.publish,
-                    window.notify,
-                )
-                window.game_page.uploadControlImageRequested.connect(controls_controller.import_image)
-                window.game_page.saveControlTextRequested.connect(controls_controller.save_text)
+                service = LibraryService(library, detectors, events.publish)
+                controller = LibraryController(window.library, service)
 
-                def _controls_error(game_id: str, msg: str) -> None:
+                def _handle_scan_folder(folder_str: str, *, include_ignored: bool = False) -> None:
+                    folder = Path(folder_str)
+                    try:
+                        candidates = scan_folder_candidates(
+                            folder,
+                            existing_choices=library.list_scan_choices(folder),
+                            known_exe_keys=library.list_known_exe_keys(
+                                exclude_source=GameSource.FOLDER
+                            ),
+                            include_ignored=include_ignored,
+                        )
+                    except (OSError, ValueError):
+                        window.library.show_error(
+                            window.tr("Choose an accessible local folder to scan for games.")
+                        )
+                        return
+                    if not candidates:
+                        QMessageBox.information(
+                            window,
+                            window.tr("Scan folder"),
+                            window.tr("No new game executables were found in that folder."),
+                        )
+                        return
+                    dialog = ScanFolderDialog(folder, candidates, parent=window)
+                    if dialog.exec() == ScanFolderDialog.DialogCode.Accepted:
+                        controller.apply_scan_folder(folder, dialog.choices())
+
+                window.library.scanFolderRequested.connect(_handle_scan_folder)
+
+                def _handle_change_cover(game_id: str, image_path: str) -> None:
+                    if cover_store is None:
+                        window.notify(
+                            window.tr("GameRewind could not save the selected cover image.")
+                        )
+                        return
+                    try:
+                        cover_store.import_cover(game_id, Path(image_path))
+                    except (OSError, ValueError, StorageError):
+                        window.notify(window.tr("Choose a valid PNG, JPG, or WebP cover image."))
+                        return
+                    clear_cover_cache()
+                    window.library.present_games(service.current().games)
                     if window.is_game_page_open(game_id):
-                        window.game_page.set_saving_control_text(False)
-                        window.game_page.show_error(msg)
+                        events.publish(LibraryChanged((game_id,)))
 
-                controls_controller.errorOccurred.connect(_controls_error)
-            else:
-                def _controls_unavailable(*_args) -> None:
-                    window.game_page.set_saving_control_text(False)
-                    window.game_page.show_error(
-                        window.tr("GameRewind could not access your controls storage.")
-                    )
+                def _handle_reset_cover(game_id: str) -> None:
+                    if cover_store is None:
+                        return
+                    try:
+                        cover_store.reset_cover(game_id)
+                    except (OSError, StorageError):
+                        window.notify(window.tr("GameRewind could not reset the cover image."))
+                        return
+                    clear_cover_cache()
+                    controller.refresh()
+                    if window.is_game_page_open(game_id):
+                        events.publish(LibraryChanged((game_id,)))
 
-                window.game_page.uploadControlImageRequested.connect(_controls_unavailable)
-                window.game_page.saveControlTextRequested.connect(_controls_unavailable)
+                window.library.changeCoverRequested.connect(_handle_change_cover)
+                window.library.resetCoverRequested.connect(_handle_reset_cover)
+                window.game_page.changeCoverRequested.connect(_handle_change_cover)
+                window.game_page.resetCoverRequested.connect(_handle_reset_cover)
+                window.library.lastMomentsRequested.connect(
+                    lambda game_id: _open_last_moments(window, library, screenshots, game_id)
+                )
+                window.game_page.lastMomentsRequested.connect(
+                    lambda game_id: _open_last_moments(window, library, screenshots, game_id)
+                )
+                window.game_page.assignExecutableRequested.connect(controller.assign_target)
+                window.game_page.set_loaders(
+                    load_control_image=controls.read_image
+                    if controls is not None
+                    else (lambda _p: None),
+                    load_screenshot=screenshots.read_image
+                    if screenshots is not None
+                    else (lambda _p: None),
+                )
+                window.game_page.backRequested.connect(window.show_library)
+                window.settings_view.backRequested.connect(window.show_library)
 
-            # Startup TOCTOU re-check: verify no protected game launched during initialization
-            # before recovering mod journals, registering hotkeys, or starting background watchers.
-            try:
-                if protection_guard.check_once() is not None:
-                    _emergency_shutdown(fail_closed=False)
-                    return 0
-            except ProtectionCheckError:
-                _emergency_shutdown(fail_closed=True)
-                return 2
+                remove_legacy_startup_entry()
+                pending_notes = PendingNoteRepository(database)
+                notifier = WindowsNotifier()
 
-            mods_engine = ModsEngine(
-                database,
-                data_root,
-                library,
-                catalog,
-                is_any_game_running=lambda: bool(window._tracked_games),
-                process_scanner=process_scanner,
-                service_probe=service_probe,
-            )
-            mods_engine.recover_incomplete()
-            refresh_mods_ui = _wire_mods(window, library, mods_engine, events)
+                def _sync_capture_active() -> None:
+                    if capture_scheduler is None or emergency_exit[0]:
+                        return
+                    if window._tracked_games and not lifecycle.is_strict_active():
+                        capture_scheduler.start()
+                    else:
+                        capture_scheduler.pause()
 
-            _wire_game_page(
-                window,
-                library,
-                controls,
-                memory,
-                voice_player,
-                events,
-                catalog=catalog,
-                on_game_opened=refresh_mods_ui,
-                on_protection_changed=lambda: (
-                    _sync_guard_policy(),
-                    watcher.reload_protection(),
-                    window.library.present_games(service.current().games),
-                    refresh_mods_ui(),
-                ),
-            )
-            hotkeys = _start_hotkeys(
-                app,
-                window,
-                windows,
-                initial_settings,
-                notes_controller,
-                last_time_controller,
-                controls_controller,
-            )
-            store_location = StoreLocation(effective_default, data_root, database)
-            move_worker = _wire_settings(
-                app,
-                window,
-                database,
-                store_location,
-                hotkeys,
-                windows,
-                watcher,
-                capture_service,
-                capture_scheduler,
-                notes_controller,
-                last_time_controller,
-                controls_controller,
-                events,
-                lifecycle=lifecycle,
-                catalog=catalog,
-                library=library,
-                protection_guard=protection_guard,
-                cover_store=cover_store,
-                on_scan_folder=lambda folder_str, inc=False: (
-                    _handle_scan_folder(folder_str, include_ignored=inc),
-                    window.settings_view.set_scan_folders(library.list_scan_folders()),
-                ),
-                on_remove_scan_folder=lambda folder_str: (
-                    controller.remove_scan_folder(Path(folder_str)),
-                    window.settings_view.set_scan_folders(library.list_scan_folders()),
-                ),
-                on_covers_updated=lambda: (
-                    clear_cover_cache(),
-                    window.library.present_games(service.current().games),
-                ),
-                on_guard_policy_changed=lambda snap=None: (
-                    _sync_guard_policy(snap),
-                    watcher.reload_protection(),
-                    window.library.present_games(service.current().games),
-                    refresh_mods_ui(),
-                ),
-                on_resume_capture=_sync_capture_active,
-            )
-            watcher.start()
-            # CaptureScheduler stays paused until a non-strict Full-mode game starts!
-            QTimer.singleShot(0, controller.refresh)
-            if play_game_id and last_time_controller is not None:
-                QTimer.singleShot(
-                    0,
-                    lambda gid=play_game_id: last_time_controller.open_play_preview(
-                        gid, exit_after_play=True
+                lifecycle = LifecycleCoordinator(
+                    catalog,
+                    library,
+                    pending_notes,
+                    external_behavior=initial_settings.external_protected_behavior,
+                    suspend_hotkeys=lambda: hotkeys.suspend() if hotkeys is not None else None,
+                    resume_hotkeys=lambda: hotkeys.resume() if hotkeys is not None else None,
+                    pause_capture=lambda: capture_scheduler.pause()
+                    if capture_scheduler is not None
+                    else None,
+                    resume_capture=_sync_capture_active,
+                    minimize_window=window.showMinimized,
+                    restore_window=lambda: None if emergency_exit[0] else window.reveal(),
+                    exit_app=lambda: _emergency_shutdown(fail_closed=False),
+                    show_status=lambda name: window.statusBar().showMessage(
+                        window.tr("Strict mode active for {game}").format(game=name)
+                    ),
+                    notify_passive=lambda name: notifier.notify_protected_game(
+                        name,
+                        title=window.tr("Protected game detected"),
+                        body=window.tr(
+                            "{game} is running. GameRewind switched to Strict mode; you can close GameRewind anytime."
+                        ).format(game=name),
+                    ),
+                    prompts_enabled=lambda: notes_controller.prompts_enabled
+                    if notes_controller is not None
+                    else False,
+                )
+                window.library.set_strict_resolver(lambda game: lifecycle.is_strict_game(game.id))
+                window.library.present_games(service.current().games)
+
+                events.subscribe(GameStarted, window.game_started)
+                events.subscribe(GameStopped, window.game_stopped)
+                events.subscribe(GameStarted, lambda _e: _sync_capture_active())
+                events.subscribe(GameStopped, lambda _e: _sync_capture_active())
+                events.subscribe(GameStarted, lifecycle.on_game_started)
+                events.subscribe(GameStopped, lifecycle.on_game_stopped)
+                events.subscribe(ProtectedGameDetected, lifecycle.on_protected_detected)
+                events.subscribe(
+                    ProtectedGameExited,
+                    lambda event: lifecycle.clear_external_protected(event.entry_id),
+                )
+                events.subscribe(GameStarted, controller.session_updated)
+                events.subscribe(GameStopped, controller.session_updated)
+                sessions = SessionRepository(database)
+                launcher = LaunchCoordinator(WindowsLauncher(), events.publish)
+                tracker = SessionTracker(sessions, events.publish, launcher.claim)
+                watcher = SessionWatcher(
+                    sessions,
+                    ProcessProbe(),
+                    tracker,
+                    catalog=catalog,
+                    library=library,
+                    publish_protected=events.publish,
+                )
+                events.subscribe(LibraryChanged, watcher.library_changed)
+                windows = _open_window_probe(allowed_pids=tracker.active_pids)
+
+                def foreground_session() -> SessionIdentity | None:
+                    active_pids = tracker.active_pids()
+                    if not active_pids or windows is None:
+                        return None
+                    foreground = windows.foreground(allowed_pids=active_pids)
+                    return tracker.active_for(foreground.process) if foreground is not None else None
+
+                if screenshots is not None and windows is not None:
+                    try:
+                        capture_service = CaptureService(
+                            windows,
+                            tracker,
+                            WgcCapture(),
+                            screenshots,
+                            buffer_size=initial_settings.capture_buffer_size,
+                        )
+                        capture_scheduler = CaptureScheduler(
+                            capture_service,
+                            window,
+                            interval_sec=initial_settings.capture_interval_sec,
+                        )
+                    except (OSError, RuntimeError):
+                        logging.getLogger("gamehub").warning("capture_startup_unavailable")
+
+                notes_controller = _start_notes(
+                    window,
+                    database,
+                    data_root,
+                    library,
+                    foreground_session,
+                    events.publish,
+                    is_strict_active=lifecycle.is_strict_active,
+                    on_prompt_finished=lifecycle.on_note_prompt_finished,
+                    pending_notes=pending_notes,
+                )
+                if notes_controller is not None:
+                    events.subscribe(GameStopped, notes_controller.game_stopped)
+
+                voice_player = _open_voice_player(window)
+                last_time_controller = _start_last_time(
+                    window,
+                    memory,
+                    screenshots,
+                    controls,
+                    voice_player,
+                    launcher,
+                    foreground_session,
+                    is_strict_game=lifecycle.is_strict_game,
+                    before_strict_launch=lambda _gid: (
+                        hotkeys.suspend() if hotkeys is not None else None,
+                        capture_scheduler.pause() if capture_scheduler is not None else None,
+                    ),
+                    on_launch_accepted=lambda gid, exit_after: lifecycle.on_play_launched(
+                        gid, exit_after_play=exit_after
                     ),
                 )
-            elif notes_controller is not None:
-                QTimer.singleShot(0, notes_controller.offer_pending_notes)
+                if last_time_controller is not None:
+                    events.subscribe(GameStarted, last_time_controller.game_started)
+                    events.subscribe(GameStopped, last_time_controller.game_stopped)
+                    window.library.playRequested.connect(last_time_controller.open_play_preview)
+                    window.game_page.playRequested.connect(last_time_controller.open_play_preview)
+                else:
+                    window.library.playRequested.connect(
+                        lambda _game_id: window.library.show_error(
+                            window.tr("GameRewind could not open the Last time card.")
+                        )
+                    )
+                    window.game_page.playRequested.connect(
+                        lambda _game_id: window.game_page.show_error(
+                            window.tr("GameRewind could not open the Last time card.")
+                        )
+                    )
+
+                if controls is not None:
+                    controls_controller = ControlsController(
+                        window,
+                        controls,
+                        capture_scheduler.pin_foreground if capture_scheduler is not None else None,
+                        events.publish,
+                        window.notify,
+                    )
+                    window.game_page.uploadControlImageRequested.connect(
+                        controls_controller.import_image
+                    )
+                    window.game_page.saveControlTextRequested.connect(
+                        controls_controller.save_text
+                    )
+
+                    def _controls_error(game_id: str, msg: str) -> None:
+                        if window.is_game_page_open(game_id):
+                            window.game_page.set_saving_control_text(False)
+                            window.game_page.show_error(msg)
+
+                    controls_controller.errorOccurred.connect(_controls_error)
+                else:
+                    def _controls_unavailable(*_args) -> None:
+                        window.game_page.set_saving_control_text(False)
+                        window.game_page.show_error(
+                            window.tr("GameRewind could not access your controls storage.")
+                        )
+
+                    window.game_page.uploadControlImageRequested.connect(_controls_unavailable)
+                    window.game_page.saveControlTextRequested.connect(_controls_unavailable)
+
+                # Startup TOCTOU re-check: verify no protected game launched during initialization
+                # before recovering mod journals, registering hotkeys, or starting background watchers.
+                try:
+                    if protection_guard.check_once() is not None:
+                        _emergency_shutdown(fail_closed=False)
+                        return
+                except ProtectionCheckError:
+                    _emergency_shutdown(fail_closed=True)
+                    return
+
+                mods_engine = ModsEngine(
+                    database,
+                    data_root,
+                    library,
+                    catalog,
+                    is_any_game_running=lambda: bool(window._tracked_games),
+                    process_scanner=process_scanner,
+                    service_probe=service_probe,
+                )
+                mods_engine.recover_incomplete()
+                refresh_mods_ui = _wire_mods(window, library, mods_engine, events)
+
+                _wire_game_page(
+                    window,
+                    library,
+                    controls,
+                    memory,
+                    voice_player,
+                    events,
+                    catalog=catalog,
+                    on_game_opened=refresh_mods_ui,
+                    on_protection_changed=lambda: (
+                        mods_engine.invalidate_protection_cache(),
+                        _sync_guard_policy(),
+                        watcher.reload_protection(),
+                        window.library.present_games(service.current().games),
+                        refresh_mods_ui(),
+                    ),
+                )
+                hotkeys = _start_hotkeys(
+                    app,
+                    window,
+                    windows,
+                    initial_settings,
+                    notes_controller,
+                    last_time_controller,
+                    controls_controller,
+                )
+                store_location = StoreLocation(effective_default, data_root, database)
+                move_worker = _wire_settings(
+                    app,
+                    window,
+                    database,
+                    store_location,
+                    hotkeys,
+                    windows,
+                    watcher,
+                    capture_service,
+                    capture_scheduler,
+                    notes_controller,
+                    last_time_controller,
+                    controls_controller,
+                    events,
+                    lifecycle=lifecycle,
+                    catalog=catalog,
+                    library=library,
+                    protection_guard=protection_guard,
+                    cover_store=cover_store,
+                    on_scan_folder=lambda folder_str, inc=False: (
+                        _handle_scan_folder(folder_str, include_ignored=inc),
+                        window.settings_view.set_scan_folders(library.list_scan_folders()),
+                    ),
+                    on_remove_scan_folder=lambda folder_str: (
+                        controller.remove_scan_folder(Path(folder_str)),
+                        window.settings_view.set_scan_folders(library.list_scan_folders()),
+                    ),
+                    on_covers_updated=lambda: (
+                        clear_cover_cache(),
+                        window.library.present_games(service.current().games),
+                    ),
+                    on_guard_policy_changed=lambda snap=None: (
+                        mods_engine.invalidate_protection_cache(),
+                        _sync_guard_policy(snap),
+                        watcher.reload_protection(),
+                        window.library.present_games(service.current().games),
+                        refresh_mods_ui(),
+                    ),
+                    on_resume_capture=_sync_capture_active,
+                )
+                watcher.start()
+                # CaptureScheduler stays paused until a non-strict Full-mode game starts!
+                QTimer.singleShot(0, controller.refresh)
+                if play_game_id and last_time_controller is not None:
+                    QTimer.singleShot(
+                        0,
+                        lambda gid=play_game_id: last_time_controller.open_play_preview(
+                            gid, exit_after_play=True
+                        ),
+                    )
+                elif notes_controller is not None:
+                    QTimer.singleShot(0, notes_controller.offer_pending_notes)
+
+            QTimer.singleShot(0, _finish_startup)
         exit_code = app.exec()
         return emergency_exit_code[0] if emergency_exit[0] else exit_code
     finally:
         instance.close()
+        shutdown_cover_loader(wait=False)
         if guard_watchdog is not None:
             guard_watchdog.stop()
         protection_guard.close(wait=not emergency_exit[0])
@@ -1212,8 +1235,13 @@ def _wire_mods(
     _bind_panel(window.game_page.mods_panel)
     window.mods_view.gameSelected.connect(lambda gid: _refresh_game_panels(gid))
     window._nav_mods.clicked.connect(lambda: _refresh_game_panels())
-    events.subscribe(LibraryChanged, lambda _event: _refresh_game_panels())
-    _refresh_game_panels()
+
+    def _on_library_changed(_event) -> None:
+        mods_engine.invalidate_protection_cache()
+        if window._pages.currentWidget() in {window.mods_view, window.game_page}:
+            _refresh_game_panels()
+
+    events.subscribe(LibraryChanged, _on_library_changed)
     return _refresh_game_panels
 
 
@@ -1694,15 +1722,26 @@ def _wire_settings(
 def _check_capture_runtime() -> None:
     from inspect import signature
 
-    from gamehub.core.capture.windows import ensure_cv2_shim
+    import numpy
+
+    from gamehub.core.capture.service import _encode
+    from gamehub.core.capture.windows import _copy_frame, ensure_cv2_shim
 
     ensure_cv2_shim()
-    from windows_capture import WindowsCapture
+    from windows_capture import Frame, WindowsCapture
 
     if "window_hwnd" not in signature(WindowsCapture).parameters:
         raise RuntimeError("The exact-window capture adapter is unavailable.")
     if b"webp" not in QImageReader.supportedImageFormats():
         raise RuntimeError("The Qt WebP reader is unavailable.")
+    # Prove end-to-end windows_capture.Frame -> numpy -> Pillow WebP encode works without OpenCV.
+    sample_buf = numpy.full((8, 8, 4), 180, dtype=numpy.uint8)
+    copied = _copy_frame(Frame(sample_buf, 8, 8, 1))
+    if copied is None:
+        raise RuntimeError("The frame copy pipeline failed.")
+    encoded = _encode(copied)
+    if encoded is None or not encoded.startswith(b"RIFF") or b"WEBP" not in encoded[:16]:
+        raise RuntimeError("The WebP screenshot encoder failed.")
 
 
 def _check_audio_runtime() -> None:
